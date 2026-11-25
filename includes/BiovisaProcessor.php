@@ -21,24 +21,59 @@ class BiovisaProcessor
     {
         $combined = $subject . "\n" . $bodyText . "\n" . strip_tags($bodyHtml);
 
-        // Tolak email OTP, verifikasi akun, atau yang masih "under review" / gagal
+        // Tolak email OTP atau verifikasi akun
         if (
             stripos($combined, 'One Time Password') !== false ||
-            stripos($combined, 'Verify Your Account') !== false ||
-            stripos($combined, 'under review') !== false ||
-            stripos($subject, 'under review') !== false
+            stripos($combined, 'Verify Your Account') !== false
         ) {
             return false;
         }
 
-        // Hanya terima email yang sudah "Application Submitted Successfully" dan memiliki nomor paspor
+        // Terima jika memiliki "Application Submitted Successfully" atau ("Enrollment confirmation" + "passport number")
+        // Meskipun di dalam thread/kutipan bawah ada teks "under review" dari pesan sebelumnya, tetap terima selama ada passport number!
+        $hasSubmitted = stripos($combined, 'Application Submitted Successfully') !== false;
+        $hasPassport  = stripos($combined, 'passport number') !== false;
+
+        if ($hasSubmitted && $hasPassport) {
+            return true;
+        }
+
+        if (stripos($subject, 'under review') !== false && !$hasPassport) {
+            return false;
+        }
+        if (stripos($combined, 'under review') !== false && !$hasPassport) {
+            return false;
+        }
+
         if (
-            stripos($combined, 'Application Submitted Successfully') !== false ||
-            (stripos($subject, 'Enrollment confirmation') !== false && stripos($combined, 'passport number') !== false)
+            $hasSubmitted ||
+            (stripos($subject, 'Enrollment confirmation') !== false && $hasPassport)
         ) {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Pecah 1 pesan email jika di dalam body-nya terdapat LEBIH DARI SATU blok "Enrollment confirmation"
+     * (misalnya akibat penggabungan thread / kutipan / forward beberapa jamaah dalam 1 pesan).
+     * Mengembalikan array berisi 1 atau beberapa blok teks terpisah per Nomor Paspor.
+     */
+    public static function splitMultipleConfirmationBlocks(string $bodyText, string $bodyHtml = ''): array
+    {
+        $raw = trim($bodyText !== '' ? $bodyText : strip_tags(preg_replace('/<(br|p|div|tr)[^>]*>/i', "\n", $bodyHtml)));
+        if ($raw === '') {
+            return [$raw];
+        }
+
+        // Cari semua posisi kemunculan "Dear <NAMA>" atau "Application Submitted Successfully"
+        if (preg_match_all('/(?:Application\s+Submitted\s+Successfully[\s\S]{0,120}?)?Dear\s+[^\r\n,،<]{2,60}?\s*[,،\r\n<][\s\S]{10,450}?passport\s+number\s*[:\-–=]?\s*[A-Z0-9]{6,12}[\s\S]{0,350}?(?:Enrollment\s*Id\s*(?:is)?\s*[:\-–=#]?\s*\d{5,15}|www\.mofa\.gov\.sa|$)/iu', $raw, $matches)) {
+            if (!empty($matches[0]) && count($matches[0]) > 1) {
+                return $matches[0];
+            }
+        }
+
+        return [$raw];
     }
 
     /**

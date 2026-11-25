@@ -320,52 +320,59 @@ $clientEngineJs = <<<JS
             let newRecords = [];
             for (const acc of accounts) {
                 try {
-                    const qUrl = acc.gas_url + (acc.gas_url.includes('?') ? '&' : '?') + 'action=fetch_mofa&subject=Enrollment+confirmation&limit=15';
+                    const qUrl = acc.gas_url + (acc.gas_url.includes('?') ? '&' : '?') + 'action=fetch_mofa&subject=Enrollment+confirmation&limit=100';
                     const res = await origFetch(qUrl);
                     const data = await res.json();
                     for (const em of (data.emails || [])) {
-                        const combined = (em.subject || '') + '\\n' + (em.body_text || '');
-                        if (/One Time Password|Verify Your Account|under review/i.test(combined)) continue;
-                        if (!/Application Submitted Successfully|Enrollment confirmation/i.test(combined)) continue;
+                        const rawCombined = (em.subject || '') + '\\n' + (em.body_text || '');
+                        if (/One Time Password|Verify Your Account/i.test(rawCombined)) continue;
+                        if (/under review/i.test(rawCombined) && !/passport\\s+number/i.test(rawCombined)) continue;
+                        if (!/Application Submitted Successfully|Enrollment confirmation/i.test(rawCombined)) continue;
 
-                        const pasporM = combined.match(/passport\\s+number\\s*:\\s*([A-Z0-9]{6,12})/i) || combined.match(/\\b([A-Z]{1,3}\\d{6,8})\\b/);
-                        if (!pasporM) continue;
-                        const paspor = pasporM[1].toUpperCase();
-                        if (ghRecords.some(r => r.paspor === paspor)) continue;
+                        // Pecah jika dalam 1 pesan email terdapat beberapa blok Enrollment confirmation (multi-jamaah dalam 1 pesan/thread)
+                        const multiBlocks = rawCombined.match(/Dear\\s+[^\\r\\n,،<]{2,55}?\\s*[,،\\r\\n<][\\s\\S]{10,450}?passport\\s+number\\s*:\\s*[A-Z0-9]{6,12}[\\s\\S]{0,350}?(?:Enrollment\\s*Id\\s*(?:is)?\\s*:\\s*\\d{5,15}|www\\.mofa\\.gov\\.sa|$)/gi);
+                        const blocksToProcess = (multiBlocks && multiBlocks.length > 1) ? multiBlocks : [rawCombined];
 
-                        const namaM = combined.match(/Dear\\s+([^\\r\\n,،<]{2,55}?)\\s*[,،\\r\\n<]/i);
-                        const nama = namaM ? namaM[1].replace(/[،,]/g, '').trim().toUpperCase() : 'JAMAAH';
-                        const enrollM = combined.match(/Enrollment\\s*Id\\s*(?:is)?\\s*:\\s*(\\d{5,15})/i);
-                        const enrollId = enrollM ? enrollM[1] : '-';
-                        const timeM = combined.match(/\\bon\\s+(\\d{4}-\\d{2}-\\d{2}\\s+\\d{2}:\\d{2}:\\d{2})/i);
-                        const enrollTime = timeM ? timeM[1] : new Date().toISOString().slice(0, 19).replace('T', ' ');
-                        const filename = `\${nama}_\${paspor}.jpg`;
+                        for (const combined of blocksToProcess) {
+                            const pasporM = combined.match(/passport\\s+number\\s*:\\s*([A-Z0-9]{6,12})/i) || combined.match(/\\b([A-Z]{1,3}\\d{6,8})\\b/);
+                            if (!pasporM) continue;
+                            const paspor = pasporM[1].toUpperCase();
+                            if (ghRecords.some(r => r.paspor === paspor)) continue;
 
-                        const rendered = await renderBiovisaCanvas50KB({ nama, paspor, enrollment_id: enrollId, enrollment_time: enrollTime });
-                        ghImages[filename] = rendered.dataUrl;
+                            const namaM = combined.match(/Dear\\s+([^\\r\\n,،<]{2,55}?)\\s*[,،\\r\\n<]/i);
+                            const nama = namaM ? namaM[1].replace(/[،,]/g, '').trim().toUpperCase() : 'JAMAAH';
+                            const enrollM = combined.match(/Enrollment\\s*Id\\s*(?:is)?\\s*:\\s*(\\d{5,15})/i);
+                            const enrollId = enrollM ? enrollM[1] : '-';
+                            const timeM = combined.match(/\\bon\\s+(\\d{4}-\\d{2}-\\d{2}\\s+\\d{2}:\\d{2}:\\d{2})/i);
+                            const enrollTime = timeM ? timeM[1] : new Date().toISOString().slice(0, 19).replace('T', ' ');
+                            const filename = `\${nama}_\${paspor}.jpg`;
 
-                        const rec = {
-                            id: 'bv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-                            message_id: em.message_id || ('msg_' + Date.now()),
-                            nama,
-                            paspor,
-                            enrollment_id: enrollId,
-                            enrollment_time: enrollTime,
-                            filename,
-                            size_bytes: rendered.size_bytes,
-                            size_kb: rendered.size_kb,
-                            source_type: 'saudivisabio_email',
-                            subject: em.subject || 'Enrollment confirmation',
-                            from_email: em.from || 'Mofa <MofaBioApp@mofa.gov.sa>',
-                            to_email: (em.to || acc.email || 'phujtmkopasuruan@gmail.com').replace(/[<>]/g, ''),
-                            source_account_email: acc.email || '',
-                            source_account_label: acc.label || '',
-                            processed_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
-                            gdrive_uploaded: false
-                        };
-                        ghRecords.unshift(rec);
-                        newRecords.push(rec);
-                        addGhLog('success', `Email Enrollment Confirmation diproses -> \${filename} (\${rendered.size_kb} KB)`);
+                            const rendered = await renderBiovisaCanvas50KB({ nama, paspor, enrollment_id: enrollId, enrollment_time: enrollTime });
+                            ghImages[filename] = rendered.dataUrl;
+
+                            const rec = {
+                                id: 'bv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                                message_id: (em.message_id || ('msg_' + Date.now())) + '_' + paspor,
+                                nama,
+                                paspor,
+                                enrollment_id: enrollId,
+                                enrollment_time: enrollTime,
+                                filename,
+                                size_bytes: rendered.size_bytes,
+                                size_kb: rendered.size_kb,
+                                source_type: 'saudivisabio_email',
+                                subject: em.subject || 'Enrollment confirmation',
+                                from_email: em.from || 'Mofa <MofaBioApp@mofa.gov.sa>',
+                                to_email: (em.to || acc.email || 'phujtmkopasuruan@gmail.com').replace(/[<>]/g, ''),
+                                source_account_email: acc.email || '',
+                                source_account_label: acc.label || '',
+                                processed_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                                gdrive_uploaded: false
+                            };
+                            ghRecords.unshift(rec);
+                            newRecords.push(rec);
+                            addGhLog('success', `Email Enrollment Confirmation diproses -> \${filename} (\${rendered.size_kb} KB)`);
+                        }
                     }
                 } catch (err) {
                     addGhLog('error', `Gagal sinkron \${acc.email}: ` + err.message);

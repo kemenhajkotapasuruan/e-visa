@@ -122,9 +122,9 @@ function doGet(e) {
     }
 
     var subjectQuery = params.subject || 'Enrollment confirmation';
-    var limit = parseInt(params.limit || '15', 10);
-    if (isNaN(limit) || limit < 1) limit = 15;
-    if (limit > 30) limit = 30;
+    var limit = parseInt(params.limit || '100', 10);
+    if (isNaN(limit) || limit < 1) limit = 100;
+    if (limit > 150) limit = 150;
 
     var query = 'subject:"Enrollment confirmation"';
     var threads = GmailApp.search(query, 0, limit);
@@ -139,7 +139,11 @@ function doGet(e) {
           continue;
         }
         var plainBody = msg.getPlainBody() || '';
-        if (plainBody.indexOf('One Time Password') !== -1 || plainBody.indexOf('under review') !== -1) {
+        if (plainBody.indexOf('One Time Password') !== -1) {
+          continue;
+        }
+        // Jangan tolak jika ada "passport number" meskipun ada kutipan "under review" di thread yang sama
+        if (plainBody.indexOf('under review') !== -1 && plainBody.toLowerCase().indexOf('passport number') === -1) {
           continue;
         }
 

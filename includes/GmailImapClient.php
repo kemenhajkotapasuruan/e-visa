@@ -152,7 +152,7 @@ class GmailFetcher
             . http_build_query([
                 'action' => 'fetch_mofa',
                 'subject' => $effectiveSubject,
-                'limit' => 15
+                'limit' => 100
             ]);
 
         $ch = curl_init($queryUrl);
@@ -206,21 +206,27 @@ class GmailFetcher
                 continue;
             }
 
-            $msgId = $em['message_id'] ?? '';
-            if ($msgId !== '' && in_array($msgId, $existingMessageIds, true)) {
-                continue;
-            }
+            // Pecah jika di dalam 1 body email terdapat lebih dari 1 blok Enrollment confirmation (multi-jamaah dalam 1 pesan/thread)
+            $blocks = BiovisaProcessor::splitMultipleConfirmationBlocks($bText, $bHtml);
+            $baseMsgId = $em['message_id'] ?? ('gas_' . md5($subj . ($em['date'] ?? '') . $bText));
 
-            $filtered[] = [
-                'message_id' => $msgId ?: ('gas_' . md5($subj . ($em['date'] ?? '') . $bText)),
-                'subject' => $subj,
-                'from' => $em['from'] ?? 'Mofa <MofaBioApp@mofa.gov.sa>',
-                'to' => $em['to'] ?? $defaultToEmail,
-                'date' => $em['date'] ?? date('Y-m-d H:i:s'),
-                'body_text' => $bText,
-                'body_html' => $bHtml,
-                'attachments' => $em['attachments'] ?? []
-            ];
+            foreach ($blocks as $bIdx => $blockText) {
+                $subMsgId = count($blocks) > 1 ? ($baseMsgId . '_part' . ($bIdx + 1)) : $baseMsgId;
+                if ($subMsgId !== '' && in_array($subMsgId, $existingMessageIds, true)) {
+                    continue;
+                }
+
+                $filtered[] = [
+                    'message_id' => $subMsgId,
+                    'subject' => $subj,
+                    'from' => $em['from'] ?? 'Mofa <MofaBioApp@mofa.gov.sa>',
+                    'to' => $em['to'] ?? $defaultToEmail,
+                    'date' => $em['date'] ?? date('Y-m-d H:i:s'),
+                    'body_text' => $blockText,
+                    'body_html' => count($blocks) > 1 ? '' : $bHtml,
+                    'attachments' => $em['attachments'] ?? []
+                ];
+            }
         }
 
         return [
@@ -295,7 +301,7 @@ class GmailFetcher
             }
         }
 
-        $msgNums = array_slice($msgNums, -25);
+        $msgNums = array_slice($msgNums, -100);
         $emails = [];
         $cmdIdx = 10;
 
@@ -336,16 +342,23 @@ class GmailFetcher
                 continue;
             }
 
-            $emails[] = [
-                'message_id' => $msgId,
-                'subject' => $subject,
-                'from' => $from,
-                'to' => $email,
-                'date' => $date,
-                'body_text' => $parsedBody['text'],
-                'body_html' => $parsedBody['html'],
-                'attachments' => $parsedBody['attachments']
-            ];
+            $blocks = BiovisaProcessor::splitMultipleConfirmationBlocks($parsedBody['text'], $parsedBody['html']);
+            foreach ($blocks as $bIdx => $blockText) {
+                $subMsgId = count($blocks) > 1 ? ($msgId . '_part' . ($bIdx + 1)) : $msgId;
+                if (in_array($subMsgId, $existingMessageIds, true)) {
+                    continue;
+                }
+                $emails[] = [
+                    'message_id' => $subMsgId,
+                    'subject' => $subject,
+                    'from' => $from,
+                    'to' => $email,
+                    'date' => $date,
+                    'body_text' => $blockText,
+                    'body_html' => count($blocks) > 1 ? '' : $parsedBody['html'],
+                    'attachments' => $parsedBody['attachments']
+                ];
+            }
         }
 
         self::imapCommand($fp, 'A99', 'LOGOUT');
