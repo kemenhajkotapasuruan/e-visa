@@ -1,0 +1,608 @@
+/**
+ * content.js - Otomatisasi Upload File Biovisa (Nama_Nomor paspor.jpg <= 50KB)
+ * langsung ke komponen "Scan/Upload Biovisa (jpeg) *" pada SISKOHAT Gen.2 (WndMenu.zul)
+ */
+
+(function () {
+  // Jangan jalankan di frame kecil/kosong kecuali memiliki teks SISKOHAT atau Scan/Upload Biovisa
+  if (window.innerWidth < 300 && window.innerHeight < 200) return;
+
+  let biovisaQueue = [];
+  let autoDetectEnabled = true;
+  let autoClickSimpan = false;
+  let lastAutoUploadedPassport = '';
+  let isUploadingNow = false;
+
+  function initPanel() {
+    if (document.getElementById('silahut-siskohat-panel')) return;
+
+    const panel = document.createElement('div');
+    panel.id = 'silahut-siskohat-panel';
+    panel.innerHTML = `
+      <div class="silahut-header" id="silahut-header-bar" title="Tahan & geser untuk memindahkan posisi panel">
+        <div class="silahut-header-title">
+          <span class="silahut-drag-grip">⠿</span>
+          <span>✦ AUTO-BIOVISA SISKOHAT</span>
+        </div>
+        <button type="button" class="silahut-header-btn" id="silahut-min-btn">Minimize</button>
+      </div>
+      <div class="silahut-body">
+        <div class="silahut-status-bar" id="silahut-status-bar">
+          Menghubungkan ke server E-Visa Laragon...
+        </div>
+        <div class="silahut-controls">
+          <label class="silahut-toggle-row" title="Otomatis mendeteksi Nomor Paspor / Nama Jamaah yang sedang dibuka di Siskohat lalu langsung memasukkan file JPG Biovisa">
+            <span>Auto-Isi saat Paspor Terdeteksi</span>
+            <input type="checkbox" id="silahut-chk-autodetect" checked>
+          </label>
+          <label class="silahut-toggle-row" title="Otomatis menekan tombol Simpan di Siskohat 1.5 detik setelah file Biovisa berhasil masuk">
+            <span>Auto-Klik Tombol "Simpan"</span>
+            <input type="checkbox" id="silahut-chk-autosave">
+          </label>
+          <div class="silahut-search-row">
+            <input type="text" class="silahut-input" id="silahut-search" placeholder="Cari Nama / No. Paspor...">
+            <button type="button" class="silahut-btn silahut-btn-dark" id="silahut-cfg-btn" title="Atur Alamat IP Server E-Visa (Jika diakses dari Komputer Lain)">⚙</button>
+            <button type="button" class="silahut-btn silahut-btn-dark" id="silahut-refresh-btn" title="Muat Ulang Data dari Laragon">↻</button>
+          </div>
+          <div id="silahut-server-box" style="display:none; padding-top:4px; border-top:1px dashed #CBD5E1;">
+            <div style="font-size:10.5px; font-weight:700; color:#475569; margin-bottom:3px;">Alamat Server E-Visa (Nama PC / IP Server):</div>
+            <div class="silahut-search-row" style="margin-bottom:4px;">
+              <input type="text" class="silahut-input" id="silahut-api-url" placeholder="http://kemenhaj_kopas/e-visa/api.php">
+              <button type="button" class="silahut-btn silahut-btn-gold" id="silahut-save-url-btn">Simpan</button>
+            </div>
+            <button type="button" class="silahut-btn silahut-btn-dark" id="silahut-autodiscover-btn" style="width:100%;">
+              🔍 Cari IP Server Baru Otomatis (Tanpa Install Ulang)
+            </button>
+          </div>
+        </div>
+        <div class="silahut-list" id="silahut-list">
+          <div style="text-align:center; padding:18px; color:#64748B;">Memuat daftar Biovisa...</div>
+        </div>
+        <div class="silahut-toast" id="silahut-toast">
+          Tips: Geser header panel ini untuk memindahkan posisi.
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(panel);
+
+    const minBtn = document.getElementById('silahut-min-btn');
+
+    // Pulihkan posisi & status minimize terakhir dari localStorage
+    try {
+      const savedPos = JSON.parse(localStorage.getItem('silahut_panel_pos') || 'null');
+      if (savedPos && typeof savedPos.left === 'number' && typeof savedPos.top === 'number') {
+        const maxLeft = Math.max(10, window.innerWidth - 290);
+        const maxTop  = Math.max(6, window.innerHeight - 50);
+        panel.style.right = 'auto';
+        panel.style.left  = Math.min(Math.max(6, savedPos.left), maxLeft) + 'px';
+        panel.style.top   = Math.min(Math.max(6, savedPos.top), maxTop) + 'px';
+      }
+      if (savedPos && savedPos.minimized) {
+        panel.classList.add('minimized');
+        minBtn.textContent = 'Buka';
+      }
+    } catch (e) {}
+
+    function savePanelState() {
+      try {
+        const rect = panel.getBoundingClientRect();
+        localStorage.setItem('silahut_panel_pos', JSON.stringify({
+          left: Math.round(rect.left),
+          top: Math.round(rect.top),
+          minimized: panel.classList.contains('minimized')
+        }));
+      } catch (e) {}
+    }
+
+    minBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      panel.classList.toggle('minimized');
+      minBtn.textContent = panel.classList.contains('minimized') ? 'Buka' : 'Minimize';
+      clampPanelToViewport();
+      savePanelState();
+    });
+
+    // Fitur Drag & Drop Dinamis (Memindahkan Posisi Panel Mengambang)
+    const headerBar = document.getElementById('silahut-header-bar');
+    let isDragging = false;
+    let dragStartX = 0;
+    let dragStartY = 0;
+    let initialLeft = 0;
+    let initialTop = 0;
+
+    function clampPanelToViewport() {
+      const rect = panel.getBoundingClientRect();
+      const maxLeft = Math.max(6, window.innerWidth - rect.width - 6);
+      const maxTop  = Math.max(6, window.innerHeight - 44);
+      if (panel.style.left) {
+        const curL = parseFloat(panel.style.left) || rect.left;
+        const curT = parseFloat(panel.style.top) || rect.top;
+        panel.style.left = Math.min(Math.max(6, curL), maxLeft) + 'px';
+        panel.style.top  = Math.min(Math.max(6, curT), maxTop) + 'px';
+      }
+    }
+
+    headerBar.addEventListener('mousedown', e => {
+      if (e.target === minBtn || minBtn.contains(e.target)) return;
+      isDragging = true;
+      const rect = panel.getBoundingClientRect();
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      initialLeft = rect.left;
+      initialTop = rect.top;
+
+      panel.style.right = 'auto';
+      panel.style.left = initialLeft + 'px';
+      panel.style.top = initialTop + 'px';
+      panel.classList.add('dragging');
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', e => {
+      if (!isDragging) return;
+      const dx = e.clientX - dragStartX;
+      const dy = e.clientY - dragStartY;
+      const maxLeft = Math.max(6, window.innerWidth - panel.offsetWidth - 6);
+      const maxTop  = Math.max(6, window.innerHeight - 44);
+
+      const newLeft = Math.min(Math.max(6, initialLeft + dx), maxLeft);
+      const newTop  = Math.min(Math.max(6, initialTop + dy), maxTop);
+
+      panel.style.left = newLeft + 'px';
+      panel.style.top  = newTop + 'px';
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (!isDragging) return;
+      isDragging = false;
+      panel.classList.remove('dragging');
+      savePanelState();
+    });
+
+    window.addEventListener('resize', clampPanelToViewport);
+
+    document.getElementById('silahut-chk-autodetect').addEventListener('change', e => {
+      autoDetectEnabled = e.target.checked;
+    });
+
+    document.getElementById('silahut-chk-autosave').addEventListener('change', e => {
+      autoClickSimpan = e.target.checked;
+    });
+
+    document.getElementById('silahut-search').addEventListener('input', () => {
+      renderQueueList();
+    });
+
+    document.getElementById('silahut-refresh-btn').addEventListener('click', () => {
+      loadQueueFromLaragon();
+    });
+
+    // Pengaturan URL Server E-Visa (untuk akses dari komputer lain di jaringan LAN)
+    const cfgBtn = document.getElementById('silahut-cfg-btn');
+    const srvBox = document.getElementById('silahut-server-box');
+    const urlInp = document.getElementById('silahut-api-url');
+    const saveUrlBtn = document.getElementById('silahut-save-url-btn');
+
+    chrome.storage.local.get(['evisa_api_url'], res => {
+      urlInp.value = res.evisa_api_url || 'http://localhost/e-visa/api.php';
+    });
+
+    cfgBtn.addEventListener('click', () => {
+      srvBox.style.display = srvBox.style.display === 'none' ? 'block' : 'none';
+    });
+
+    saveUrlBtn.addEventListener('click', () => {
+      let val = (urlInp.value || '').trim();
+      if (!val) val = 'http://kemenhaj_kopas/e-visa/api.php';
+      if (!val.endsWith('api.php')) {
+        val = val.replace(/\/+$/, '') + '/api.php';
+      }
+      urlInp.value = val;
+      chrome.storage.local.set({ evisa_api_url: val }, () => {
+        srvBox.style.display = 'none';
+        setToast('✅ Alamat Server disimpan: ' + val);
+        loadQueueFromLaragon();
+      });
+    });
+
+    const autoBtn = document.getElementById('silahut-autodiscover-btn');
+    if (autoBtn) {
+      autoBtn.addEventListener('click', () => {
+        autoBtn.disabled = true;
+        autoBtn.textContent = '⏳ Memindai Jaringan LAN Kantor...';
+        setToast('🔍 Mencari alamat IP baru Server E-Visa di jaringan...');
+        chrome.runtime.sendMessage({ type: 'AUTO_DISCOVER_SERVER' }, res => {
+          autoBtn.disabled = false;
+          autoBtn.textContent = '🔍 Cari IP Server Baru Otomatis (Tanpa Install Ulang)';
+          if (res && res.ok && res.apiUrl) {
+            urlInp.value = res.apiUrl;
+            srvBox.style.display = 'none';
+            setToast('✅ Server ditemukan otomatis di: ' + res.apiUrl);
+            loadQueueFromLaragon();
+          } else {
+            setToast('❌ ' + ((res && res.error) || 'Server tidak ditemukan.'), true);
+          }
+        });
+      });
+    }
+
+    loadQueueFromLaragon();
+  }
+
+  function setToast(text, isError = false) {
+    const el = document.getElementById('silahut-toast');
+    if (!el) return;
+    el.textContent = text;
+    el.style.borderTopColor = isError ? '#DC2626' : '#D4AF37';
+    el.style.color = isError ? '#FCA5A5' : '#FFFFFF';
+  }
+
+  function escapeHtml(str) {
+    return String(str ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function loadQueueFromLaragon() {
+    const statusBar = document.getElementById('silahut-status-bar');
+    if (statusBar) statusBar.textContent = 'Mengambil daftar Biovisa dari Laragon...';
+
+    chrome.runtime.sendMessage({ type: 'FETCH_QUEUE' }, res => {
+      if (chrome.runtime.lastError || !res || !res.ok || !res.data || !res.data.ok) {
+        const err = (res && res.error) || 'Pastikan Laragon aktif (http://localhost/e-visa)';
+        if (statusBar) statusBar.innerHTML = `<span style="color:#B91C1C; font-weight:700;">❌ ${err}</span>`;
+        return;
+      }
+
+      biovisaQueue = res.data.records || [];
+      const doneCount = biovisaQueue.filter(r => r.siskohat_uploaded).length;
+      if (statusBar) {
+        statusBar.innerHTML = `Terhubung ke E-Visa Laragon: <strong>${biovisaQueue.length} File JPG</strong> (${doneCount} Selesai Siskohat)`;
+      }
+      renderQueueList();
+    });
+  }
+
+  function renderQueueList() {
+    const listEl = document.getElementById('silahut-list');
+    if (!listEl) return;
+
+    const q = (document.getElementById('silahut-search').value || '').trim().toLowerCase();
+    const filtered = biovisaQueue.filter(r => {
+      if (!q) return true;
+      return (
+        (r.nama || '').toLowerCase().includes(q) ||
+        (r.paspor || '').toLowerCase().includes(q) ||
+        (r.filename || '').toLowerCase().includes(q)
+      );
+    });
+
+    if (filtered.length === 0) {
+      listEl.innerHTML = `<div style="text-align:center; padding:18px; color:#64748B;">Tidak ada data yang cocok.</div>`;
+      return;
+    }
+
+    listEl.innerHTML = filtered.map(r => {
+      const isDone = !!r.siskohat_uploaded;
+      return `
+        <div class="silahut-item ${isDone ? 'done-siskohat' : ''}">
+          <div class="silahut-item-info">
+            <div class="silahut-item-name" title="${escapeHtml(r.filename)}">
+              ${isDone ? '✅ ' : ''}${escapeHtml(r.nama)}
+            </div>
+            <div class="silahut-item-sub">
+              Paspor: <strong>${escapeHtml(r.paspor)}</strong> &bull; ${escapeHtml(r.size_kb)} KB
+            </div>
+          </div>
+          <button type="button" class="silahut-btn silahut-btn-gold" data-upload-id="${escapeHtml(r.id)}">
+            ${isDone ? 'Upload Ulang' : 'Masukkan'}
+          </button>
+        </div>
+      `;
+    }).join('');
+
+    listEl.querySelectorAll('[data-upload-id]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-upload-id');
+        uploadRecordToSiskohatById(id);
+      });
+    });
+  }
+
+  /**
+   * DAFTAR BLOKIR MUTLAK (5 Kolom Upload Lain di Siskohat Gen.2 yang DILARANG KERAS Disentuh):
+   * 1. Scan Halaman Pertama Paspor
+   * 2. Scan/Upload Halaman Endorsement
+   * 3. Scan/Upload Keterangan Vaksin Meningitis *
+   * 4. Scan/Upload Dokumen Pendukung
+   * 5. Scan/Upload Foto Terbaru *
+   */
+  const FORBIDDEN_SECTIONS_REGEX = /Halaman\s+Pertama\s+Paspor|Scan\s+Scanner|Halaman\s+Endorsement|Keterangan\s+Vaksin\s+Meningitis|Vaksin\s+Meningitis|Dokumen\s+Pendukung|Foto\s+Terbaru/i;
+
+  /**
+   * SATU-SATUNYA TARGET YANG DIIZINKAN:
+   * Scan/Upload Biovisa (jpeg) *
+   */
+  const BIOVISA_SECTION_REGEX = /Scan\s*\/\s*Upload\s*Biovisa/i;
+
+  /**
+   * Klasifikasikan sebuah <input type="file"> dengan menelusuri parentElement ke atas satu per satu.
+   * Jika menyentuh salah satu dari 5 bagian terlarang lebih dulu, kembalikan owner = 'FORBIDDEN'.
+   * Hanya jika menyentuh "Scan/Upload Biovisa" TANPA menyentuh 5 bagian terlarang, kembalikan owner = 'BIOVISA'.
+   */
+  function classifyFileInputOwner(inputEl) {
+    let p = inputEl.parentElement;
+    for (let depth = 1; depth <= 18 && p && p !== document.body; depth++) {
+      const txt = (p.textContent || '');
+      const hasBiovisa   = BIOVISA_SECTION_REGEX.test(txt);
+      const hasForbidden = FORBIDDEN_SECTIONS_REGEX.test(txt);
+
+      if (hasForbidden && !hasBiovisa) {
+        return { owner: 'FORBIDDEN', depth, containerTag: p.tagName, containerId: p.id || '' };
+      }
+      if (hasBiovisa && !hasForbidden) {
+        return { owner: 'BIOVISA', depth, containerTag: p.tagName, containerId: p.id || '' };
+      }
+      if (hasBiovisa && hasForbidden) {
+        // Sudah mencapai container induk seluruh form yang menggabungkan beberapa bagian
+        break;
+      }
+      p = p.parentElement;
+    }
+    return { owner: 'UNKNOWN', depth: 99 };
+  }
+
+  /**
+   * Temukan container DOM yang HANYA membungkus baris "Scan/Upload Biovisa (jpeg) *"
+   * dan SAMA SEKALI TIDAK mengandung 5 bagian yang diblokir mutlak.
+   */
+  function findIsolatedBiovisaContainer() {
+    const allEls = Array.from(document.querySelectorAll('span, label, td, div, th'));
+    const biovisaLabelEl = allEls.find(
+      el => el.children.length === 0 && BIOVISA_SECTION_REGEX.test((el.textContent || '').trim())
+    );
+
+    if (!biovisaLabelEl) {
+      return { biovisaLabelEl: null, biovisaContainer: null, pilihBtnInBiovisa: null };
+    }
+
+    // Telusuri ke atas dari label "Scan/Upload Biovisa (jpeg) *" selama TIDAK mengandung 1 pun dari 5 bagian terlarang
+    let bestContainer = biovisaLabelEl.parentElement;
+    let cur = biovisaLabelEl.parentElement;
+
+    for (let depth = 1; depth <= 15 && cur && cur !== document.body; depth++) {
+      const txt = cur.textContent || '';
+      if (FORBIDDEN_SECTIONS_REGEX.test(txt)) {
+        // Berhenti! Jangan naik lagi karena level ini sudah bercampur dengan bagian yang diblokir
+        break;
+      }
+      bestContainer = cur;
+      cur = cur.parentElement;
+    }
+
+    // Cari tombol "Pilih file (maks." HANYA di dalam bestContainer (container khusus Biovisa)
+    let pilihBtnInBiovisa = null;
+    if (bestContainer) {
+      const innerEls = Array.from(bestContainer.querySelectorAll('td, span, button, a, div'));
+      pilihBtnInBiovisa = innerEls.find(
+        el => el.children.length === 0 && /Pilih\s*file/i.test((el.textContent || '').trim())
+      );
+      if (!pilihBtnInBiovisa) {
+        pilihBtnInBiovisa = innerEls.find(
+          el => el.children.length <= 2 && /Pilih\s*file/i.test((el.textContent || '').trim())
+        );
+      }
+    }
+
+    return { biovisaLabelEl, biovisaContainer: bestContainer, pilihBtnInBiovisa };
+  }
+
+  /**
+   * Cari elemen <input type="file"> KHUSUS untuk "Scan/Upload Biovisa (jpeg) *"
+   * dan BLOKIR MUTLAK 5 bagian lainnya.
+   */
+  async function findSiskohatBiovisaFileInput() {
+    let { biovisaLabelEl, biovisaContainer, pilihBtnInBiovisa } = findIsolatedBiovisaContainer();
+
+    if (!biovisaLabelEl || !biovisaContainer) {
+      return null;
+    }
+
+    // Scroll ke bagian Scan/Upload Biovisa (jpeg) *
+    biovisaLabelEl.scrollIntoView({ behavior: 'instant', block: 'center' });
+    await new Promise(r => setTimeout(r, 120));
+
+    // Trigger mouseover/mouseenter pada tombol "Pilih file" yang berada DI DALAM container Biovisa
+    if (pilihBtnInBiovisa) {
+      let target = pilihBtnInBiovisa;
+      for (let i = 0; i < 6 && target && target !== document.body; i++) {
+        // Jangan pernah keluar dari biovisaContainer
+        if (FORBIDDEN_SECTIONS_REGEX.test(target.textContent || '')) break;
+        const rect = target.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        ['mouseover', 'mouseenter', 'mousemove'].forEach(evName => {
+          target.dispatchEvent(new MouseEvent(evName, {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            clientX: cx,
+            clientY: cy
+          }));
+        });
+        target = target.parentElement;
+      }
+      await new Promise(r => setTimeout(r, 220));
+    }
+
+    // Segarkan referensi container setelah event mouseover ZK
+    ({ biovisaLabelEl, biovisaContainer, pilihBtnInBiovisa } = findIsolatedBiovisaContainer());
+
+    // 1. Cari <input type="file"> yang berada LANGSUNG DI DALAM biovisaContainer
+    if (biovisaContainer) {
+      const inputsInBiovisa = Array.from(biovisaContainer.querySelectorAll('input[type="file"]')).filter(
+        inp => classifyFileInputOwner(inp).owner === 'BIOVISA'
+      );
+      if (inputsInBiovisa.length >= 1) {
+        return {
+          fileInput: inputsInBiovisa[inputsInBiovisa.length - 1],
+          source: 'isolated_biovisa_container'
+        };
+      }
+    }
+
+    // 2. Periksa seluruh <input type="file"> di halaman, HANYA terima yang classifyFileInputOwner(inp).owner === 'BIOVISA'
+    const allFileInputs = Array.from(document.querySelectorAll('input[type="file"]'));
+    const classified = allFileInputs.map((inp, idx) => ({
+      inp,
+      idx,
+      name: inp.name || '',
+      id: inp.id || '',
+      ...classifyFileInputOwner(inp)
+    }));
+
+    chrome.runtime.sendMessage({
+      type: 'LOG_DOM_DEBUG',
+      debug: {
+        total_file_inputs: allFileInputs.length,
+        found_biovisa_label: !!biovisaLabelEl,
+        found_pilih_in_biovisa: !!pilihBtnInBiovisa,
+        classified: classified.map(c => ({ idx: c.idx, owner: c.owner, depth: c.depth, id: c.id, name: c.name, tag: c.containerTag }))
+      }
+    });
+
+    const strictlyBiovisa = classified.filter(c => c.owner === 'BIOVISA');
+    if (strictlyBiovisa.length >= 1) {
+      const picked = strictlyBiovisa[strictlyBiovisa.length - 1];
+      return {
+        fileInput: picked.inp,
+        source: 'strict_BIOVISA_idx_' + picked.idx
+      };
+    }
+
+    // TOLAK MUTLAK semua input lainnya (termasuk FORBIDDEN maupun UNKNOWN) agar 5 kolom terlarang tidak pernah tersentuh!
+    return null;
+  }
+
+  /**
+   * Konversi Base64 menjadi objek File dan suntikkan HANYA ke <input type="file"> Scan/Upload Biovisa (jpeg) *
+   */
+  async function injectFileIntoSiskohat(recordData) {
+    if (isUploadingNow) return;
+    isUploadingNow = true;
+
+    try {
+      setToast(`⏳ Memasukkan ${recordData.filename} (${recordData.size_kb} KB) khusus ke Scan/Upload Biovisa...`);
+
+      const target = await findSiskohatBiovisaFileInput();
+
+      if (!target || !target.fileInput) {
+        setToast('⚠️ Input khusus "Scan/Upload Biovisa (jpeg) *" belum aktif (5 kolom lain telah diblokir). Arahkan mouse ke tombol "Pilih file (maks." pada baris Scan/Upload Biovisa, lalu klik Masukkan.', true);
+        isUploadingNow = false;
+        return;
+      }
+
+      // Konversi base64 ke Uint8Array & File
+      const byteCharacters = atob(recordData.base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: 'image/jpeg' });
+      const fileObj = new File([blob], recordData.filename, {
+        type: 'image/jpeg',
+        lastModified: Date.now()
+      });
+
+      const dt = new DataTransfer();
+      dt.items.add(fileObj);
+
+      const inputEl = target.fileInput;
+      inputEl.files = dt.files;
+
+      // Trigger event change & input agar ZK Framework langsung mengunggah file ke server Siskohat
+      inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+      inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+
+      setToast(`✅ Berhasil memasukkan ${recordData.filename} ke Scan/Upload Biovisa [${target.source || 'OK'}]!`);
+
+      // Tandai sudah diupload ke Siskohat pada database Laragon
+      chrome.runtime.sendMessage(
+        { type: 'MARK_SISKOHAT_UPLOADED', id: recordData.id, status: true },
+        () => loadQueueFromLaragon()
+      );
+
+      // Jika opsi Auto-Klik Simpan diaktifkan, klik tombol "Simpan" di Siskohat setelah 1.8 detik
+      if (autoClickSimpan) {
+        setTimeout(() => {
+          const allBtns = Array.from(document.querySelectorAll('button, input[type="button"], a.z-button'));
+          const simpanBtn = allBtns.find(b => /^\s*Simpan\s*$/i.test(b.textContent || b.value || ''));
+          if (simpanBtn) {
+            simpanBtn.click();
+            setToast(`💾 File ${recordData.filename} masuk & tombol "Simpan" telah diklik otomatis!`);
+          }
+        }, 1800);
+      }
+    } catch (err) {
+      setToast('❌ Gagal memasukkan file ke Siskohat: ' + err.message, true);
+    } finally {
+      isUploadingNow = false;
+    }
+  }
+
+  function uploadRecordToSiskohatById(id) {
+    setToast('⏳ Mengambil file JPG <= 50KB dari Laragon...');
+    chrome.runtime.sendMessage({ type: 'FETCH_BIOVISA_FILE', id }, res => {
+      if (!res || !res.ok || !res.data || !res.data.ok) {
+        setToast('❌ Gagal mengambil file dari Laragon: ' + ((res && res.data && res.data.error) || 'Error'), true);
+        return;
+      }
+      injectFileIntoSiskohat(res.data.record);
+    });
+  }
+
+  /**
+   * Deteksi Otomatis: Pantau jika di halaman Siskohat muncul Nomor Paspor yang cocok dengan antrean Biovisa
+   */
+  function scanSiskohatPageForActivePassport() {
+    if (!autoDetectEnabled || isUploadingNow || biovisaQueue.length === 0) return;
+
+    // Pastikan sedang berada di form yang memiliki "Scan/Upload Biovisa"
+    const hasBiovisaSection = /Scan\s*\/\s*Upload\s*Biovisa/i.test(document.body.innerText || '');
+    if (!hasBiovisaSection) return;
+
+    // Kumpulkan nilai dari semua input textbox dan label di form Siskohat
+    const inputs = Array.from(document.querySelectorAll('input[type="text"], span.z-label, td'));
+    const pageTokens = new Set();
+
+    for (const el of inputs) {
+      const val = (el.value || el.textContent || '').trim().toUpperCase();
+      if (/^[A-Z]{1,3}\d{6,8}$/.test(val)) {
+        pageTokens.add(val);
+      }
+    }
+
+    if (pageTokens.size === 0) return;
+
+    for (const rec of biovisaQueue) {
+      const paspor = (rec.paspor || '').toUpperCase();
+      if (paspor && pageTokens.has(paspor)) {
+        if (lastAutoUploadedPassport !== paspor) {
+          lastAutoUploadedPassport = paspor;
+          setToast(`🔍 Nomor Paspor ${paspor} (${rec.nama}) terdeteksi di form Siskohat! Mengisi Biovisa otomatis...`);
+          uploadRecordToSiskohatById(rec.id);
+        }
+        break;
+      }
+    }
+  }
+
+  // Jalankan panel & pemantau otomatis
+  initPanel();
+  setInterval(scanSiskohatPageForActivePassport, 2200);
+})();

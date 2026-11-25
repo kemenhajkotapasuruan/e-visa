@@ -1,0 +1,238 @@
+/**
+ * content.css - Panel Mengambang SILAHUT Auto-Upload Biovisa di dalam halaman Siskohat Gen.2
+ * Tema: Putih (#FFFFFF), Off-White (#F8FAFC), Emas (#D4AF37), Charcoal (#111827)
+ */
+
+#silahut-siskohat-panel {
+  position: fixed;
+  top: 6px;
+  right: 18px;
+  width: 340px;
+  max-height: calc(100vh - 48px);
+  background: #FFFFFF;
+  color: #111827;
+  border: 1.5px solid #D4AF37;
+  border-top: 4px solid #D4AF37;
+  border-radius: 12px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.32);
+  z-index: 2147483640;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  font-size: 12.5px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 0.22s ease, max-height 0.22s ease, box-shadow 0.2s ease;
+}
+
+#silahut-siskohat-panel.dragging {
+  transition: none !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.48), 0 0 0 2px #D4AF37;
+  opacity: 0.96;
+}
+
+#silahut-siskohat-panel.minimized {
+  width: 282px;
+  max-height: 42px;
+  border-bottom-width: 1.5px;
+}
+
+#silahut-siskohat-panel.minimized .silahut-body {
+  display: none;
+}
+
+.silahut-header {
+  background: linear-gradient(135deg, #000000 0%, #111827 100%);
+  color: #FFFFFF;
+  padding: 9px 12px;
+  border-bottom: 1.5px solid #D4AF37;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+}
+
+#silahut-siskohat-panel.dragging .silahut-header {
+  cursor: grabbing;
+}
+
+.silahut-header-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-weight: 800;
+  font-size: 12px;
+  color: #D4AF37;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.silahut-drag-grip {
+  color: #C5A059;
+  font-size: 14px;
+  line-height: 1;
+  opacity: 0.85;
+}
+
+.silahut-header-btn {
+  background: rgba(212, 175, 55, 0.18);
+  color: #D4AF37;
+  border: 1px solid #D4AF37;
+  border-radius: 5px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.silahut-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.silahut-status-bar {
+  background: #F8FAFC;
+  padding: 9px 12px;
+  border-bottom: 1px solid #E2E8F0;
+  font-size: 11.5px;
+}
+
+.silahut-controls {
+  padding: 10px 12px;
+  background: #FFFFFF;
+  border-bottom: 1px solid #E2E8F0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.silahut-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.silahut-toggle-row input[type="checkbox"] {
+  accent-color: #111827;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.silahut-search-row {
+  display: flex;
+  gap: 6px;
+}
+
+.silahut-input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #C5A059;
+  border-radius: 6px;
+  font-size: 12px;
+  outline: none;
+  color: #111827;
+}
+
+.silahut-input:focus {
+  border-color: #D4AF37;
+  box-shadow: 0 0 0 2px rgba(212, 175, 55, 0.2);
+}
+
+.silahut-btn {
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.silahut-btn-gold {
+  background: linear-gradient(135deg, #D4AF37 0%, #C5A059 100%);
+  color: #000000;
+  border-color: #D4AF37;
+}
+
+.silahut-btn-gold:hover {
+  background: linear-gradient(135deg, #E2BE42 0%, #B89146 100%);
+}
+
+.silahut-btn-dark {
+  background: #111827;
+  color: #D4AF37;
+  border-color: #D4AF37;
+}
+
+.silahut-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 330px;
+  padding: 8px 10px;
+  background: #F8FAFC;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.silahut-item {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-left: 3.5px solid #D4AF37;
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  transition: all 0.15s ease;
+}
+
+.silahut-item.done-siskohat {
+  border-left-color: #15803D;
+  background: #F0FDF4;
+}
+
+.silahut-item:hover {
+  border-color: #C5A059;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+.silahut-item-info {
+  min-width: 0;
+  flex: 1;
+}
+
+.silahut-item-name {
+  font-weight: 800;
+  font-size: 12px;
+  color: #000000;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.silahut-item-sub {
+  font-family: Consolas, monospace;
+  font-size: 11px;
+  color: #475569;
+  margin-top: 1px;
+}
+
+.silahut-toast {
+  background: #111827;
+  color: #FFFFFF;
+  border-top: 2px solid #D4AF37;
+  padding: 8px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+}

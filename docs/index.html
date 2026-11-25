@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SILAHUT E-VISA (Cloud Edition) &bull; PHU Kemenag Pasuruan</title>
+    <link rel="icon" type="image/svg+xml" href="assets/logo-silahut.svg">
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="admin.css">
+</head>
+<body class="admin-body">
+    <div class="top-gov-bar">
+        <div class="top-gov-inner">
+            <div class="gov-badge-left">
+                <span class="gold-highlight">✦ KEMENTERIAN AGAMA REPUBLIK INDONESIA</span>
+                <span>&bull;</span>
+                <span>PHU Kemenag Pasuruan (GitHub Cloud Edition)</span>
+            </div>
+            <div class="gov-badge-right">
+                <span>Standar Siskohat: <strong class="gold-highlight">JPG &le; 50 KB (Nama_Nomor paspor.jpg)</strong></span>
+                <span>&bull;</span>
+                <span id="live-clock-wib">--:--:-- WIB</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="app-shell">
+        <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleMobileSidebar(false)"></div>
+
+        <aside class="admin-sidebar" id="admin-sidebar">
+            <div class="sidebar-inner-wrap">
+                <a href="index.html" class="sidebar-brand">
+                    <img src="assets/logo-silahut.svg" alt="Logo PHU Kemenag">
+                    <div class="sidebar-brand-text">
+                        <div class="brand-tag">PHU KEMENAG PASURUAN</div>
+                        <div class="brand-name">SILAHUT E-VISA</div>
+                        <div class="brand-sub">GitHub Pages Cloud Edition</div>
+                    </div>
+                </a>
+
+                <div class="sidebar-section-label">Navigasi Utama</div>
+                <nav class="sidebar-nav">
+                    <button class="sidebar-link active" id="nav-tab-records" onclick="switchTab('tab-records', this)">
+                        <span class="sidebar-link-left">
+                            <span class="nav-bullet"></span>
+                            <span>Data Biovisa Jamaah</span>
+                        </span>
+                        <span class="sidebar-badge" id="nav-badge-total">0</span>
+                    </button>
+                    <button class="sidebar-link" id="nav-tab-setup" onclick="switchTab('tab-setup', this)">
+                        <span class="sidebar-link-left">
+                            <span class="nav-bullet"></span>
+                            <span>Pengaturan URL Cloud</span>
+                        </span>
+                    </button>
+                </nav>
+
+                <div class="sidebar-section-label">Kontrol Otomatisasi</div>
+                <div class="sidebar-radar-card">
+                    <div class="radar-header">
+                        <span id="sync-dot" class="pulse-dot"></span>
+                        <div>
+                            <div style="font-size: 12px; font-weight: 700; color: var(--rich-gold);" id="sync-countdown-text">Cloud Sync Siap</div>
+                            <div style="font-size: 10.5px; color: #94A3B8;">HTML5 Canvas &le; 50KB Engine</div>
+                        </div>
+                    </div>
+                    <label class="sidebar-toggle-row">
+                        <span>Auto-Unduh ke Perangkat</span>
+                        <span class="gov-switch">
+                            <input type="checkbox" id="toggle-auto-download">
+                            <span class="gov-slider"></span>
+                        </span>
+                    </label>
+                    <label class="sidebar-toggle-row">
+                        <span>Auto-Simpan ke GDrive</span>
+                        <span class="gov-switch">
+                            <input type="checkbox" id="toggle-auto-gdrive" checked>
+                            <span class="gov-slider"></span>
+                        </span>
+                    </label>
+                </div>
+            </div>
+        </aside>
+
+        <div class="admin-main">
+            <header class="main-navbar">
+                <div class="navbar-inner">
+                    <div class="navbar-left">
+                        <button class="sidebar-toggle-btn" onclick="toggleSidebarVisibility()" title="Toggle Sidebar">
+                            <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="9" y1="3" x2="9" y2="21"></line>
+                                <polyline points="14 9 11 12 14 15"></polyline>
+                            </svg>
+                        </button>
+                        <div>
+                            <div class="portal-title-main" style="font-size: 16px;">PORTAL CLOUD AUTO-BIOVISA JAMAAH HAJI</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);" id="last-sync-info">
+                                Berjalan 100% di Browser (GitHub Pages) &bull; Terhubung langsung ke Google Apps Script
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <main class="workspace-container">
+                <section class="hero-portal bg-emerald">
+                    <div class="hero-inner">
+                        <div class="hero-copy">
+                            <div class="hero-eyebrow">✦ AKSES LUAR JARINGAN (GITHUB PAGES CLOUD EDITION)</div>
+                            <h1>Konversi Otomatis Email MOFA ke JPG &le; 50 KB &amp; Google Drive</h1>
+                            <div class="portal-title-divider"></div>
+                            <p>Versi Cloud ini berjalan langsung di domain GitHub Pages Anda tanpa memerlukan komputer kantor menyala. Mengambil email dari Google Apps Script Gmail, merender template asli <strong>SaudiVisaBio</strong> (&le; 50 KB) di browser, dan mengunggahnya ke Google Drive.</p>
+                        </div>
+                        <div class="hero-actions">
+                            <button class="btn btn-gold portal-action-btn" id="btn-sync-now" onclick="syncCloudEmails()">
+                                Tarik &amp; Proses Email Masuk
+                            </button>
+                            <button class="btn btn-charcoal" onclick="exportCloudCsv()">
+                                Ekspor Excel (.CSV)
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="tab-records" class="tab-pane active">
+                    <div class="admin-card feature-card">
+                        <div class="panel-header">
+                            <div>
+                                <h2 class="news-title">Daftar Dokumen Biovisa Jamaah (&le; 50 KB)</h2>
+                                <p style="font-size: 12.5px; color: var(--text-secondary);">Klik tombol Unduh JPG untuk mengunduh file <code>Nama_Nomor paspor.jpg</code> (&le; 50 KB).</p>
+                            </div>
+                            <input type="text" id="search-records" class="search-input" placeholder="🔍 Cari Nama Jamaah atau No. Paspor..." oninput="renderCloudTable()">
+                        </div>
+                        <div class="table-wrap">
+                            <table class="table-custom">
+                                <thead>
+                                    <tr>
+                                        <th>No</th>
+                                        <th>Preview</th>
+                                        <th>Nama File &amp; Sumber Email</th>
+                                        <th>Nama Jamaah &amp; No. Paspor</th>
+                                        <th>Enrollment ID</th>
+                                        <th>Ukuran JPG</th>
+                                        <th>Waktu Enrollment</th>
+                                        <th style="text-align:right;">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="cloud-tbody">
+                                    <tr><td colspan="8" class="empty-state">Klik "Tarik & Proses Email Masuk" di atas untuk memuat data Biovisa dari Gmail.</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <section id="tab-setup" class="tab-pane">
+                    <div class="admin-card service-item-card">
+                        <div class="panel-header">
+                            <h2 class="news-title">Pengaturan URL Web App Google Apps Script</h2>
+                            <button class="btn btn-gold" onclick="saveCloudSettings()">Simpan Pengaturan</button>
+                        </div>
+                        <div class="form-group">
+                            <label>URL Web App Google Apps Script Pembaca Gmail (Bisa lebih dari 1 URL, pisahkan per baris)</label>
+                            <textarea id="cloud-gmail-urls" class="form-control" style="min-height:110px;"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>URL Web App Google Apps Script Penyimpan Google Drive (muchammad.ali.sanjaya@gmail.com)</label>
+                            <input type="url" id="cloud-gdrive-url" class="form-control">
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    <script>
+        const ASSET_ICON = "data:image/png;base64,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";
+        const ASSET_TEXT = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKMAAAAoCAMAAAClxbqpAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAACZUExURQxtboCztIW2tl6enyF6exJxch13eEGNjm6oqZvDw7HR0U+Wl/j7+////7rW1iuAgNzq6s7i4hl1dTqJimWjpEiRklSZmez09Pz9/aDHx3KrrJbAwabKyjCCg8Pc3DWGhuny8o68vOXw8Cd9frbT1Im4ueDt7tfn5/X6+srg4L7Y2Heur9Lk5avNzvH391iam2ump5O+vwAAAPcQlfwAAAAzdFJOU///////////////////////////////////////////////////////////////////AHGevY4AAAAJcEhZcwAADsMAAA7DAcdvqGQAAARLSURBVFhH7ZZRb6NKDIXJllF1H9i+NJES6QqkDRS4pSL//8/t+WxPQlIl2ad9uOJIzcyYYXx8bA8tVqxYsWLFihX/Z2zadsdY2uo77tnvI6WY3EF6nfdTu32ya4mqqsaieOuqz1TM7WZTh73WfA77IyTtA/M2uO36arLJHdSdXIJDGJ5Dm8Wx1TAXJ/3m8yfNT2F/gJS0IzC9YRk1eyD+7HvBPkxP0RvHrV6pi1q/zcUui9sfodSOjB5uCiuf8R0e0riZj4x/qqRzLLYtVEiDU4Jup+S5/T7Mabc/7ZGvGrC8tw9kPGgX/ood75npObT1Uj6ktr2ZPQE6Hpm8aVKZ6RE22mQ9WjR91TOW7bHrh9aKuR1HC+BdowV6GJvuFDruxnGQYKYez7KiYdeT6bPqhpycw9T1n9MvpmeOxaCZTP+FnyJthuZrOF23HB78cWBLUQHc0AQYUZu1VUQFF7mgkrcysuRQPEM225EVdET3K3cm3USuneOnClIDfjgixa7eZctoZOrmM3E4VwM8KeLMEXfimL0KigsunEUAiJXH4Ejx9JMdL6ONxkDnnHVkK1UTfhKyOiwRGa9um159CQ054KUYsLqOCeq7oqbUFzoSFh7zBRLctfzSiiNKI6xS5ZEGODaqCA3ViDxs0shwKhP1RyddUIa+nVHfzTPawFyaZI6uYziynvl54WhF5VY7OeyyImB9OBx0Q82z5UqPlAE4BhrLYPgRk0+W3LlWuBfMwTKqu6x38w8tRYf6w2Q6psi4eQodrW54uite9GsnBEccdaJ3Rr2dZ2VCcdiF1/fkv+o4wnXEbCeg0LevQN3afvJds99wutURrxa2PC11RJZ9+BGCe9R/M5mxPNeyOPICZZhecKv6cD/kyYLmubx/A9v0em1tPZA+6Zg5ej3m1UJH40haG7rCL4hsT8QkNGfCA80YHBWkAPMfWccI7pZjGj6G+ATKrlaGnPaxyznanek6wtRuyYuOdqSnWX+en4tdXxy46VgOoJS1DI7W1/bdjHwlaz474ibXWhkLvx1sTRb+1Rg6kirXEef2qsYrHa2+BMtq2Mt5fiGgvVZ1biCcRD06R55ucr4w2/eLiOKeAeSD9rd6Ua70q0PMrPhoHVVxCf/awudCZuuVjsVPTbPbbNcvDr3ISI+8sAgdx5RSzfnEGVpwe+nNWu683x3mXl8sfqsX/2h8/GPVI46komo++BVHi7oa7I0rHS3ZZ8Jhx+9xtmZMFnMzmRfdLnA8A0lcR8tecImzHOd/H71M40qnc6hq5165jvkq5dJY9rVg9piHjsn+qwFauBR2rkpryfEDwXJNvbtt2TEOfewxH70CtiyGUuT4SiTebg7kiJsucWEOXE+hYw6XbVZKQuaeWovQz33jzW7nzZc59sPkB4SO2jZ8aTrk0JdIr9avjlQvakFCLx4J1w+fobZ/sx03B91Dubj2V6xYseLvoyh+A+iYiH2xRTo5AAAAAElFTkSuQmCC";
+        const ASSET_SUCC = "data:image/png;base64,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";
+
+        const DEFAULT_GMAIL_URL = "https://script.google.com/macros/s/AKfycbyIx8j5qKxn3Swo0PkWhy-H7LXjHgINC4oerr193ZJLuLnZgTcfRYV5EQ0IQlC4TGHU/exec";
+        const DEFAULT_GDRIVE_URL = "https://script.google.com/macros/s/AKfycbzyOpflleU5yXKJe7AU8q-zR3l08y7MItBeBCjNWQvPeghD5m9J_t-FPrS1kapaLFQv/exec";
+
+        let cloudRecords = JSON.parse(localStorage.getItem('silahut_cloud_records') || '[]');
+        let loadedImgs = {};
+
+        function updateClock() {
+            document.getElementById('live-clock-wib').textContent = new Date().toLocaleTimeString('id-ID') + ' WIB';
+        }
+        setInterval(updateClock, 1000);
+        updateClock();
+
+        function showToast(msg, isErr = false) {
+            const c = document.getElementById('toast-container');
+            const d = document.createElement('div');
+            d.className = 'toast' + (isErr ? ' error' : '');
+            d.textContent = msg;
+            c.appendChild(d);
+            setTimeout(() => d.remove(), 4500);
+        }
+
+        function toggleMobileSidebar(open) {
+            document.getElementById('admin-sidebar').classList.toggle('open', open);
+            document.getElementById('sidebar-backdrop').classList.toggle('open', open);
+        }
+
+        function toggleSidebarVisibility() {
+            if (window.innerWidth <= 1024) {
+                toggleMobileSidebar(!document.getElementById('admin-sidebar').classList.contains('open'));
+            } else {
+                document.body.classList.toggle('sidebar-collapsed');
+            }
+        }
+
+        function switchTab(id, btn) {
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.sidebar-link').forEach(b => b.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if (btn) btn.classList.add('active');
+            toggleMobileSidebar(false);
+        }
+
+        function loadImg(src) {
+            return new Promise(resolve => {
+                if (loadedImgs[src]) return resolve(loadedImgs[src]);
+                const img = new Image();
+                img.onload = () => { loadedImgs[src] = img; resolve(img); };
+                img.src = src;
+            });
+        }
+
+        function extractInfoFromEmail(subj, bodyText) {
+            const combined = (subj || '') + '\n' + (bodyText || '');
+            if (/One Time Password|Verify Your Account|under review/i.test(combined)) return null;
+            if (!/Application Submitted Successfully|Enrollment confirmation/i.test(combined)) return null;
+
+            const pasporM = combined.match(/passport\s+number\s*:\s*([A-Z0-9]{6,12})/i) || combined.match(/\b([A-Z]{1,3}\d{6,8})\b/);
+            if (!pasporM) return null;
+            const paspor = pasporM[1].toUpperCase();
+
+            const namaM = combined.match(/Dear\s+([^\r\n,،<]{2,55}?)\s*[,،\r\n<]/i);
+            const nama = namaM ? namaM[1].replace(/[،,]/g, '').trim().toUpperCase() : 'JAMAAH';
+
+            const enrollM = combined.match(/Enrollment\s*Id\s*(?:is)?\s*:\s*(\d{5,15})/i);
+            const enrollId = enrollM ? enrollM[1] : '-';
+
+            const timeM = combined.match(/\bon\s+(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})/i);
+            const enrollTime = timeM ? timeM[1] : '';
+
+            return { nama, paspor, enrollment_id: enrollId, enrollment_time: enrollTime, filename: `${nama}_${paspor}.jpg` };
+        }
+
+        async function renderSaudiVisaBio50KbJpg(info) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 768;
+            canvas.height = 1048;
+            const ctx = canvas.getContext('2d');
+
+            ctx.fillStyle = '#0C6D6E';
+            ctx.fillRect(0, 0, 768, 1048);
+
+            const [ic, tx, sc] = await Promise.all([loadImg(ASSET_ICON), loadImg(ASSET_TEXT), loadImg(ASSET_SUCC)]);
+            ctx.drawImage(ic, (768 - 163) / 2, 20, 163, 144);
+            ctx.drawImage(tx, (768 - 163) / 2, 166, 163, 40);
+
+            // White rounded box
+            ctx.fillStyle = '#FFFFFF';
+            ctx.beginPath();
+            ctx.roundRect(34, 226, 700, 738, 10);
+            ctx.fill();
+
+            ctx.drawImage(sc, (768 - 288) / 2, 246, 288, 305);
+
+            ctx.fillStyle = '#61ACAC';
+            ctx.font = 'bold 21px Tahoma, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Application Submitted Successfully', 384, 608);
+
+            ctx.textAlign = 'left';
+            ctx.fillStyle = '#222222';
+            ctx.font = '13px Tahoma, sans-serif';
+            ctx.fillText(`Dear ${info.nama},`, 74, 668);
+
+            const p1 = 'Thank you for enrolling your biometric information for your passport number: ';
+            ctx.fillText(p1, 74, 718);
+            const w1 = ctx.measureText(p1).width;
+            ctx.font = 'bold 13px Tahoma, sans-serif';
+            ctx.fillStyle = '#000000';
+            ctx.fillText(info.paspor, 74 + w1, 718);
+            const wp = ctx.measureText(info.paspor).width;
+            ctx.fillRect(74 + w1, 721, wp, 1.5);
+            ctx.font = '13px Tahoma, sans-serif';
+            ctx.fillText(' .', 74 + w1 + wp, 718);
+
+            ctx.fillStyle = '#222222';
+            ctx.fillText(`on ${info.enrollment_time} as part of your visa application process to the Kingdom of Saudi Arabia. and Your`, 74, 768);
+            const p2 = 'Enrollment Id is : ';
+            ctx.fillText(p2, 74, 796);
+            const w2 = ctx.measureText(p2).width;
+            ctx.font = 'bold 13px Tahoma, sans-serif';
+            ctx.fillStyle = '#0C6D6E';
+            ctx.fillText(info.enrollment_id, 74 + w2, 796);
+            const we = ctx.measureText(info.enrollment_id).width;
+            ctx.fillRect(74 + w2, 799, we, 1.5);
+            ctx.font = '13px Tahoma, sans-serif';
+            ctx.fillStyle = '#222222';
+            ctx.fillText(' .', 74 + w2 + we, 796);
+
+            ctx.fillText('For any questions on submission of your biometric data or the status of your visa application, please visit', 74, 842);
+            ctx.fillStyle = '#1155CC';
+            ctx.fillText('www.mofa.gov.sa', 74, 870);
+            ctx.fillRect(74, 873, ctx.measureText('www.mofa.gov.sa').width, 1);
+
+            ctx.fillStyle = '#EB0000';
+            ctx.font = 'italic 13px Arial, sans-serif';
+            ctx.fillText('*This is an automated message, please do not reply to this email directly*', 74, 932);
+
+            ctx.fillStyle = '#FFFFFF';
+            ctx.font = '14px Tahoma, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('© All Rights Reserved - Ministry of Foreign Affairs - Kingdom of Saudi Arabia', 384, 1008);
+
+            // Binary search quality for <= 49.5 KB
+            let low = 0.25, high = 0.92, bestDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+            for (let i = 0; i < 6; i++) {
+                const mid = (low + high) / 2;
+                const dUrl = canvas.toDataURL('image/jpeg', mid);
+                const approxBytes = Math.round((dUrl.length - 23) * 0.75);
+                if (approxBytes <= 50400) {
+                    bestDataUrl = dUrl;
+                    low = mid;
+                } else {
+                    high = mid;
+                }
+            }
+            const sizeBytes = Math.round((bestDataUrl.length - 23) * 0.75);
+            return { dataUrl: bestDataUrl, size_kb: (sizeBytes / 1024).toFixed(2) };
+        }
+
+        async function syncCloudEmails() {
+            const btn = document.getElementById('btn-sync-now');
+            btn.disabled = true;
+            btn.textContent = '⏳ Menarik Email dari Gmail...';
+            try {
+                const urls = (document.getElementById('cloud-gmail-urls').value || DEFAULT_GMAIL_URL)
+                    .split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+                let newCount = 0;
+
+                for (const u of urls) {
+                    const res = await fetch(`${u}?action=fetch_mofa&subject=${encodeURIComponent('Enrollment confirmation')}&limit=25`);
+                    const data = await res.json();
+                    for (const em of (data.emails || [])) {
+                        const info = extractInfoFromEmail(em.subject, em.body_text);
+                        if (!info) continue;
+                        if (cloudRecords.some(r => r.paspor === info.paspor)) continue;
+
+                        const rendered = await renderSaudiVisaBio50KbJpg(info);
+                        const rec = {
+                            ...info,
+                            to_email: (em.to || 'phujtmkopasuruan@gmail.com').replace(/[<>]/g, ''),
+                            size_kb: rendered.size_kb,
+                            dataUrl: rendered.dataUrl
+                        };
+                        cloudRecords.unshift(rec);
+                        newCount++;
+
+                        if (document.getElementById('toggle-auto-download').checked) {
+                            downloadDataUrl(rec.dataUrl, rec.filename);
+                        }
+                    }
+                }
+                localStorage.setItem('silahut_cloud_records', JSON.stringify(cloudRecords.slice(0, 60)));
+                renderCloudTable();
+                showToast(`✅ Sinkronisasi Cloud selesai (${newCount} Biovisa baru diproses, Total: ${cloudRecords.length}).`);
+            } catch (e) {
+                showToast('Gagal menarik email: ' + e.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Tarik & Proses Email Masuk';
+            }
+        }
+
+        function downloadDataUrl(dataUrl, filename) {
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+        }
+
+        function renderCloudTable() {
+            document.getElementById('nav-badge-total').textContent = cloudRecords.length;
+            const q = (document.getElementById('search-records').value || '').toLowerCase();
+            const filtered = cloudRecords.filter(r => !q || r.nama.toLowerCase().includes(q) || r.paspor.toLowerCase().includes(q));
+            const tbody = document.getElementById('cloud-tbody');
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="empty-state">Belum ada data Biovisa. Klik tombol "Tarik & Proses Email Masuk" di atas.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = filtered.map((r, i) => {
+                const imgSrc = r.dataUrl || ('storage/biovisa/' + encodeURIComponent(r.filename));
+                return `
+                <tr>
+                    <td>${i + 1}</td>
+                    <td><div class="thumb-box"><img src="${imgSrc}" alt="${r.filename}"></div></td>
+                    <td>
+                        <span class="filename-chip">${r.filename}</span>
+                        <div><span class="source-email-badge">Asal: <strong>${r.to_email || r.source_account_email || 'phujtmkopasuruan@gmail.com'}</strong></span></div>
+                    </td>
+                    <td><strong>${r.nama}</strong><br><code style="color:#856404;">Paspor: ${r.paspor}</code></td>
+                    <td><code>${r.enrollment_id}</code></td>
+                    <td><span class="badge badge-gold">✦ ${r.size_kb} KB</span></td>
+                    <td>${r.enrollment_time || r.processed_at || ''}</td>
+                    <td style="text-align:right;">
+                        <a class="btn btn-gold btn-sm" href="${imgSrc}" download="${r.filename}">⬇️ Unduh JPG</a>
+                    </td>
+                </tr>
+            `;
+            }).join('');
+        }
+
+        function saveCloudSettings() {
+            localStorage.setItem('silahut_gmail_urls', document.getElementById('cloud-gmail-urls').value);
+            localStorage.setItem('silahut_gdrive_url', document.getElementById('cloud-gdrive-url').value);
+            showToast('✅ Pengaturan Cloud disimpan.');
+        }
+
+        function exportCloudCsv() {
+            let csv = '\uFEFFNo,Nama Jamaah,Nomor Paspor,Enrollment ID,Asal Email,Nama File,Ukuran KB,Waktu Enrollment\n';
+            cloudRecords.forEach((r, i) => {
+                csv += `${i+1},"${r.nama}","${r.paspor}","${r.enrollment_id}","${r.to_email || ''}","${r.filename}","${r.size_kb}","${r.enrollment_time || ''}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            downloadDataUrl(URL.createObjectURL(blob), 'Rekap_Biovisa_Cloud.csv');
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            document.getElementById('cloud-gmail-urls').value = localStorage.getItem('silahut_gmail_urls') || DEFAULT_GMAIL_URL;
+            document.getElementById('cloud-gdrive-url').value = localStorage.getItem('silahut_gdrive_url') || DEFAULT_GDRIVE_URL;
+            if (cloudRecords.length === 0) {
+                try {
+                    const res = await fetch('storage/data/records.json');
+                    if (res.ok) {
+                        const initialData = await res.json();
+                        if (Array.isArray(initialData) && initialData.length > 0) {
+                            cloudRecords = initialData;
+                        }
+                    }
+                } catch (e) {}
+            }
+            renderCloudTable();
+        });
+    </script>
+</body>
+</html>

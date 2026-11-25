@@ -1,0 +1,4 @@
+# Jangan upload password / settings lokal & file temp ke repository publik
+storage/data/settings.json
+storage/data/siskohat_dom_debug.json
+storage/temp/*

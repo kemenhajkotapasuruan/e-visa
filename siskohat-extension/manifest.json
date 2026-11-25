@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "SILAHUT Auto-Upload Biovisa Siskohat Gen.2",
+  "version": "1.2.0",
+  "description": "Otomatis memasukkan file Biovisa (Nama_Nomor paspor.jpg <= 50KB) dari server E-Visa Laragon (Localhost / IP LAN Kantor) langsung ke form Scan/Upload Biovisa di Siskohat Gen.2.",
+  "permissions": [
+    "storage",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://10.100.88.48/*",
+        "http://10.100.88.48/*",
+        "*://*/SISKOHAT/*",
+        "*://*/siskohat/*"
+      ],
+      "css": ["content.css"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
+}

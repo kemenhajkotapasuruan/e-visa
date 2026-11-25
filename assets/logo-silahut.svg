@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F3E5AB"/>
+      <stop offset="45%" stop-color="#D4AF37"/>
+      <stop offset="100%" stop-color="#C5A059"/>
+    </linearGradient>
+  </defs>
+  <!-- Outer Golden Octagram / Emblem Ring -->
+  <circle cx="60" cy="60" r="56" fill="#111827" stroke="url(#goldGrad)" stroke-width="4"/>
+  <circle cx="60" cy="60" r="49" fill="none" stroke="#D4AF37" stroke-width="1.2" stroke-dasharray="3 3"/>
+  <!-- Dome / Arch Frame in Gold -->
+  <path d="M30 88 L30 50 Q30 24 60 18 Q90 24 90 50 L90 88 Z" fill="#000000" stroke="url(#goldGrad)" stroke-width="2.5"/>
+  <!-- Ka'bah Cube (Black/Charcoal with Metallic Gold Kiswah Band & Door) -->
+  <rect x="38" y="42" width="44" height="42" rx="2" fill="#111827" stroke="url(#goldGrad)" stroke-width="2"/>
+  <!-- Gold Kiswah Hizam Band -->
+  <rect x="38" y="50" width="44" height="7" fill="url(#goldGrad)"/>
+  <line x1="42" y1="53.5" x2="78" y2="53.5" stroke="#000000" stroke-width="1.2" stroke-dasharray="4 2"/>
+  <!-- Gold Ka'bah Door (Multazam) -->
+  <rect x="64" y="63" width="10" height="17" rx="1" fill="url(#goldGrad)"/>
+  <!-- Base Pedestal -->
+  <line x1="25" y1="88" x2="95" y2="88" stroke="url(#goldGrad)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="34" y1="94" x2="86" y2="94" stroke="#C5A059" stroke-width="2" stroke-linecap="round"/>
+</svg>
