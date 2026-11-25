@@ -60,21 +60,6 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                         <span class="sidebar-badge" id="nav-badge-total">0</span>
                     </button>
 
-                    <button class="sidebar-link" id="nav-tab-manual" onclick="switchTab('tab-manual', this)">
-                        <span class="sidebar-link-left">
-                            <span class="nav-bullet"></span>
-                            <span>Konversi &amp; Input Manual</span>
-                        </span>
-                    </button>
-
-                    <button class="sidebar-link" id="nav-tab-jamaah" onclick="switchTab('tab-jamaah', this)">
-                        <span class="sidebar-link-left">
-                            <span class="nav-bullet"></span>
-                            <span>Master Data Jamaah</span>
-                        </span>
-                        <span class="sidebar-badge" id="nav-badge-master">0</span>
-                    </button>
-
                     <button class="sidebar-link" id="nav-tab-siskohat" onclick="switchTab('tab-siskohat', this)">
                         <span class="sidebar-link-left">
                             <span class="nav-bullet"></span>
@@ -282,17 +267,17 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
 
                     <div class="admin-stat-card">
                         <div class="stat-top">
-                            <span class="stat-label">Progres Master Jamaah</span>
-                            <span class="badge badge-gold">REKAP</span>
+                            <span class="stat-label">Tersimpan di Siskohat</span>
+                            <span class="badge badge-gold">SISKOHAT</span>
                         </div>
                         <div class="stat-value">
-                            <span id="stat-master-done">0</span>
-                            <span style="font-size: 14px; color: var(--text-secondary); font-weight: 700;">/ <span id="stat-master-total">0</span></span>
+                            <span id="stat-siskohat-done">0</span>
+                            <span style="font-size: 14px; color: var(--text-secondary); font-weight: 700;">/ <span id="stat-siskohat-total">0</span></span>
                         </div>
                         <div class="progress-track">
-                            <div class="progress-fill" id="progress-master" style="width: 0%;"></div>
+                            <div class="progress-fill" id="progress-siskohat" style="width: 0%;"></div>
                         </div>
-                        <span class="stat-sub" id="stat-master-pending">Belum Biovisa: 0 Jamaah</span>
+                        <span class="stat-sub" id="stat-siskohat-pending">Belum Siskohat: 0 Jamaah</span>
                     </div>
                 </div>
 
@@ -468,141 +453,6 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                         <div class="table-footer">
                             <div id="pagination-info">Menampilkan 0 data</div>
                             <div style="display:flex; gap:6px;" id="pagination-buttons"></div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- ================================================================
-                     TAB 2: KONVERSI MANUAL / PASTE EMAIL / UPLOAD LAMPIRAN
-                     ================================================================ -->
-                <section id="tab-manual" class="tab-pane">
-                    <div class="admin-card service-item-card">
-                        <div class="panel-header">
-                            <div>
-                                <h2 class="news-title">Konversi Cepat: Paste Isi Email "Enrollment confirmation" atau Upload Gambar</h2>
-                                <p style="font-size: 12.5px; color: var(--text-secondary);">
-                                    Tempelkan isi email konfirmasi MOFA atau jatuhkan file screenshot biovisa. Aplikasi otomatis membaca <strong>Nama &amp; Nomor Paspor</strong>, merender <strong>JPG &le; 50 KB</strong> sesuai template asli <strong>SaudiVisaBio</strong>, dan menyimpannya ke Google Drive.
-                                </p>
-                            </div>
-                        </div>
-
-                        <form id="form-manual-create" onsubmit="submitManualCreate(event)">
-                            <div class="form-grid">
-                                <div>
-                                    <div class="form-group">
-                                        <label><span class="tracking-step">1</span> Paste Teks / Isi Email "Enrollment confirmation"</label>
-                                        <textarea id="manual-body" class="form-control" style="min-height: 195px;" placeholder="Contoh:
-Application Submitted Successfully
-Dear MOHALI،
-Thank you for enrolling your biometric information for your passport number: Y2047838 .
-on 2026-11-25 02:07:35 as part of your visa application process to the Kingdom of Saudi Arabia. and Your Enrollment Id is : 42163441 ." oninput="autoExtractFromPaste()"></textarea>
-                                        <div class="help-text">Saat teks email ditempelkan di atas, Nama Jamaah, Nomor Paspor, dan Enrollment ID otomatis terdeteksi.</div>
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label><span class="tracking-step">2</span> Atau Drag &amp; Drop File Gambar Biovisa (Opsional)</label>
-                                        <div class="dropzone-area" id="manual-dropzone" onclick="document.getElementById('manual-file').click()">
-                                            <div style="font-size: 24px; margin-bottom: 4px;">📥</div>
-                                            <div style="font-weight: 700; font-size: 13px; color: var(--charcoal);" id="dropzone-label">
-                                                Klik atau tarik file gambar (JPG/PNG/WebP) ke area ini
-                                            </div>
-                                            <div style="font-size: 11.5px; color: var(--text-secondary); margin-top: 2px;">
-                                                Kosongkan jika ingin merender otomatis menggunakan template asli email SaudiVisaBio
-                                            </div>
-                                            <input type="file" id="manual-file" accept="image/*" style="display:none;" onchange="updateDropzoneLabel()">
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <div class="form-group">
-                                        <label>Subjek Email</label>
-                                        <input type="text" id="manual-subject" class="form-control" value="Enrollment confirmation" oninput="autoExtractFromPaste()">
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label>Nama Jamaah (Otomatis Terdeteksi / Bisa Diedit)</label>
-                                        <input type="text" id="manual-nama" class="form-control" placeholder="Contoh: MOHALI" required oninput="updatePreviewFilename()">
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label>Nomor Paspor (Otomatis Terdeteksi / Bisa Diedit)</label>
-                                        <input type="text" id="manual-paspor" class="form-control" placeholder="Contoh: Y2047838" required oninput="updatePreviewFilename()">
-                                    </div>
-
-                                    <div class="form-group">
-                                        <label>MOFA Enrollment ID (Opsional)</label>
-                                        <input type="text" id="manual-enrollment" class="form-control" placeholder="Contoh: 42163441">
-                                    </div>
-
-                                    <div class="verification-panel">
-                                        <div style="font-size: 12px; color: var(--charcoal); font-weight: 700;">Preview Penamaan File Output (&le; 50 KB):</div>
-                                        <div id="manual-filename-preview" style="font-family: Consolas, monospace; font-size: 15.5px; font-weight: 800; color: var(--pure-black); margin-top: 4px;">
-                                            NAMA JAMAAH_NOMORPASPOR.jpg
-                                        </div>
-                                    </div>
-
-                                    <button type="submit" class="btn btn-gold portal-action-btn" id="btn-submit-manual" style="width: 100%; padding: 12px;">
-                                        ⚡ Proses JPG &le; 50KB, Download &amp; Simpan ke GDrive
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </section>
-
-                <!-- ================================================================
-                     TAB 3: MASTER DATA JAMAAH
-                     ================================================================ -->
-                <section id="tab-jamaah" class="tab-pane">
-                    <div class="admin-card feature-card">
-                        <div class="panel-header">
-                            <div>
-                                <h2 class="news-title">Master Data Jamaah &amp; Monitoring Kelengkapan Biovisa</h2>
-                                <p style="font-size: 12.5px; color: var(--text-secondary);">
-                                    Tempelkan daftar Nama &amp; Nomor Paspor dari Excel/Siskohat untuk memantau siapa saja jamaah yang sudah maupun belum melakukan perekaman Biovisa.
-                                </p>
-                            </div>
-                        </div>
-
-                        <div class="form-grid">
-                            <div>
-                                <div class="form-group">
-                                    <label>Copy-Paste Daftar Jamaah dari Excel / Siskohat (Format: <code>Nama [Tab/Koma] Nomor Paspor</code>)</label>
-                                    <textarea id="jamaah-import-text" class="form-control" style="min-height: 190px; font-family: Consolas, monospace; font-size: 12.5px;" placeholder="Contoh copy-paste langsung 2 kolom dari Excel:
-MOHALI	Y2047838
-DJONI PRAWOTO	Y2212595
-ANDIYAH WIJAYANTI, Y2212598"></textarea>
-                                    <div class="help-text">Mendukung pemisah Tab (copy langsung dari Excel), koma (<code>,</code>), titik koma (<code>;</code>), atau garis bawah (<code>_</code>).</div>
-                                </div>
-                                <div style="display:flex; gap:10px; align-items:center;">
-                                    <button class="btn btn-gold" onclick="importJamaahMaster(false)">
-                                        📥 Tambahkan ke Master Jamaah
-                                    </button>
-                                    <button class="btn btn-outline" onclick="importJamaahMaster(true)">
-                                        🔄 Ganti Semua Data Master
-                                    </button>
-                                </div>
-                            </div>
-
-                            <div>
-                                <div class="table-wrap" style="max-height: 360px; overflow-y: auto;">
-                                    <table class="table-custom">
-                                        <thead>
-                                            <tr>
-                                                <th>Nama Jamaah</th>
-                                                <th>Nomor Paspor</th>
-                                                <th>Status Biovisa</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody id="jamaah-master-tbody">
-                                            <tr>
-                                                <td colspan="3" class="empty-state">Belum ada Master Data Jamaah.</td>
-                                            </tr>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </section>
@@ -1062,12 +912,11 @@ ANDIYAH WIJAYANTI, Y2212598"></textarea>
             const valid50 = s.valid_50kb_count ?? 0;
             const upGdrive = s.uploaded_gdrive ?? 0;
             const pendGdrive = s.pending_gdrive ?? 0;
-            const mDone = s.master_done ?? 0;
-            const mTotal = s.total_master_jamaah ?? 0;
+            const siskohatDone = (appState.records || []).filter(r => !!r.siskohat_uploaded).length;
+            const siskohatPending = Math.max(0, total - siskohatDone);
 
             document.getElementById('stat-total').textContent = total;
             document.getElementById('nav-badge-total').textContent = total;
-            document.getElementById('nav-badge-master').textContent = mTotal;
 
             document.getElementById('stat-50kb').textContent = `${valid50} / ${total}`;
             document.getElementById('stat-avg-kb').textContent = `Rata-rata ${s.avg_size_kb ?? 0} KB`;
@@ -1076,13 +925,12 @@ ANDIYAH WIJAYANTI, Y2212598"></textarea>
             document.getElementById('stat-gdrive').textContent = `${upGdrive} / ${total}`;
             document.getElementById('progress-gdrive').style.width = total > 0 ? `${Math.round((upGdrive / total) * 100)}%` : '0%';
 
-            document.getElementById('stat-master-done').textContent = mDone;
-            document.getElementById('stat-master-total').textContent = mTotal;
-            document.getElementById('stat-master-pending').textContent = `Belum Biovisa: ${s.master_pending ?? 0} Jamaah`;
-            document.getElementById('progress-master').style.width = mTotal > 0 ? `${Math.round((mDone / mTotal) * 100)}%` : '0%';
+            document.getElementById('stat-siskohat-done').textContent = siskohatDone;
+            document.getElementById('stat-siskohat-total').textContent = total;
+            document.getElementById('stat-siskohat-pending').textContent = `Belum Siskohat: ${siskohatPending} Jamaah`;
+            document.getElementById('progress-siskohat').style.width = total > 0 ? `${Math.round((siskohatDone / total) * 100)}%` : '0%';
 
             // Update Filter Pill Counts
-            const siskohatPending = (appState.records || []).filter(r => !r.siskohat_uploaded).length;
             document.getElementById('count-filter-all').textContent = total;
             document.getElementById('count-filter-ok').textContent = upGdrive;
             document.getElementById('count-filter-pending').textContent = pendGdrive;
@@ -1125,7 +973,6 @@ ANDIYAH WIJAYANTI, Y2212598"></textarea>
             populateQuickDateDropdown();
             populateSourceEmailFilterDropdown();
             renderRecordsExplorer();
-            renderJamaahMasterTable();
             renderLogsTable();
         }
 
