@@ -355,19 +355,30 @@ function upsertAndSyncRecord(array $processedRecord, array $settings): array
         }
     }
 
-    // Cek apakah paspor atau message_id sudah ada, jika ada update
+    // Cek apakah paspor atau message_id sudah ada, jika ada update dan gabungkan all_message_ids
     $updated = false;
     foreach ($records as $idx => $existing) {
         if (
             ($existing['paspor'] !== 'TANPAPASPOR' && $existing['paspor'] === $processedRecord['paspor']) ||
             ($existing['message_id'] === $processedRecord['message_id'])
         ) {
-            // Hapus file lama jika namanya berubah
             if (!empty($existing['filename']) && $existing['filename'] !== $processedRecord['filename']) {
                 $oldPath = BIOVISA_DIR . DIRECTORY_SEPARATOR . $existing['filename'];
                 if (file_exists($oldPath)) {
                     @unlink($oldPath);
                 }
+            }
+            $allMsgIds = $existing['all_message_ids'] ?? [];
+            if (!empty($existing['message_id'])) {
+                $allMsgIds[] = $existing['message_id'];
+            }
+            if (!empty($processedRecord['message_id'])) {
+                $allMsgIds[] = $processedRecord['message_id'];
+            }
+            $processedRecord['all_message_ids'] = array_values(array_unique($allMsgIds));
+            if (!empty($existing['siskohat_uploaded'])) {
+                $processedRecord['siskohat_uploaded'] = true;
+                $processedRecord['siskohat_uploaded_at'] = $existing['siskohat_uploaded_at'] ?? '';
             }
             $records[$idx] = $processedRecord;
             $updated = true;
@@ -376,6 +387,7 @@ function upsertAndSyncRecord(array $processedRecord, array $settings): array
     }
 
     if (!$updated) {
+        $processedRecord['all_message_ids'] = !empty($processedRecord['message_id']) ? [$processedRecord['message_id']] : [];
         array_unshift($records, $processedRecord);
     }
 
@@ -467,7 +479,24 @@ switch ($action) {
         $records = getRecords();
         $jamaah = getJamaahMaster();
 
-        $existingMsgIds = array_values(array_filter(array_column($records, 'message_id')));
+        $existingMsgIds = [];
+        $existingPassportIdx = [];
+        foreach ($records as $rIdx => $recItem) {
+            if (!empty($recItem['message_id'])) {
+                $existingMsgIds[] = $recItem['message_id'];
+            }
+            if (!empty($recItem['all_message_ids']) && is_array($recItem['all_message_ids'])) {
+                foreach ($recItem['all_message_ids'] as $mId) {
+                    $existingMsgIds[] = $mId;
+                }
+            }
+            $pKey = strtoupper(trim((string)($recItem['paspor'] ?? '')));
+            if ($pKey !== '' && $pKey !== 'TANPAPASPOR') {
+                $existingPassportIdx[$pKey] = $rIdx;
+            }
+        }
+        $existingMsgIds = array_values(array_unique($existingMsgIds));
+
         $fetchRes = GmailFetcher::fetchEmails($settings, $existingMsgIds);
 
         if (!$fetchRes['ok']) {
@@ -484,9 +513,40 @@ switch ($action) {
         }
 
         $newRecords = [];
+        $recordsModified = false;
         foreach ($fetchRes['emails'] as $emailItem) {
+            // Cek dulu apakah nomor paspor dari email ini sudah ada di daftar dashboard
+            $preInfo = BiovisaProcessor::extractEmailInfo(
+                (string)($emailItem['subject'] ?? ''),
+                (string)($emailItem['body_text'] ?? ''),
+                (string)($emailItem['body_html'] ?? ''),
+                $jamaah
+            );
+            $prePaspor = strtoupper(trim((string)($preInfo['paspor'] ?? 'TANPAPASPOR')));
+            if ($prePaspor === '' || $prePaspor === 'TANPAPASPOR') {
+                continue;
+            }
+
+            // Jika paspor sudah ada di dashboard dan file JPG-nya sudah ada, cukup catat message_id-nya agar tidak di-upload ganda ke GDrive
+            if (isset($existingPassportIdx[$prePaspor])) {
+                $eIdx = $existingPassportIdx[$prePaspor];
+                $eFile = BIOVISA_DIR . DIRECTORY_SEPARATOR . ($records[$eIdx]['filename'] ?? '');
+                if (is_file($eFile)) {
+                    $msgId = (string)($emailItem['message_id'] ?? '');
+                    if ($msgId !== '') {
+                        $allIds = $records[$eIdx]['all_message_ids'] ?? [];
+                        if (!empty($records[$eIdx]['message_id'])) {
+                            $allIds[] = $records[$eIdx]['message_id'];
+                        }
+                        $allIds[] = $msgId;
+                        $records[$eIdx]['all_message_ids'] = array_values(array_unique($allIds));
+                        $recordsModified = true;
+                    }
+                    continue;
+                }
+            }
+
             $processed = BiovisaProcessor::processIncomingEmail($emailItem, $settings, $jamaah);
-            // Jangan simpan jika email tidak memiliki nomor paspor (misal email under review / pemberitahuan lain)
             if (($processed['paspor'] ?? 'TANPAPASPOR') === 'TANPAPASPOR') {
                 $badFile = BIOVISA_DIR . DIRECTORY_SEPARATOR . ($processed['filename'] ?? '');
                 if (!empty($processed['filename']) && file_exists($badFile)) {
@@ -494,12 +554,26 @@ switch ($action) {
                 }
                 continue;
             }
+            if ($recordsModified) {
+                saveRecords($records);
+                $recordsModified = false;
+            }
             $saved = upsertAndSyncRecord($processed, $settings);
+            $records = getRecords();
+            foreach ($records as $rIdx => $recItem) {
+                $pKey = strtoupper(trim((string)($recItem['paspor'] ?? '')));
+                if ($pKey !== '' && $pKey !== 'TANPAPASPOR') {
+                    $existingPassportIdx[$pKey] = $rIdx;
+                }
+            }
             $newRecords[] = $saved;
             addSyncLog(
                 'success',
                 "Email Enrollment Confirmation diproses -> {$saved['filename']} ({$saved['size_kb']} KB)"
             );
+        }
+        if ($recordsModified) {
+            saveRecords($records);
         }
 
         $statusMsg = count($newRecords) > 0

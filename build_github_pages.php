@@ -63,14 +63,114 @@ $clientEngineJs = <<<JS
     let ghImages   = JSON.parse(localStorage.getItem('gh_evisa_images') || '{}');
     let cachedImgs = {};
 
+    const DOC_CAT_META = {
+        paspor:      { num: 1, key: 'paspor',      short: 'Paspor',      label: '1. Scan Halaman Pertama Paspor',               subfolder: '1_Paspor',      max_kb: 180 },
+        endorsement: { num: 2, key: 'endorsement', short: 'Endorsement', label: '2. Scan/Upload Halaman Endorsement',           subfolder: '2_Endorsement', max_kb: 180 },
+        vaksin:      { num: 3, key: 'vaksin',      short: 'Vaksin',      label: '3. Scan/Upload Keterangan Vaksin Meningitis *', subfolder: '3_Vaksin',      max_kb: 180 },
+        kitas:       { num: 4, key: 'kitas',       short: 'KITAS',       label: '4. Scan/Upload Keterangan KITAS',              subfolder: '4_Kitas',       max_kb: 180 },
+        pendukung:   { num: 5, key: 'pendukung',   short: 'Pendukung',   label: '5. Scan/Upload Dokumen Pendukung',             subfolder: '5_Pendukung',   max_kb: 180 },
+        biovisa:     { num: 6, key: 'biovisa',     short: 'Biovisa',     label: '6. Scan/Upload Biovisa (jpeg)',                subfolder: '6_Biovisa',     max_kb: 49.5 },
+        foto:        { num: 7, key: 'foto',        short: 'Foto',        label: '7. Scan/Upload Foto Terbaru',                  subfolder: '7_Foto',        max_kb: 95 }
+    };
+
+    function ensureRecordSevenDocs(rec) {
+        if (!rec.seven_docs || !rec.seven_docs.docs) {
+            rec.seven_docs = { available_count: 0, total_slots: 7, docs: {} };
+        }
+        // Gabungkan dari INITIAL_RECORDS jika di repo GitHub ada file baru
+        const initMatch = INITIAL_RECORDS.find(ir => ir.id === rec.id || (ir.paspor && ir.paspor === rec.paspor));
+        const initDocs = (initMatch && initMatch.seven_docs && initMatch.seven_docs.docs) ? initMatch.seven_docs.docs : {};
+
+        let count = 0;
+        Object.keys(DOC_CAT_META).forEach(k => {
+            const m = DOC_CAT_META[k];
+            const cur = rec.seven_docs.docs[k];
+            const ini = initDocs[k];
+            const fn  = (cur && cur.filename) || (ini && ini.filename) || rec.filename || `\${rec.nama}_\${rec.paspor}.jpg`;
+            const cloudKey = k === 'biovisa' ? fn : `\${k}:\${fn}`;
+
+            if (ghImages[cloudKey] || (cur && cur.exists) || (ini && ini.exists) || (k === 'biovisa' && rec.filename)) {
+                count++;
+                rec.seven_docs.docs[k] = {
+                    exists: true,
+                    num: m.num,
+                    key: k,
+                    short: m.short,
+                    label: m.label,
+                    filename: fn,
+                    size_kb: (cur && cur.size_kb) || (ini && ini.size_kb) || (k === 'biovisa' ? (rec.size_kb || 49.2) : 48.0)
+                };
+            } else {
+                rec.seven_docs.docs[k] = {
+                    exists: false,
+                    num: m.num,
+                    key: k,
+                    short: m.short,
+                    label: m.label,
+                    filename: '',
+                    size_kb: 0
+                };
+            }
+        });
+        rec.seven_docs.available_count = count;
+        rec.seven_docs.total_slots = 7;
+        return rec;
+    }
+
+    // Pastikan setiap record di ghRecords memiliki struktur seven_docs terbaru
+    ghRecords.forEach(r => ensureRecordSevenDocs(r));
+
     function saveGhState() {
-        try {
-            localStorage.setItem('gh_evisa_settings', JSON.stringify(ghSettings));
-            localStorage.setItem('gh_evisa_records', JSON.stringify(ghRecords));
-            localStorage.setItem('gh_evisa_jamaah', JSON.stringify(ghJamaah));
-            localStorage.setItem('gh_evisa_logs', JSON.stringify(ghLogs.slice(0, 100)));
-            localStorage.setItem('gh_evisa_images', JSON.stringify(ghImages));
-        } catch (e) {}
+        try { localStorage.setItem('gh_evisa_settings', JSON.stringify(ghSettings)); } catch (e) {}
+        try { localStorage.setItem('gh_evisa_records', JSON.stringify(ghRecords)); } catch (e) {}
+        try { localStorage.setItem('gh_evisa_jamaah', JSON.stringify(ghJamaah)); } catch (e) {}
+        try { localStorage.setItem('gh_evisa_logs', JSON.stringify(ghLogs.slice(0, 100))); } catch (e) {}
+        try { localStorage.setItem('gh_evisa_images', JSON.stringify(ghImages)); } catch (e) {}
+    }
+
+    async function compressUploadedFileToJpg(fileObj, maxKb = 150) {
+        const dataUrlOrig = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(fileObj);
+        });
+        const img = await loadCanvasImg(dataUrlOrig);
+        let w = img.naturalWidth || img.width || 800;
+        let h = img.naturalHeight || img.height || 1000;
+        const maxDim = maxKb <= 50 ? 900 : 1280;
+        if (w > maxDim || h > maxDim) {
+            const ratio = Math.min(maxDim / w, maxDim / h);
+            w = Math.round(w * ratio);
+            h = Math.round(h * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, w, h);
+        ctx.drawImage(img, 0, 0, w, h);
+
+        const maxBytes = Math.floor(maxKb * 1024);
+        let low = 0.25, high = 0.92, bestDataUrl = canvas.toDataURL('image/jpeg', 0.78);
+        for (let i = 0; i < 6; i++) {
+            const mid = (low + high) / 2;
+            const dUrl = canvas.toDataURL('image/jpeg', mid);
+            const approxBytes = Math.round((dUrl.length - 23) * 0.75);
+            if (approxBytes <= maxBytes) {
+                bestDataUrl = dUrl;
+                low = mid;
+            } else {
+                high = mid;
+            }
+        }
+        const sizeBytes = Math.round((bestDataUrl.length - 23) * 0.75);
+        return {
+            dataUrl: bestDataUrl,
+            size_bytes: sizeBytes,
+            size_kb: Number((sizeBytes / 1024).toFixed(2))
+        };
     }
 
     function addGhLog(type, message) {
@@ -184,10 +284,14 @@ $clientEngineJs = <<<JS
         };
     }
 
-    // Resolve image URL: if generated in browser use ghImages[filename], otherwise use static file in storage/biovisa/
-    window.__resolveBiovisaImgUrl = function(filename, dl = false) {
-        if (ghImages[filename]) return ghImages[filename];
-        return 'storage/biovisa/' + encodeURIComponent(filename);
+    // Resolve image URL: supports all 7 document categories (catKey) as well as default biovisa
+    window.__resolveBiovisaImgUrl = function(filename, dl = false, catKey = 'biovisa') {
+        const cleanCat = (catKey || 'biovisa').toLowerCase();
+        const cloudKey = cleanCat === 'biovisa' ? filename : `\${cleanCat}:\${filename}`;
+        if (ghImages[cloudKey]) return ghImages[cloudKey];
+        if (cleanCat === 'biovisa' && ghImages[filename]) return ghImages[filename];
+        const folder = (cleanCat && cleanCat !== 'biovisa') ? `storage/dokumen/\${cleanCat}/` : 'storage/biovisa/';
+        return folder + encodeURIComponent(filename);
     };
 
     // Intercept links & images pointing to api.php?action=download_file
@@ -213,8 +317,9 @@ $clientEngineJs = <<<JS
         } else if (href.includes('action=download_file')) {
             const u = new URL(href, location.href);
             const fn = u.searchParams.get('file') || '';
+            const cat = u.searchParams.get('cat') || 'biovisa';
             if (fn) {
-                a.href = window.__resolveBiovisaImgUrl(fn, true);
+                a.href = window.__resolveBiovisaImgUrl(fn, true, cat);
                 a.setAttribute('download', fn);
             }
         }
@@ -230,8 +335,9 @@ $clientEngineJs = <<<JS
             try {
                 const u = new URL(img.getAttribute('src'), location.href);
                 const fn = u.searchParams.get('file') || '';
+                const cat = u.searchParams.get('cat') || 'biovisa';
                 if (fn) {
-                    img.src = window.__resolveBiovisaImgUrl(fn, false);
+                    img.src = window.__resolveBiovisaImgUrl(fn, false, cat);
                 }
             } catch (e) {}
         });
@@ -239,8 +345,9 @@ $clientEngineJs = <<<JS
             try {
                 const u = new URL(a.getAttribute('href'), location.href);
                 const fn = u.searchParams.get('file') || '';
+                const cat = u.searchParams.get('cat') || 'biovisa';
                 if (fn) {
-                    a.href = window.__resolveBiovisaImgUrl(fn, true);
+                    a.href = window.__resolveBiovisaImgUrl(fn, true, cat);
                 }
             } catch (e) {}
         });
@@ -482,6 +589,210 @@ $clientEngineJs = <<<JS
                 saveGhState();
             }
             return makeJsonRes({ ok: true, message: 'Status Siskohat diperbarui.' });
+        }
+
+        if (action === 'upload_jamaah_doc') {
+            const catKey = String(bodyData.category || u.searchParams.get('category') || 'paspor').toLowerCase();
+            const catMeta = DOC_CAT_META[catKey] || DOC_CAT_META.paspor;
+            const targetId = String(bodyData.id || '').trim();
+
+            let fileList = [];
+            if (init && init.body instanceof FormData) {
+                const multi = init.body.getAll('files[]');
+                if (multi && multi.length > 0) {
+                    fileList = multi.filter(f => f && typeof f.name === 'string');
+                }
+                const single = init.body.get('file');
+                if (single && typeof single.name === 'string') {
+                    fileList.push(single);
+                }
+            }
+            if (fileList.length === 0) {
+                return makeJsonRes({ ok: false, error: 'Tidak ada file gambar yang dipilih.' });
+            }
+
+            let savedFiles = [];
+            for (const fObj of fileList) {
+                let matchedIdx = -1;
+                if (targetId && fileList.length === 1) {
+                    matchedIdx = ghRecords.findIndex(r => r.id === targetId);
+                }
+                if (matchedIdx === -1) {
+                    const baseUpper = fObj.name.replace(/\\.[^.]+$/, '').toUpperCase();
+                    matchedIdx = ghRecords.findIndex(r => {
+                        const p = String(r.paspor || '').toUpperCase();
+                        const n = String(r.nama || '').toUpperCase();
+                        return (p && p !== 'TANPAPASPOR' && baseUpper.includes(p)) || (n && baseUpper.startsWith(n));
+                    });
+                }
+
+                const matchedRec = matchedIdx !== -1 ? ghRecords[matchedIdx] : null;
+                const finalFilename = matchedRec
+                    ? `\${matchedRec.nama}_\${matchedRec.paspor}.jpg`
+                    : (fObj.name.replace(/\\.[^.]+$/, '').toUpperCase() + '.jpg');
+
+                const compressed = await compressUploadedFileToJpg(fObj, catMeta.max_kb);
+                const cloudKey = catKey === 'biovisa' ? finalFilename : `\${catKey}:\${finalFilename}`;
+                ghImages[cloudKey] = compressed.dataUrl;
+                if (catKey === 'biovisa') {
+                    ghImages[finalFilename] = compressed.dataUrl;
+                }
+
+                // Kirim ke ekstensi Chrome Siskohat via postMessage
+                window.postMessage({
+                    type: 'SILAHUT_CLOUD_IMAGE_UPDATE',
+                    key: cloudKey,
+                    dataUrl: compressed.dataUrl
+                }, '*');
+
+                if (matchedRec) {
+                    ensureRecordSevenDocs(matchedRec);
+                    matchedRec.seven_docs.docs[catKey] = {
+                        exists: true,
+                        num: catMeta.num,
+                        key: catKey,
+                        short: catMeta.short,
+                        label: catMeta.label,
+                        filename: finalFilename,
+                        size_kb: compressed.size_kb
+                    };
+                    matchedRec.seven_docs.available_count = Object.values(matchedRec.seven_docs.docs).filter(d => d && d.exists).length;
+                    if (catKey === 'biovisa') {
+                        matchedRec.filename = finalFilename;
+                        matchedRec.size_kb = compressed.size_kb;
+                        matchedRec.size_bytes = compressed.size_bytes;
+                    }
+                }
+
+                // Upload juga ke Sub-Folder Google Drive di background jika URL Web App GDrive aktif
+                if (ghSettings.gas_gdrive_webapp_url) {
+                    const b64Clean = compressed.dataUrl.includes(',') ? compressed.dataUrl.split(',')[1] : compressed.dataUrl;
+                    origFetch(ghSettings.gas_gdrive_webapp_url, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({
+                            action: 'upload_biovisa',
+                            filename: finalFilename,
+                            mime_type: 'image/jpeg',
+                            base64_file: b64Clean,
+                            folder_name: ghSettings.gdrive_folder_name || 'Biovisa_Jamaah_PHU_Pasuruan',
+                            subfolder: catMeta.subfolder,
+                            nama: matchedRec ? matchedRec.nama : finalFilename,
+                            paspor: matchedRec ? matchedRec.paspor : '-',
+                            enrollment_id: catMeta.label,
+                            size_kb: compressed.size_kb
+                        })
+                    }).catch(() => {});
+                }
+
+                savedFiles.push({
+                    category: catKey,
+                    filename: finalFilename,
+                    size_kb: compressed.size_kb
+                });
+            }
+
+            addGhLog('success', `Berhasil mengunggah \${savedFiles.length} file pada kategori \${catMeta.label}.`);
+            saveGhState();
+            return makeJsonRes({
+                ok: true,
+                count: savedFiles.length,
+                saved: savedFiles,
+                message: `Berhasil menyimpan \${savedFiles.length} file pada kategori \${catMeta.label}!`
+            });
+        }
+
+        if (action === 'delete_jamaah_doc') {
+            const recId = String(bodyData.id || '').trim();
+            const catKey = String(bodyData.category || '').toLowerCase();
+            const catMeta = DOC_CAT_META[catKey];
+            const idx = ghRecords.findIndex(r => r.id === recId);
+            if (idx === -1 || !catMeta) {
+                return makeJsonRes({ ok: false, error: 'Data jamaah atau kategori tidak ditemukan.' });
+            }
+            const rec = ghRecords[idx];
+            ensureRecordSevenDocs(rec);
+            const oldFn = (rec.seven_docs.docs[catKey] && rec.seven_docs.docs[catKey].filename) || `\${rec.nama}_\${rec.paspor}.jpg`;
+            const cloudKey = catKey === 'biovisa' ? oldFn : `\${catKey}:\${oldFn}`;
+            delete ghImages[cloudKey];
+
+            window.postMessage({
+                type: 'SILAHUT_CLOUD_IMAGE_UPDATE',
+                key: cloudKey,
+                remove: true
+            }, '*');
+
+            rec.seven_docs.docs[catKey] = {
+                exists: false,
+                num: catMeta.num,
+                key: catKey,
+                short: catMeta.short,
+                label: catMeta.label,
+                filename: '',
+                size_kb: 0
+            };
+            rec.seven_docs.available_count = Object.values(rec.seven_docs.docs).filter(d => d && d.exists).length;
+            saveGhState();
+            return makeJsonRes({
+                ok: true,
+                message: `File \${catMeta.label} untuk \${rec.nama} berhasil dihapus.`
+            });
+        }
+
+        if (action === 'sync_gdrive_7docs') {
+            const gasUrl = String(ghSettings.gas_gdrive_webapp_url || '').trim();
+            if (!gasUrl) {
+                return makeJsonRes({ ok: false, error: 'URL Web App Google Drive belum diisi di Konfigurasi Integrasi.' });
+            }
+            try {
+                const listUrl = gasUrl + (gasUrl.includes('?') ? '&' : '?') + 'action=list_gdrive_docs&folder_name=' + encodeURIComponent(ghSettings.gdrive_folder_name || 'Biovisa_Jamaah_PHU_Pasuruan');
+                const res = await origFetch(listUrl);
+                const data = await res.json();
+                if (!data || !data.ok) {
+                    return makeJsonRes({ ok: false, error: (data && data.error) || 'Gagal membaca 7 folder Google Drive. Pastikan Script GDrive terbaru sudah di-Deploy.' });
+                }
+                const gCats = data.categories || {};
+                let matchedCount = 0;
+                Object.keys(DOC_CAT_META).forEach(catKey => {
+                    const catMeta = DOC_CAT_META[catKey];
+                    const filesInCat = gCats[catKey] || [];
+                    filesInCat.forEach(gf => {
+                        const gName = String(gf.filename || '');
+                        const baseUpper = gName.replace(/\\.[^.]+$/, '').toUpperCase();
+                        ghRecords.forEach(rec => {
+                            const p = String(rec.paspor || '').toUpperCase();
+                            if (p && p !== 'TANPAPASPOR' && baseUpper.includes(p)) {
+                                ensureRecordSevenDocs(rec);
+                                if (!rec.seven_docs.docs[catKey] || !rec.seven_docs.docs[catKey].exists) {
+                                    rec.seven_docs.docs[catKey] = {
+                                        exists: true,
+                                        num: catMeta.num,
+                                        key: catKey,
+                                        short: catMeta.short,
+                                        label: catMeta.label,
+                                        filename: gName,
+                                        size_kb: gf.size_kb || 48,
+                                        gdrive_file_id: gf.file_id || ''
+                                    };
+                                    rec.seven_docs.available_count = Object.values(rec.seven_docs.docs).filter(d => d && d.exists).length;
+                                    matchedCount++;
+                                }
+                            }
+                        });
+                    });
+                });
+                saveGhState();
+                return makeJsonRes({
+                    ok: true,
+                    pulled_count: matchedCount,
+                    message: matchedCount > 0
+                        ? `Berhasil menyinkronkan \${matchedCount} dokumen dari 7 Sub-Folder Google Drive!`
+                        : '7 Sub-Folder Google Drive sudah sinkron (1_Paspor s/d 7_Foto siap digunakan).'
+                });
+            } catch (err) {
+                return makeJsonRes({ ok: false, error: 'Gagal menghubungi Web App Google Drive: ' + err.message });
+            }
         }
 
         if (action === 'save_settings') {

@@ -37,6 +37,22 @@
     } catch (e) {}
   }
 
+  // Terima kiriman gambar dokumen baru langsung dari halaman GitHub Pages (kebal batas 5MB localStorage)
+  window.addEventListener('message', ev => {
+    if (!ev || !ev.data || ev.data.type !== 'SILAHUT_CLOUD_IMAGE_UPDATE') return;
+    const { key, dataUrl, remove } = ev.data;
+    if (!key) return;
+    chrome.storage.local.get(['gh_cloud_images'], res => {
+      const imgs = res.gh_cloud_images || {};
+      if (remove) {
+        delete imgs[key];
+      } else if (dataUrl) {
+        imgs[key] = dataUrl;
+      }
+      chrome.storage.local.set({ gh_cloud_images: imgs });
+    });
+  });
+
   syncPageToExtension();
   setInterval(syncPageToExtension, 2500);
 })();

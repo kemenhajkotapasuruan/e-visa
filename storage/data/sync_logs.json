@@ -1,5 +1,474 @@
 [
     {
+        "id": "log_6b071815c52ba",
+        "time": "2026-11-26 00:17:09",
+        "type": "success",
+        "message": "Berhasil menyimpan 1 file pada kategori 2. Scan/Upload Halaman Endorsement.",
+        "context": []
+    },
+    {
+        "id": "log_6b0716eb7a65e",
+        "time": "2026-11-26 00:12:11",
+        "type": "success",
+        "message": "File IKKE HARDIANAKURNIANINGSIH_Y1983254.jpg telah diunggah ke halaman SISKOHAT Gen.2.",
+        "context": []
+    },
+    {
+        "id": "log_6b07151a08e54",
+        "time": "2026-11-26 00:04:26",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> HALIMAH MUNTARICIPTO_Y2047436.jpg (49.48 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b07151a0013c",
+        "time": "2026-11-26 00:04:26",
+        "type": "success",
+        "message": "File HALIMAH MUNTARICIPTO_Y2047436.jpg (49.48 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b0715153c46b",
+        "time": "2026-11-26 00:04:21",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.04 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b07151532e19",
+        "time": "2026-11-26 00:04:21",
+        "type": "success",
+        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.04 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b07150c40a05",
+        "time": "2026-11-26 00:04:12",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> ANDIYAHWIJAYANTI_Y2212598.jpg (49.27 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b07150c399a3",
+        "time": "2026-11-26 00:04:12",
+        "type": "success",
+        "message": "File ANDIYAHWIJAYANTI_Y2212598.jpg (49.27 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b07150644667",
+        "time": "2026-11-26 00:04:06",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.11 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b0715063f1f0",
+        "time": "2026-11-26 00:04:06",
+        "type": "success",
+        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.11 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b0714c0159a7",
+        "time": "2026-11-26 00:02:56",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> HALIMAH MUNTARICIPTO_Y2047436.jpg (49.43 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b0714c010208",
+        "time": "2026-11-26 00:02:56",
+        "type": "success",
+        "message": "File HALIMAH MUNTARICIPTO_Y2047436.jpg (49.43 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b0714baa3fa2",
+        "time": "2026-11-26 00:02:50",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.04 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b0714ba9f2db",
+        "time": "2026-11-26 00:02:50",
+        "type": "success",
+        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.04 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b0714b540d50",
+        "time": "2026-11-26 00:02:45",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> ANDIYAHWIJAYANTI_Y2212598.jpg (49.19 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b0714b53c64d",
+        "time": "2026-11-26 00:02:45",
+        "type": "success",
+        "message": "File ANDIYAHWIJAYANTI_Y2212598.jpg (49.19 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b0714aea83cf",
+        "time": "2026-11-26 00:02:38",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.11 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b0714aea37bd",
+        "time": "2026-11-26 00:02:38",
+        "type": "success",
+        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.11 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b07146fd608a",
+        "time": "2026-11-26 00:01:35",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> HALIMAH MUNTARICIPTO_Y2047436.jpg (49.48 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b07146fd1abc",
+        "time": "2026-11-26 00:01:35",
+        "type": "success",
+        "message": "File HALIMAH MUNTARICIPTO_Y2047436.jpg (49.48 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b07146aa398d",
+        "time": "2026-11-26 00:01:30",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.04 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b07146a97244",
+        "time": "2026-11-26 00:01:30",
+        "type": "success",
+        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.04 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b07146546db8",
+        "time": "2026-11-26 00:01:25",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> ANDIYAHWIJAYANTI_Y2212598.jpg (49.27 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b07146542f54",
+        "time": "2026-11-26 00:01:25",
+        "type": "success",
+        "message": "File ANDIYAHWIJAYANTI_Y2212598.jpg (49.27 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b07145f87187",
+        "time": "2026-11-26 00:01:19",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.11 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b07145f825ea",
+        "time": "2026-11-26 00:01:19",
+        "type": "success",
+        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.11 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b0714254358e",
+        "time": "2026-11-26 00:00:21",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> HALIMAH MUNTARICIPTO_Y2047436.jpg (49.43 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b07142539969",
+        "time": "2026-11-26 00:00:21",
+        "type": "success",
+        "message": "File HALIMAH MUNTARICIPTO_Y2047436.jpg (49.43 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b07142063f08",
+        "time": "2026-11-26 00:00:16",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.04 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b0714205fb0d",
+        "time": "2026-11-26 00:00:16",
+        "type": "success",
+        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.04 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b07141a9c7d7",
+        "time": "2026-11-26 00:00:10",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> ANDIYAHWIJAYANTI_Y2212598.jpg (49.19 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b07141a93817",
+        "time": "2026-11-26 00:00:10",
+        "type": "success",
+        "message": "File ANDIYAHWIJAYANTI_Y2212598.jpg (49.19 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b071413d8e1d",
+        "time": "2026-11-26 00:00:03",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.11 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b071413d4963",
+        "time": "2026-11-26 00:00:03",
+        "type": "success",
+        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.11 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b0713d8da02a",
+        "time": "2026-11-25 23:59:04",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> HALIMAH MUNTARICIPTO_Y2047436.jpg (49.48 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b0713d8d0ae4",
+        "time": "2026-11-25 23:59:04",
+        "type": "success",
+        "message": "File HALIMAH MUNTARICIPTO_Y2047436.jpg (49.48 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b0713d320780",
+        "time": "2026-11-25 23:58:59",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.04 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b0713d31b8b2",
+        "time": "2026-11-25 23:58:59",
+        "type": "success",
+        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.04 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b0713cda7c93",
+        "time": "2026-11-25 23:58:53",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> ANDIYAHWIJAYANTI_Y2212598.jpg (49.27 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b0713cd9eb8f",
+        "time": "2026-11-25 23:58:53",
+        "type": "success",
+        "message": "File ANDIYAHWIJAYANTI_Y2212598.jpg (49.27 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b0713c902cb5",
+        "time": "2026-11-25 23:58:49",
+        "type": "info",
+        "message": "Pengaturan sistem & integrasi berhasil disimpan.",
+        "context": []
+    },
+    {
+        "id": "log_6b0713c8214f2",
+        "time": "2026-11-25 23:58:48",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.11 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b0713c81887d",
+        "time": "2026-11-25 23:58:48",
+        "type": "success",
+        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.11 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b07138e9b8e5",
+        "time": "2026-11-25 23:57:50",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> HALIMAH MUNTARICIPTO_Y2047436.jpg (49.43 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b07138e967da",
+        "time": "2026-11-25 23:57:50",
+        "type": "success",
+        "message": "File HALIMAH MUNTARICIPTO_Y2047436.jpg (49.43 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b07138a879a6",
+        "time": "2026-11-25 23:57:46",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.04 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b07138a8363e",
+        "time": "2026-11-25 23:57:46",
+        "type": "success",
+        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.04 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b0713847b662",
+        "time": "2026-11-25 23:57:40",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> ANDIYAHWIJAYANTI_Y2212598.jpg (49.19 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b07138476da6",
+        "time": "2026-11-25 23:57:40",
+        "type": "success",
+        "message": "File ANDIYAHWIJAYANTI_Y2212598.jpg (49.19 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b07137e8765e",
+        "time": "2026-11-25 23:57:34",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.11 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b07137e831ad",
+        "time": "2026-11-25 23:57:34",
+        "type": "success",
+        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.11 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b071344c90fa",
+        "time": "2026-11-25 23:56:36",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> HALIMAH MUNTARICIPTO_Y2047436.jpg (49.48 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b071344c525c",
+        "time": "2026-11-25 23:56:36",
+        "type": "success",
+        "message": "File HALIMAH MUNTARICIPTO_Y2047436.jpg (49.48 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b07133f29eff",
+        "time": "2026-11-25 23:56:31",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.04 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b07133f25aee",
+        "time": "2026-11-25 23:56:31",
+        "type": "success",
+        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.04 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b07133a8301e",
+        "time": "2026-11-25 23:56:26",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> ANDIYAHWIJAYANTI_Y2212598.jpg (49.27 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b07133a7f5dd",
+        "time": "2026-11-25 23:56:26",
+        "type": "success",
+        "message": "File ANDIYAHWIJAYANTI_Y2212598.jpg (49.27 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b071334e897c",
+        "time": "2026-11-25 23:56:20",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.11 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b071334e11c6",
+        "time": "2026-11-25 23:56:20",
+        "type": "success",
+        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.11 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b0712f4d3eac",
+        "time": "2026-11-25 23:55:16",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> HALIMAH MUNTARICIPTO_Y2047436.jpg (49.43 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b0712f4cb14e",
+        "time": "2026-11-25 23:55:16",
+        "type": "success",
+        "message": "File HALIMAH MUNTARICIPTO_Y2047436.jpg (49.43 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b0712edd1443",
+        "time": "2026-11-25 23:55:09",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.04 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b0712edccef7",
+        "time": "2026-11-25 23:55:09",
+        "type": "success",
+        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.04 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b0712e7e21e4",
+        "time": "2026-11-25 23:55:03",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> ANDIYAHWIJAYANTI_Y2212598.jpg (49.19 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b0712e7d9337",
+        "time": "2026-11-25 23:55:03",
+        "type": "success",
+        "message": "File ANDIYAHWIJAYANTI_Y2212598.jpg (49.19 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b0712e0dfe2a",
+        "time": "2026-11-25 23:54:56",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.11 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b0712e0d69c4",
+        "time": "2026-11-25 23:54:56",
+        "type": "success",
+        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.11 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
         "id": "log_6b07128aa2089",
         "time": "2026-11-25 23:53:30",
         "type": "success",
@@ -578,209 +1047,6 @@
         "time": "2026-11-25 09:31:27",
         "type": "success",
         "message": "File ASFADOLSAMARI_E8718813.jpg (49.07 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
-        "context": []
-    },
-    {
-        "id": "log_6b0648773a1ec",
-        "time": "2026-11-25 09:31:19",
-        "type": "success",
-        "message": "Email Mofa Enrollment Confirmation diproses -> DEWIKHUSNAH_Y2047341.jpg (49.08 KB)",
-        "context": []
-    },
-    {
-        "id": "log_6b06487735e7a",
-        "time": "2026-11-25 09:31:19",
-        "type": "success",
-        "message": "File DEWIKHUSNAH_Y2047341.jpg (49.08 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
-        "context": []
-    },
-    {
-        "id": "log_6b06487270d3c",
-        "time": "2026-11-25 09:31:14",
-        "type": "success",
-        "message": "Email Mofa Enrollment Confirmation diproses -> RIVAI_E3431226.jpg (49.22 KB)",
-        "context": []
-    },
-    {
-        "id": "log_6b0648726c853",
-        "time": "2026-11-25 09:31:14",
-        "type": "success",
-        "message": "File RIVAI_E3431226.jpg (49.22 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
-        "context": []
-    },
-    {
-        "id": "log_6b06486e9babc",
-        "time": "2026-11-25 09:31:10",
-        "type": "success",
-        "message": "Email Mofa Enrollment Confirmation diproses -> ABDAZIZ_E2580608.jpg (49.33 KB)",
-        "context": []
-    },
-    {
-        "id": "log_6b06486e97da3",
-        "time": "2026-11-25 09:31:10",
-        "type": "success",
-        "message": "File ABDAZIZ_E2580608.jpg (49.33 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
-        "context": []
-    },
-    {
-        "id": "log_6b064869ac00d",
-        "time": "2026-11-25 09:31:05",
-        "type": "success",
-        "message": "Email Mofa Enrollment Confirmation diproses -> ANI JUNIARTISUKARLIN_E6070795.jpg (49.29 KB)",
-        "context": []
-    },
-    {
-        "id": "log_6b064869a79dd",
-        "time": "2026-11-25 09:31:05",
-        "type": "success",
-        "message": "File ANI JUNIARTISUKARLIN_E6070795.jpg (49.29 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
-        "context": []
-    },
-    {
-        "id": "log_6b0648649b388",
-        "time": "2026-11-25 09:31:00",
-        "type": "success",
-        "message": "Email Mofa Enrollment Confirmation diproses -> ACHMADSAIFUL_E8717368.jpg (49.01 KB)",
-        "context": []
-    },
-    {
-        "id": "log_6b0648649743c",
-        "time": "2026-11-25 09:31:00",
-        "type": "success",
-        "message": "File ACHMADSAIFUL_E8717368.jpg (49.01 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
-        "context": []
-    },
-    {
-        "id": "log_6b0648603503a",
-        "time": "2026-11-25 09:30:56",
-        "type": "success",
-        "message": "Email Mofa Enrollment Confirmation diproses -> IRMAAMALIAH_E8717371.jpg (48.91 KB)",
-        "context": []
-    },
-    {
-        "id": "log_6b06486031154",
-        "time": "2026-11-25 09:30:56",
-        "type": "success",
-        "message": "File IRMAAMALIAH_E8717371.jpg (48.91 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
-        "context": []
-    },
-    {
-        "id": "log_6b06485c2cb52",
-        "time": "2026-11-25 09:30:52",
-        "type": "success",
-        "message": "Email Mofa Enrollment Confirmation diproses -> MARLIANATUMIRAN_Y2047408.jpg (49.18 KB)",
-        "context": []
-    },
-    {
-        "id": "log_6b06485c27009",
-        "time": "2026-11-25 09:30:52",
-        "type": "success",
-        "message": "File MARLIANATUMIRAN_Y2047408.jpg (49.18 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
-        "context": []
-    },
-    {
-        "id": "log_6b06485803b47",
-        "time": "2026-11-25 09:30:48",
-        "type": "success",
-        "message": "Email Mofa Enrollment Confirmation diproses -> AULIA ASFAHANINIZMA_E4360818.jpg (49.29 KB)",
-        "context": []
-    },
-    {
-        "id": "log_6b064857f35e9",
-        "time": "2026-11-25 09:30:47",
-        "type": "success",
-        "message": "File AULIA ASFAHANINIZMA_E4360818.jpg (49.29 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
-        "context": []
-    },
-    {
-        "id": "log_6b064852a8bd3",
-        "time": "2026-11-25 09:30:42",
-        "type": "success",
-        "message": "Email Mofa Enrollment Confirmation diproses -> CATUROKARIANA_X8768032.jpg (49.23 KB)",
-        "context": []
-    },
-    {
-        "id": "log_6b064852a3b0c",
-        "time": "2026-11-25 09:30:42",
-        "type": "success",
-        "message": "File CATUROKARIANA_X8768032.jpg (49.23 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
-        "context": []
-    },
-    {
-        "id": "log_6b06484e23cb8",
-        "time": "2026-11-25 09:30:38",
-        "type": "success",
-        "message": "Email Mofa Enrollment Confirmation diproses -> ZUHRIYAH_X8729217.jpg (49.47 KB)",
-        "context": []
-    },
-    {
-        "id": "log_6b06484e1f0d8",
-        "time": "2026-11-25 09:30:38",
-        "type": "success",
-        "message": "File ZUHRIYAH_X8729217.jpg (49.47 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
-        "context": []
-    },
-    {
-        "id": "log_6b06484a241c3",
-        "time": "2026-11-25 09:30:34",
-        "type": "success",
-        "message": "Email Mofa Enrollment Confirmation diproses -> HALIMAH MUNTARICIPTO_Y2047436.jpg (49.43 KB)",
-        "context": []
-    },
-    {
-        "id": "log_6b06484a154a0",
-        "time": "2026-11-25 09:30:34",
-        "type": "success",
-        "message": "File HALIMAH MUNTARICIPTO_Y2047436.jpg (49.43 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
-        "context": []
-    },
-    {
-        "id": "log_6b06484622f0d",
-        "time": "2026-11-25 09:30:30",
-        "type": "success",
-        "message": "Email Mofa Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.04 KB)",
-        "context": []
-    },
-    {
-        "id": "log_6b0648461bc8c",
-        "time": "2026-11-25 09:30:30",
-        "type": "success",
-        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.04 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
-        "context": []
-    },
-    {
-        "id": "log_6b0648425be43",
-        "time": "2026-11-25 09:30:26",
-        "type": "success",
-        "message": "Email Mofa Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.04 KB)",
-        "context": []
-    },
-    {
-        "id": "log_6b06484255dfb",
-        "time": "2026-11-25 09:30:26",
-        "type": "success",
-        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.04 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
-        "context": []
-    },
-    {
-        "id": "log_6b06483e0fe3b",
-        "time": "2026-11-25 09:30:22",
-        "type": "success",
-        "message": "Email Mofa Enrollment Confirmation diproses -> ANDIYAHWIJAYANTI_Y2212598.jpg (49.19 KB)",
-        "context": []
-    },
-    {
-        "id": "log_6b06483e0b7db",
-        "time": "2026-11-25 09:30:22",
-        "type": "success",
-        "message": "File ANDIYAHWIJAYANTI_Y2212598.jpg (49.19 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
-        "context": []
-    },
-    {
-        "id": "log_real_sync_20",
-        "time": "2026-11-25 09:26:43",
-        "type": "success",
-        "message": "Berhasil menarik & mengonversi 20 email Biovisa asli (Enrollment confirmation) dari phujtmkopasuruan@gmail.com dengan template asli SaudiVisaBio (<= 50 KB).",
         "context": []
     }
 ]

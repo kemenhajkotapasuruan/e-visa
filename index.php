@@ -1973,7 +1973,9 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                 const info = map[d.key] || { exists: false };
                 const isReady = !!info.exists;
                 const previewUrl = isReady
-                    ? `api.php?action=download_file&cat=${encodeURIComponent(d.key)}&inline=1&file=${encodeURIComponent(info.filename)}&t=${Date.now()}`
+                    ? (typeof window.__resolveBiovisaImgUrl === 'function'
+                        ? window.__resolveBiovisaImgUrl(info.filename, false, d.key)
+                        : `api.php?action=download_file&cat=${encodeURIComponent(d.key)}&inline=1&file=${encodeURIComponent(info.filename)}&t=${Date.now()}`)
                     : '';
                 return `
                     <div class="modal-doc7-card ${isReady ? 'ready' : 'blocked'}">
