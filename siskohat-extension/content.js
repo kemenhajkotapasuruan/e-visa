@@ -45,14 +45,16 @@
             <button type="button" class="silahut-btn silahut-btn-dark" id="silahut-refresh-btn" title="Muat Ulang Data dari Laragon">↻</button>
           </div>
           <div id="silahut-server-box" style="display:none; padding-top:4px; border-top:1px dashed #CBD5E1;">
-            <div style="font-size:10.5px; font-weight:700; color:#475569; margin-bottom:3px;">Alamat Server E-Visa (Nama PC / IP Server):</div>
+            <div style="font-size:10.5px; font-weight:700; color:#475569; margin-bottom:3px;">Sumber Data Biovisa:</div>
+            <select class="silahut-input" id="silahut-source-mode" style="width:100%; margin-bottom:5px;">
+              <option value="auto_github">☁️ Otomatis (Cloud GitHub + Laragon)</option>
+              <option value="github_only">🌐 Cloud GitHub (kemenhajkotapasuruan.github.io)</option>
+              <option value="local_only">💻 Laragon Lokal / LAN</option>
+            </select>
             <div class="silahut-search-row" style="margin-bottom:4px;">
-              <input type="text" class="silahut-input" id="silahut-api-url" placeholder="http://kemenhaj_kopas/e-visa/api.php">
+              <input type="text" class="silahut-input" id="silahut-api-url" placeholder="https://kemenhajkotapasuruan.github.io/e-visa">
               <button type="button" class="silahut-btn silahut-btn-gold" id="silahut-save-url-btn">Simpan</button>
             </div>
-            <button type="button" class="silahut-btn silahut-btn-dark" id="silahut-autodiscover-btn" style="width:100%;">
-              🔍 Cari IP Server Baru Otomatis (Tanpa Install Ulang)
-            </button>
           </div>
         </div>
         <div class="silahut-list" id="silahut-list">
@@ -181,10 +183,12 @@
     // Pengaturan URL Server E-Visa (untuk akses dari komputer lain di jaringan LAN)
     const cfgBtn = document.getElementById('silahut-cfg-btn');
     const srvBox = document.getElementById('silahut-server-box');
+    const modeSel = document.getElementById('silahut-source-mode');
     const urlInp = document.getElementById('silahut-api-url');
     const saveUrlBtn = document.getElementById('silahut-save-url-btn');
 
-    chrome.storage.local.get(['evisa_api_url'], res => {
+    chrome.storage.local.get(['evisa_source_mode', 'evisa_api_url'], res => {
+      if (modeSel) modeSel.value = res.evisa_source_mode || 'auto_github';
       urlInp.value = res.evisa_api_url || 'http://localhost/e-visa/api.php';
     });
 
@@ -194,38 +198,18 @@
 
     saveUrlBtn.addEventListener('click', () => {
       let val = (urlInp.value || '').trim();
-      if (!val) val = 'http://kemenhaj_kopas/e-visa/api.php';
-      if (!val.endsWith('api.php')) {
+      if (!val) val = 'http://localhost/e-visa/api.php';
+      if (!val.includes('github.io') && !val.endsWith('api.php')) {
         val = val.replace(/\/+$/, '') + '/api.php';
       }
       urlInp.value = val;
-      chrome.storage.local.set({ evisa_api_url: val }, () => {
+      const chosenMode = modeSel ? modeSel.value : 'auto_github';
+      chrome.storage.local.set({ evisa_source_mode: chosenMode, evisa_api_url: val }, () => {
         srvBox.style.display = 'none';
-        setToast('✅ Alamat Server disimpan: ' + val);
+        setToast('✅ Sumber data disimpan (' + chosenMode + ')');
         loadQueueFromLaragon();
       });
     });
-
-    const autoBtn = document.getElementById('silahut-autodiscover-btn');
-    if (autoBtn) {
-      autoBtn.addEventListener('click', () => {
-        autoBtn.disabled = true;
-        autoBtn.textContent = '⏳ Memindai Jaringan LAN Kantor...';
-        setToast('🔍 Mencari alamat IP baru Server E-Visa di jaringan...');
-        chrome.runtime.sendMessage({ type: 'AUTO_DISCOVER_SERVER' }, res => {
-          autoBtn.disabled = false;
-          autoBtn.textContent = '🔍 Cari IP Server Baru Otomatis (Tanpa Install Ulang)';
-          if (res && res.ok && res.apiUrl) {
-            urlInp.value = res.apiUrl;
-            srvBox.style.display = 'none';
-            setToast('✅ Server ditemukan otomatis di: ' + res.apiUrl);
-            loadQueueFromLaragon();
-          } else {
-            setToast('❌ ' + ((res && res.error) || 'Server tidak ditemukan.'), true);
-          }
-        });
-      });
-    }
 
     loadQueueFromLaragon();
   }
@@ -260,8 +244,9 @@
 
       biovisaQueue = res.data.records || [];
       const doneCount = biovisaQueue.filter(r => r.siskohat_uploaded).length;
+      const srcLabel = res.data.source_label || (res.activeSource === 'github' ? 'GitHub Cloud' : 'Laragon');
       if (statusBar) {
-        statusBar.innerHTML = `Terhubung ke E-Visa Laragon: <strong>${biovisaQueue.length} File JPG</strong> (${doneCount} Selesai Siskohat)`;
+        statusBar.innerHTML = `Sumber: <strong>${srcLabel}</strong> &bull; <strong>${biovisaQueue.length} JPG</strong> (${doneCount} Selesai)`;
       }
       renderQueueList();
     });
