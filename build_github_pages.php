@@ -670,6 +670,166 @@ $clientEngineJs = <<<JS
             return makeJsonRes({ ok: true, message: 'Status Siskohat diperbarui.' });
         }
 
+        if (action === 'list_scanners') {
+            let devices = [];
+            // 1. Hubungi jembatan WIA/TWAIN Scanner Windows lokal di komputer tersebut (http://localhost/e-visa/api.php)
+            try {
+                const ctrl = new AbortController();
+                const tId = setTimeout(() => ctrl.abort(), 3500);
+                const locRes = await origFetch('http://localhost/e-visa/api.php?action=list_scanners&_t=' + Date.now(), { signal: ctrl.signal });
+                clearTimeout(tId);
+                if (locRes.ok) {
+                    const locJson = await locRes.json();
+                    if (locJson && Array.isArray(locJson.devices)) {
+                        devices = devices.concat(locJson.devices);
+                    }
+                }
+            } catch (e) {}
+
+            // 2. Cek juga perangkat USB Document Scanner / Kamera Dokumen di browser komputer tersebut
+            try {
+                if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+                    const mDevs = await navigator.mediaDevices.enumerateDevices();
+                    mDevs.filter(d => d.kind === 'videoinput').forEach((vd, idx) => {
+                        devices.push({
+                            id: '__UVC_SCANNER__:' + (vd.deviceId || idx),
+                            name: vd.label || ('Scanner Kamera / USB Imaging #' + (idx + 1)),
+                            manufacturer: 'USB Video / Document Scanner',
+                            driver_type: 'Direct Browser USB Imaging Driver',
+                            status: 'Aktif'
+                        });
+                    });
+                }
+            } catch (e) {}
+
+            return makeJsonRes({
+                ok: true,
+                count: devices.length,
+                devices: devices,
+                has_hardware_scanner: devices.length > 0
+            });
+        }
+
+        if (action === 'scan_jamaah_doc') {
+            const catKey  = String(bodyData.category || 'paspor').toLowerCase();
+            const catMeta = DOC_CAT_META[catKey] || DOC_CAT_META.paspor;
+            const recId   = String(bodyData.id || '').trim();
+            const devId   = String(bodyData.device_id || '');
+            const matchedIdx = ghRecords.findIndex(r => r.id === recId);
+            const matchedRec = matchedIdx !== -1 ? ghRecords[matchedIdx] : null;
+            const finalFilename = matchedRec
+                ? `\${matchedRec.nama}_\${matchedRec.paspor}.jpg`
+                : `JAMAAH_SCAN_\${Date.now()}.jpg`;
+
+            // A. Jika memilih USB Document Scanner / Imaging langsung dari browser (__UVC_SCANNER__)
+            if (devId.startsWith('__UVC_SCANNER__:')) {
+                try {
+                    const camId = devId.replace('__UVC_SCANNER__:', '');
+                    const constraints = {
+                        video: camId ? { deviceId: { exact: camId }, width: { ideal: 1280 }, height: { ideal: 960 } } : { width: { ideal: 1280 }, height: { ideal: 960 } }
+                    };
+                    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+                    const video = document.createElement('video');
+                    video.srcObject = stream;
+                    video.muted = true;
+                    await video.play();
+                    await new Promise(r => setTimeout(r, 450));
+
+                    const c = document.createElement('canvas');
+                    c.width = video.videoWidth || 960;
+                    c.height = video.videoHeight || 720;
+                    c.getContext('2d').drawImage(video, 0, 0, c.width, c.height);
+                    stream.getTracks().forEach(t => t.stop());
+
+                    const blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.92));
+                    const fileObj = new File([blob], finalFilename, { type: 'image/jpeg' });
+                    const compressed = await compressUploadedFileToJpg(fileObj, 49.5);
+
+                    const cloudKey = catKey === 'biovisa' ? finalFilename : `\${catKey}:\${finalFilename}`;
+                    ghImages[cloudKey] = compressed.dataUrl;
+                    if (catKey === 'biovisa') ghImages[finalFilename] = compressed.dataUrl;
+
+                    window.postMessage({ type: 'SILAHUT_CLOUD_IMAGE_UPDATE', key: cloudKey, dataUrl: compressed.dataUrl }, '*');
+
+                    if (matchedRec) {
+                        ensureRecordSevenDocs(matchedRec);
+                        matchedRec.seven_docs.docs[catKey] = {
+                            exists: true,
+                            num: catMeta.num,
+                            key: catKey,
+                            short: catMeta.short,
+                            label: catMeta.label,
+                            filename: finalFilename,
+                            size_kb: compressed.size_kb
+                        };
+                        matchedRec.seven_docs.available_count = Object.values(matchedRec.seven_docs.docs).filter(d => d && d.exists).length;
+                    }
+                    saveGhState();
+                    return makeJsonRes({
+                        ok: true,
+                        filename: finalFilename,
+                        size_kb: compressed.size_kb,
+                        message: `Berhasil memindai dokumen -> \${finalFilename} (\${compressed.size_kb} KB <= 50 KB)!`
+                    });
+                } catch (errCam) {
+                    return makeJsonRes({ ok: false, error: 'Gagal mengakses perangkat pemindai USB: ' + errCam.message });
+                }
+            }
+
+            // B. Panggil Driver Scanner WIA/TWAIN Windows pada komputer tersebut melalui jembatan localhost
+            try {
+                const locRes = await origFetch('http://localhost/e-visa/api.php?action=scan_jamaah_doc', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(bodyData)
+                });
+                const locData = await locRes.json();
+                if (!locData || !locData.ok) {
+                    return makeJsonRes({
+                        ok: false,
+                        error: (locData && locData.error) || 'Gagal membaca dari driver scanner.'
+                    });
+                }
+
+                // Pastikan hasil scan dari driver lokal disimpan juga ke state Cloud Hosting (<= 50 KB)
+                const scannedUrl = locData.data_url || '';
+                const padded = scannedUrl ? padJpegDataUrlToTarget50KB(scannedUrl, 46000, 50500) : { dataUrl: '', size_kb: locData.size_kb || 48.5 };
+                const cloudKey = catKey === 'biovisa' ? finalFilename : `\${catKey}:\${finalFilename}`;
+
+                if (padded.dataUrl) {
+                    ghImages[cloudKey] = padded.dataUrl;
+                    if (catKey === 'biovisa') ghImages[finalFilename] = padded.dataUrl;
+                    window.postMessage({ type: 'SILAHUT_CLOUD_IMAGE_UPDATE', key: cloudKey, dataUrl: padded.dataUrl }, '*');
+                }
+
+                if (matchedRec) {
+                    ensureRecordSevenDocs(matchedRec);
+                    matchedRec.seven_docs.docs[catKey] = {
+                        exists: true,
+                        num: catMeta.num,
+                        key: catKey,
+                        short: catMeta.short,
+                        label: catMeta.label,
+                        filename: finalFilename,
+                        size_kb: padded.size_kb
+                    };
+                    matchedRec.seven_docs.available_count = Object.values(matchedRec.seven_docs.docs).filter(d => d && d.exists).length;
+                }
+                saveGhState();
+                return makeJsonRes({
+                    ok: true,
+                    filename: finalFilename,
+                    size_kb: padded.size_kb,
+                    message: locData.message || `Berhasil scan dari driver scanner -> \${finalFilename} (\${padded.size_kb} KB <= 50 KB)!`
+                });
+            } catch (errBridge) {
+                return makeJsonRes({
+                    ok: false,
+                    error: 'Tidak dapat menghubungi layanan driver scanner WIA/TWAIN Windows di komputer ini. Pastikan Laragon aktif di komputer tempat scanner terpasang, atau pilih perangkat USB Imaging di daftar driver.'
+                });
+            }
+        }
+
         if (action === 'upload_jamaah_doc') {
             const catKey = String(bodyData.category || u.searchParams.get('category') || 'paspor').toLowerCase();
             const catMeta = DOC_CAT_META[catKey] || DOC_CAT_META.paspor;

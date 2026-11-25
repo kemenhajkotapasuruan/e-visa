@@ -13,6 +13,7 @@ require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/includes/BiovisaProcessor.php';
 require_once __DIR__ . '/includes/GmailImapClient.php';
 require_once __DIR__ . '/includes/GDriveSync.php';
+require_once __DIR__ . '/includes/ScannerBridge.php';
 
 // Izinkan akses CORS untuk Ekstensi Chrome Siskohat Gen.2
 header('Access-Control-Allow-Origin: *');
@@ -1222,6 +1223,119 @@ switch ($action) {
                 'total_slots' => count($cats),
                 'docs' => $docsPayload
             ]
+        ]);
+        break;
+
+    case 'list_scanners':
+        $res = ScannerBridge::listActiveScanners();
+        jsonResponse($res);
+        break;
+
+    case 'scan_jamaah_doc':
+        $rawInput = file_get_contents('php://input');
+        $payload  = json_decode($rawInput, true) ?: $_POST;
+
+        $settings = getSettings();
+        $records  = getRecords();
+        $cats     = getSiskohatDocCategories();
+
+        $catKey = strtolower(trim((string)($payload['category'] ?? 'paspor')));
+        if (!isset($cats[$catKey])) {
+            jsonResponse(['ok' => false, 'error' => 'Kategori dokumen tidak valid: ' . $catKey], 400);
+        }
+        $catMeta   = $cats[$catKey];
+        $targetId  = trim((string)($payload['id'] ?? ''));
+        $targetDir = ($catKey === 'biovisa') ? BIOVISA_DIR : getDocCategoryDir($catKey);
+
+        $matchedRec = null;
+        foreach ($records as $r) {
+            if (($r['id'] ?? '') === $targetId) {
+                $matchedRec = $r;
+                break;
+            }
+        }
+        if (!$matchedRec && !empty($payload['paspor'])) {
+            $reqP = strtoupper(trim((string)$payload['paspor']));
+            foreach ($records as $r) {
+                if (strtoupper(trim((string)($r['paspor'] ?? ''))) === $reqP) {
+                    $matchedRec = $r;
+                    break;
+                }
+            }
+        }
+
+        $scanRes = ScannerBridge::scanFromActiveDriver([
+            'device_id'  => $payload['device_id'] ?? '',
+            'use_dialog' => !empty($payload['use_dialog']),
+            'dpi'        => intval($payload['dpi'] ?? 150),
+            'color_mode' => $payload['color_mode'] ?? 'color'
+        ]);
+
+        if (empty($scanRes['ok'])) {
+            jsonResponse([
+                'ok' => false,
+                'error' => $scanRes['error'] ?? 'Gagal melakukan scan dari driver scanner.'
+            ]);
+        }
+
+        $tempScanPath = $scanRes['temp_path'];
+        $rawBytes = @file_get_contents($tempScanPath);
+        @unlink($tempScanPath);
+
+        if ($rawBytes === false || $rawBytes === '') {
+            jsonResponse(['ok' => false, 'error' => 'Data gambar hasil scan kosong.']);
+        }
+
+        if ($matchedRec) {
+            $finalFilename = BiovisaProcessor::buildFilename($matchedRec['nama'], $matchedRec['paspor'], $settings);
+        } else {
+            $reqNama   = strtoupper(trim((string)($payload['nama'] ?? 'JAMAAH')));
+            $reqPaspor = strtoupper(trim((string)($payload['paspor'] ?? ('SCAN' . date('His')))));
+            $finalFilename = BiovisaProcessor::buildFilename($reqNama, $reqPaspor, $settings);
+        }
+
+        $destPath = $targetDir . DIRECTORY_SEPARATOR . $finalFilename;
+        $gd = @imagecreatefromstring($rawBytes);
+        if ($gd !== false) {
+            $minKb = floatval($settings['target_min_kb'] ?? 42.0);
+            $maxKb = min(49.5, floatval($settings['target_max_kb'] ?? 49.5));
+            $pad50 = !empty($settings['strict_50kb_padding']);
+            BiovisaProcessor::saveGdAs50KbJpg($gd, $destPath, $minKb, $maxKb, $pad50);
+            imagedestroy($gd);
+        } else {
+            file_put_contents($destPath, $rawBytes);
+        }
+
+        $finalBytes = is_file($destPath) ? file_get_contents($destPath) : $rawBytes;
+        $finalSizeKb = round(strlen($finalBytes) / 1024, 2);
+
+        $gdriveSynced = false;
+        if (!empty($settings['auto_upload_gdrive']) && !empty($settings['gas_gdrive_webapp_url']) && is_file($destPath)) {
+            $docRec = [
+                'filename' => $finalFilename,
+                'nama' => $matchedRec['nama'] ?? pathinfo($finalFilename, PATHINFO_FILENAME),
+                'paspor' => $matchedRec['paspor'] ?? '-',
+                'enrollment_id' => $catMeta['label'],
+                'size_kb' => $finalSizeKb,
+                'custom_path' => $destPath,
+                'subfolder' => $catMeta['gdrive_subfolder']
+            ];
+            $gdRes = GDriveSync::uploadCustomDocToDrive($docRec, $settings);
+            $gdriveSynced = !empty($gdRes['ok']);
+        }
+
+        addSyncLog('success', "Berhasil scan dari [{$scanRes['scanner_name']}] -> {$finalFilename} ({$finalSizeKb} KB) pada kategori {$catMeta['label']}.");
+        jsonResponse([
+            'ok' => true,
+            'scanner_name' => $scanRes['scanner_name'],
+            'category' => $catKey,
+            'category_label' => $catMeta['label'],
+            'filename' => $finalFilename,
+            'size_kb' => $finalSizeKb,
+            'size_bytes' => strlen($finalBytes),
+            'data_url' => 'data:image/jpeg;base64,' . base64_encode($finalBytes),
+            'gdrive_synced' => $gdriveSynced,
+            'message' => "Berhasil scan dari [{$scanRes['scanner_name']}] -> {$finalFilename} ({$finalSizeKb} KB <= 50 KB)!"
         ]);
         break;
 

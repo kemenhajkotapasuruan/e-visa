@@ -347,12 +347,15 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                                     <option value="biovisa">6. Scan/Upload Biovisa (jpeg)</option>
                                     <option value="foto">7. Scan/Upload Foto Terbaru</option>
                                 </select>
-                                <input type="file" id="bulk-doc-files" accept="image/*" multiple class="form-control" style="max-width:340px;">
+                                <input type="file" id="bulk-doc-files" accept="image/*" multiple class="form-control" style="max-width:310px;">
                                 <button type="button" class="btn btn-gold" id="btn-bulk-doc-upload" onclick="uploadBulkSevenDocs()">
-                                    ⬆️ Upload &amp; Pasangkan Otomatis ke Jamaah
+                                    💻 Dari Komputer (Upload)
                                 </button>
-                                <button type="button" class="btn btn-charcoal" onclick="syncGDriveSevenDocs()">
-                                    ☁️ Sinkron dari 7 Folder Google Drive
+                                <button type="button" class="btn btn-charcoal" onclick="openScannerModal('', document.getElementById('bulk-doc-category').value)">
+                                    🖨️ Dari Scanner (Driver Aktif)
+                                </button>
+                                <button type="button" class="btn btn-outline" onclick="syncGDriveSevenDocs()">
+                                    ☁️ Sinkron 7 Folder GDrive
                                 </button>
                             </div>
                         </div>
@@ -827,11 +830,95 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             <div style="margin-top:16px; padding-top:14px; border-top:2px solid var(--ui-gold);">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
                     <div>
-                        <strong style="font-size:14px; color:var(--pure-black);">✦ Kelengkapan 7 File Upload Siskohat (ENTRY DATA PASPOR DAN DOKUMEN PEMVISAAN)</strong>
-                        <div style="font-size:11.5px; color:var(--text-secondary);">File yang tersedia (✓) akan otomatis di-upload ke Siskohat. File yang belum ada (⊘) otomatis diblokir &amp; dilewati ke file berikutnya.</div>
+                        <strong style="font-size:14px; color:var(--pure-black);">✦ Kelengkapan 7 File Upload Siskohat (Pilih: 💻 Dari Komputer atau 🖨️ Dari Scanner)</strong>
+                        <div style="font-size:11.5px; color:var(--text-secondary);">Setiap file yang diunggah dari Komputer maupun dipindai langsung dari Driver Scanner otomatis dikompres menjadi <strong>JPG &le; 50 KB</strong>. File yang belum ada (⊘) otomatis diblokir &amp; dilewati ke file berikutnya.</div>
                     </div>
                 </div>
                 <div id="modal-seven-docs-grid" class="modal-seven-docs-grid"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PEMINDAI DOKUMEN (MEMBACA DRIVER SCANNER AKTIF PADA KOMPUTER) -->
+    <div class="modal-backdrop" id="modal-scanner" onclick="if(event.target===this) closeScannerModal()">
+        <div class="modal-card" style="max-width: 680px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border-color);">
+                <div>
+                    <h3 style="font-size: 16px;">🖨️ Scan Dokumen Langsung dari Driver Scanner Aktif</h3>
+                    <div style="font-size: 11.5px; color: var(--text-secondary);">Membaca driver scanner (WIA / TWAIN) yang aktif pada komputer ini &amp; otomatis mengompres hasil scan menjadi JPG &le; 50 KB</div>
+                </div>
+                <button type="button" class="btn btn-charcoal btn-sm" onclick="closeScannerModal()">✕ Tutup</button>
+            </div>
+
+            <div class="verification-panel" id="scanner-driver-status-box" style="margin-bottom:14px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <div style="font-size:11.5px; font-weight:800; color:var(--text-secondary);">STATUS DRIVER SCANNER KOMPUTER:</div>
+                        <div id="scanner-driver-status-text" style="font-size:13px; font-weight:800; color:var(--pure-black); margin-top:2px;">
+                            ⏳ Memeriksa driver scanner yang aktif di komputer ini...
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="refreshActiveScannerDrivers()">
+                        🔄 Deteksi Ulang Driver Scanner
+                    </button>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>1. Pilih Jamaah Tujuan</label>
+                <select id="scanner-target-jamaah" class="form-control" style="font-weight:700;"></select>
+            </div>
+
+            <div class="form-group">
+                <label>2. Kategori Dokumen Pemvisaan Siskohat (1 s/d 7)</label>
+                <select id="scanner-target-category" class="form-control" style="font-weight:700;">
+                    <option value="paspor">1. Scan Halaman Pertama Paspor</option>
+                    <option value="endorsement">2. Scan/Upload Halaman Endorsement</option>
+                    <option value="vaksin">3. Scan/Upload Keterangan Vaksin Meningitis *</option>
+                    <option value="kitas">4. Scan/Upload Keterangan KITAS</option>
+                    <option value="pendukung">5. Scan/Upload Dokumen Pendukung</option>
+                    <option value="biovisa">6. Scan/Upload Biovisa (jpeg)</option>
+                    <option value="foto">7. Scan/Upload Foto Terbaru</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>3. Driver Scanner yang Aktif pada Komputer Ini</label>
+                <select id="scanner-device-select" class="form-control" style="font-weight:700;">
+                    <option value="">🖨️ Memuat daftar driver scanner aktif...</option>
+                </select>
+                <div class="help-text">Otomatis membaca driver WIA / TWAIN / USB Scanner yang terpasang dan menyala di komputer ini.</div>
+            </div>
+
+            <div class="form-grid" style="grid-template-columns: 1.3fr 0.85fr 0.85fr; gap: 10px;">
+                <div class="form-group">
+                    <label>Mode Pemindaian Driver</label>
+                    <select id="scanner-mode-select" class="form-control">
+                        <option value="direct">⚡ Langsung Scan Otomatis (1 Klik)</option>
+                        <option value="dialog">🪟 Buka Jendela Bawaan Driver Scanner</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Resolusi (DPI)</label>
+                    <select id="scanner-dpi-select" class="form-control">
+                        <option value="150" selected>150 DPI (Cepat)</option>
+                        <option value="200">200 DPI (Tajam)</option>
+                        <option value="300">300 DPI (Detail)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Mode Warna</label>
+                    <select id="scanner-color-select" class="form-control">
+                        <option value="color" selected>Warna (Color)</option>
+                        <option value="grayscale">Grayscale</option>
+                    </select>
+                </div>
+            </div>
+
+            <div style="display:flex; gap:10px; align-items:center; margin-top:6px;">
+                <button type="button" class="btn btn-gold portal-action-btn" id="btn-start-hardware-scan" style="flex:1; padding:12px;" onclick="executeHardwareScanNow()">
+                    🖨️ Mulai Scan dari Driver Scanner (&le; 50 KB)
+                </button>
             </div>
         </div>
     </div>
@@ -1986,13 +2073,16 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                             </span>
                         </div>
                         <div style="font-size:11px; color:var(--text-secondary); margin-bottom:8px; font-family:Consolas,monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                            ${isReady ? escapeHtml(info.filename) : 'Belum ada file — Klik Upload untuk menambahkan'}
+                            ${isReady ? escapeHtml(info.filename) : 'Belum ada file — Pilih Dari Komputer atau Scanner'}
                         </div>
-                        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
-                            <label class="btn btn-gold btn-sm" style="cursor:pointer; margin:0;">
-                                ⬆️ ${isReady ? 'Ganti File' : 'Upload File'}
+                        <div style="display:flex; gap:5px; align-items:center; flex-wrap:wrap;">
+                            <label class="btn btn-gold btn-sm" style="cursor:pointer; margin:0;" title="Pilih file gambar dari folder komputer (Otomatis dikompres <= 50 KB)">
+                                💻 Dari Komputer
                                 <input type="file" accept="image/*" style="display:none;" onchange="uploadSingleJamaahDoc('${escapeHtml(rec.id)}', '${escapeHtml(d.key)}', this)">
                             </label>
+                            <button type="button" class="btn btn-charcoal btn-sm" onclick="openScannerModal('${escapeHtml(rec.id)}', '${escapeHtml(d.key)}')" title="Pindai langsung dari Driver Scanner yang aktif di komputer ini (Otomatis <= 50 KB)">
+                                🖨️ Dari Scanner
+                            </button>
                             ${isReady ? `
                                 <button type="button" class="btn btn-outline btn-sm" onclick="previewDocInModal('${escapeHtml(previewUrl)}', '${escapeHtml(d.label)}')">
                                     👁️ Lihat
@@ -2119,6 +2209,118 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                 showToast('Kesalahan jaringan saat menghubungi Google Drive.', true);
             } finally {
                 if (btn) btn.disabled = false;
+            }
+        }
+
+        // ====================================================================
+        // FITUR PEMINDAI (SCANNER) LANGSUNG DARI DRIVER SCANNER AKTIF KOMPUTER
+        // ====================================================================
+        function openScannerModal(recId = '', catKey = 'paspor') {
+            const jamaahSel = document.getElementById('scanner-target-jamaah');
+            const catSel    = document.getElementById('scanner-target-category');
+            const recs      = appState.records || [];
+
+            jamaahSel.innerHTML = recs.map(r => {
+                const sel = (r.id === recId) ? 'selected' : '';
+                return `<option value="${escapeHtml(r.id)}" ${sel}>${escapeHtml(r.nama)} — Paspor: ${escapeHtml(r.paspor)}</option>`;
+            }).join('');
+
+            if (catKey && catSel) {
+                catSel.value = catKey;
+            }
+
+            document.getElementById('modal-scanner').classList.add('open');
+            refreshActiveScannerDrivers();
+        }
+
+        function closeScannerModal() {
+            document.getElementById('modal-scanner').classList.remove('open');
+        }
+
+        async function refreshActiveScannerDrivers() {
+            const statusText = document.getElementById('scanner-driver-status-text');
+            const devSelect  = document.getElementById('scanner-device-select');
+            statusText.textContent = '⏳ Membaca daftar driver scanner (WIA / TWAIN) yang aktif di komputer ini...';
+            statusText.style.color = 'var(--pure-black)';
+            devSelect.innerHTML = `<option value="">⏳ Memindai driver scanner aktif...</option>`;
+
+            try {
+                const res = await fetch('api.php?action=list_scanners&_t=' + Date.now());
+                const data = await res.json();
+                const devices = (data && Array.isArray(data.devices)) ? data.devices : [];
+
+                if (devices.length > 0) {
+                    statusText.textContent = `✅ Ditemukan ${devices.length} Driver Scanner Aktif pada komputer ini`;
+                    statusText.style.color = 'var(--success)';
+                    let opts = '';
+                    devices.forEach((d, idx) => {
+                        const mfg = d.manufacturer ? ` (${d.manufacturer})` : '';
+                        opts += `<option value="${escapeHtml(d.id || '')}" ${idx === 0 ? 'selected' : ''}>🖨️ [Driver Aktif] ${escapeHtml(d.name)}${escapeHtml(mfg)} — ${escapeHtml(d.driver_type || 'WIA/TWAIN')}</option>`;
+                    });
+                    opts += `<option value="__DIALOG__">🪟 Dialog Pemilih Driver Scanner Bawaan Windows (WIA / TWAIN)</option>`;
+                    devSelect.innerHTML = opts;
+                } else {
+                    statusText.textContent = '⚠️ Tidak ada scanner yang terdeteksi menyala otomatis — Gunakan Dialog Driver Scanner Windows atau pastikan kabel USB scanner menyala (ON)';
+                    statusText.style.color = 'var(--warning)';
+                    devSelect.innerHTML = `<option value="__DIALOG__" selected>🪟 Gunakan Driver Scanner Default Windows (Dialog WIA / TWAIN Aktif)</option>`;
+                }
+            } catch (e) {
+                statusText.textContent = '⚠️ Pastikan layanan lokal aktif untuk mengakses driver hardware scanner Windows.';
+                statusText.style.color = 'var(--danger)';
+                devSelect.innerHTML = `<option value="__DIALOG__" selected>🪟 Driver Scanner Default Windows (WIA / TWAIN)</option>`;
+            }
+        }
+
+        async function executeHardwareScanNow() {
+            const recId      = document.getElementById('scanner-target-jamaah').value;
+            const catKey     = document.getElementById('scanner-target-category').value;
+            const devId      = document.getElementById('scanner-device-select').value;
+            const scanMode   = document.getElementById('scanner-mode-select').value;
+            const dpi        = parseInt(document.getElementById('scanner-dpi-select').value || '150', 10);
+            const colorMode  = document.getElementById('scanner-color-select').value || 'color';
+            const btn        = document.getElementById('btn-start-hardware-scan');
+
+            const rec = (appState.records || []).find(r => r.id === recId);
+            const useDialog = (scanMode === 'dialog' || devId === '__DIALOG__');
+
+            const origText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '⏳ Membaca dari Driver Scanner & Mengompres <= 50 KB...';
+            showToast('🖨️ Menghubungi driver scanner aktif pada komputer... Pastikan dokumen sudah diletakkan di kaca/ADF scanner.');
+
+            try {
+                const res = await fetch('api.php?action=scan_jamaah_doc', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: recId,
+                        nama: rec ? rec.nama : 'JAMAAH',
+                        paspor: rec ? rec.paspor : '',
+                        category: catKey,
+                        device_id: devId === '__DIALOG__' ? '' : devId,
+                        use_dialog: useDialog,
+                        dpi: dpi,
+                        color_mode: colorMode
+                    })
+                });
+                const data = await res.json();
+                await loadAppStatus();
+
+                if (data && data.ok) {
+                    playNotificationSound();
+                    showToast(data.message || `✅ Berhasil scan dokumen (${data.size_kb} KB <= 50 KB)!`);
+                    closeScannerModal();
+                    if (recId) {
+                        openPreviewModal(recId);
+                    }
+                } else {
+                    showToast((data && data.error) || 'Gagal memindai dari driver scanner.', true);
+                }
+            } catch (err) {
+                showToast('Gagal berkomunikasi dengan driver scanner: ' + err.message, true);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = origText;
             }
         }
 
