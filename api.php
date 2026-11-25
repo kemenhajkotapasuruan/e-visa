@@ -84,9 +84,21 @@ if ($action === 'download_siskohat_ext') {
 
 // Endpoint khusus download file JPG atau ZIP (bukan JSON)
 if ($action === 'download_file') {
+    $cat  = preg_replace('/[^a-z_]/', '', strtolower(trim((string)($_GET['cat'] ?? 'biovisa'))));
     $file = basename($_GET['file'] ?? '');
-    $path = BIOVISA_DIR . DIRECTORY_SEPARATOR . $file;
-    if ($file === '' || !file_exists($path)) {
+    $path = '';
+
+    if ($cat !== '' && $cat !== 'biovisa') {
+        $catDir = getDocCategoryDir($cat);
+        $path = $catDir . DIRECTORY_SEPARATOR . $file;
+    } else {
+        $path = BIOVISA_DIR . DIRECTORY_SEPARATOR . $file;
+        if (!is_file($path)) {
+            $path = getDocCategoryDir('biovisa') . DIRECTORY_SEPARATOR . $file;
+        }
+    }
+
+    if ($file === '' || !is_file($path)) {
         http_response_code(404);
         echo "File tidak ditemukan.";
         exit;
@@ -398,6 +410,7 @@ switch ($action) {
                 $under50KbCount++;
             }
             $totalKb += ($r['size_kb'] ?? 0);
+            $r['seven_docs'] = getJamaahSevenDocsStatus($r);
         }
         unset($r);
 
@@ -432,6 +445,8 @@ switch ($action) {
             'ok' => true,
             'settings' => $settings,
             'records' => $records,
+            'doc_categories' => array_values(getSiskohatDocCategories()),
+            'docs_root_path' => DOKUMEN_DIR,
             'jamaah' => $jamaahWithStatus,
             'logs' => array_slice($logs, 0, 40),
             'stats' => [
@@ -1018,7 +1033,8 @@ switch ($action) {
         foreach ($records as $r) {
             $fn = $r['filename'] ?? '';
             $fp = BIOVISA_DIR . DIRECTORY_SEPARATOR . $fn;
-            if ($fn === '' || !file_exists($fp)) {
+            $sevenDocs = getJamaahSevenDocsStatus($r);
+            if ($sevenDocs['available_count'] === 0 && ($fn === '' || !file_exists($fp))) {
                 continue;
             }
             $queue[] = [
@@ -1027,22 +1043,27 @@ switch ($action) {
                 'paspor' => $r['paspor'] ?? '',
                 'enrollment_id' => $r['enrollment_id'] ?? '',
                 'filename' => $fn,
-                'size_kb' => $r['size_kb'] ?? round(filesize($fp) / 1024, 2),
+                'size_kb' => $r['size_kb'] ?? (file_exists($fp) ? round(filesize($fp) / 1024, 2) : 0),
                 'siskohat_uploaded' => !empty($r['siskohat_uploaded']),
-                'siskohat_uploaded_at' => $r['siskohat_uploaded_at'] ?? ''
+                'siskohat_uploaded_at' => $r['siskohat_uploaded_at'] ?? '',
+                'siskohat_uploaded_docs' => $r['siskohat_uploaded_docs'] ?? [],
+                'seven_docs' => $sevenDocs
             ];
         }
         jsonResponse([
             'ok' => true,
             'count' => count($queue),
+            'doc_categories' => array_values(getSiskohatDocCategories()),
             'records' => $queue
         ]);
         break;
 
+    case 'siskohat_get_all_docs':
     case 'siskohat_get_file':
         $id = trim((string)($_GET['id'] ?? ''));
         $paspor = strtoupper(trim((string)($_GET['paspor'] ?? '')));
         $nama = strtoupper(trim((string)($_GET['nama'] ?? '')));
+        $requestedCat = strtolower(trim((string)($_GET['cat'] ?? '')));
 
         $records = getRecords();
         $matched = null;
@@ -1062,27 +1083,293 @@ switch ($action) {
         }
 
         if (!$matched) {
-            jsonResponse(['ok' => false, 'error' => 'Data Biovisa jamaah tidak ditemukan di Laragon.'], 404);
+            jsonResponse(['ok' => false, 'error' => 'Data jamaah tidak ditemukan di server E-Visa.'], 404);
         }
 
-        $fn = $matched['filename'] ?? '';
-        $fp = BIOVISA_DIR . DIRECTORY_SEPARATOR . $fn;
-        if ($fn === '' || !file_exists($fp)) {
-            jsonResponse(['ok' => false, 'error' => 'File JPG tidak ditemukan: ' . $fn], 404);
+        $cats = getSiskohatDocCategories();
+        $recPaspor = (string)($matched['paspor'] ?? '');
+        $recNama   = (string)($matched['nama'] ?? '');
+        $bvFile    = (string)($matched['filename'] ?? '');
+
+        $docsPayload = [];
+        $availableCount = 0;
+
+        foreach ($cats as $catKey => $meta) {
+            if ($requestedCat !== '' && $requestedCat !== 'all' && $requestedCat !== $catKey) {
+                continue;
+            }
+            $found = findJamaahDocFile($catKey, $recPaspor, $recNama, $catKey === 'biovisa' ? $bvFile : '');
+            if ($found && is_file($found['path'])) {
+                $bytes = file_get_contents($found['path']);
+                $availableCount++;
+                $docsPayload[$catKey] = [
+                    'exists' => true,
+                    'blocked' => false,
+                    'num' => $meta['num'],
+                    'key' => $catKey,
+                    'short' => $meta['short'],
+                    'label' => $meta['label'],
+                    'siskohat_label' => $meta['siskohat_label'],
+                    'filename' => $found['filename'],
+                    'size_kb' => round(strlen($bytes) / 1024, 2),
+                    'base64' => base64_encode($bytes)
+                ];
+            } else {
+                $docsPayload[$catKey] = [
+                    'exists' => false,
+                    'blocked' => true,
+                    'num' => $meta['num'],
+                    'key' => $catKey,
+                    'short' => $meta['short'],
+                    'label' => $meta['label'],
+                    'siskohat_label' => $meta['siskohat_label'],
+                    'filename' => '',
+                    'size_kb' => 0,
+                    'base64' => '',
+                    'reason' => "File {$meta['label']} tidak ada -> diblokir & lanjut ke dokumen berikutnya"
+                ];
+            }
         }
 
-        $bytes = file_get_contents($fp);
+        // Kompatibilitas backward untuk field single 'base64' & 'filename' (biovisa)
+        $bvDoc = $docsPayload['biovisa'] ?? null;
+
         jsonResponse([
             'ok' => true,
             'record' => [
                 'id' => $matched['id'] ?? '',
-                'nama' => $matched['nama'] ?? '',
-                'paspor' => $matched['paspor'] ?? '',
+                'nama' => $recNama,
+                'paspor' => $recPaspor,
                 'enrollment_id' => $matched['enrollment_id'] ?? '',
-                'filename' => $fn,
-                'size_kb' => round(strlen($bytes) / 1024, 2),
-                'base64' => base64_encode($bytes)
+                'filename' => ($bvDoc && $bvDoc['exists']) ? $bvDoc['filename'] : $bvFile,
+                'size_kb' => ($bvDoc && $bvDoc['exists']) ? $bvDoc['size_kb'] : 0,
+                'base64' => ($bvDoc && $bvDoc['exists']) ? $bvDoc['base64'] : '',
+                'available_count' => $availableCount,
+                'total_slots' => count($cats),
+                'docs' => $docsPayload
             ]
+        ]);
+        break;
+
+    case 'upload_jamaah_doc':
+        $settings = getSettings();
+        $records  = getRecords();
+        $cats     = getSiskohatDocCategories();
+
+        $catKey = strtolower(trim((string)($_POST['category'] ?? $_GET['category'] ?? 'paspor')));
+        if (!isset($cats[$catKey])) {
+            jsonResponse(['ok' => false, 'error' => 'Kategori dokumen tidak valid: ' . $catKey], 400);
+        }
+        $catMeta = $cats[$catKey];
+        $targetId = trim((string)($_POST['id'] ?? ''));
+        $targetDir = ($catKey === 'biovisa') ? BIOVISA_DIR : getDocCategoryDir($catKey);
+
+        // Kumpulkan semua file yang diupload (bisa single 'file' atau multi 'files[]')
+        $uploadedList = [];
+        if (!empty($_FILES['files']) && is_array($_FILES['files']['name'])) {
+            $count = count($_FILES['files']['name']);
+            for ($i = 0; $i < $count; $i++) {
+                if ($_FILES['files']['error'][$i] === UPLOAD_ERR_OK && is_uploaded_file($_FILES['files']['tmp_name'][$i])) {
+                    $uploadedList[] = [
+                        'orig_name' => $_FILES['files']['name'][$i],
+                        'tmp_name' => $_FILES['files']['tmp_name'][$i]
+                    ];
+                }
+            }
+        } elseif (!empty($_FILES['file']['tmp_name']) && is_uploaded_file($_FILES['file']['tmp_name'])) {
+            $uploadedList[] = [
+                'orig_name' => $_FILES['file']['name'] ?? 'dokumen.jpg',
+                'tmp_name' => $_FILES['file']['tmp_name']
+            ];
+        }
+
+        if (empty($uploadedList)) {
+            jsonResponse(['ok' => false, 'error' => 'Tidak ada file gambar yang diterima.'], 400);
+        }
+
+        $savedFiles = [];
+        foreach ($uploadedList as $uItem) {
+            $origName = $uItem['orig_name'];
+            $rawBytes = file_get_contents($uItem['tmp_name']);
+            if ($rawBytes === false || $rawBytes === '') continue;
+
+            // Tentukan jamaah pemilik file ini (dari targetId, atau ekstrak Nomor Paspor / Nama dari nama file)
+            $matchedRec = null;
+            if ($targetId !== '' && count($uploadedList) === 1) {
+                foreach ($records as $r) {
+                    if (($r['id'] ?? '') === $targetId) {
+                        $matchedRec = $r;
+                        break;
+                    }
+                }
+            }
+            if (!$matchedRec) {
+                $baseUpper = strtoupper(pathinfo($origName, PATHINFO_FILENAME));
+                foreach ($records as $r) {
+                    $p = strtoupper(trim((string)($r['paspor'] ?? '')));
+                    $n = strtoupper(trim((string)($r['nama'] ?? '')));
+                    if ($p !== '' && $p !== 'TANPAPASPOR' && ($baseUpper === $p || strpos($baseUpper, $p) !== false)) {
+                        $matchedRec = $r;
+                        break;
+                    }
+                    if ($n !== '' && ($baseUpper === $n || strpos($baseUpper, $n . '_') === 0)) {
+                        $matchedRec = $r;
+                        break;
+                    }
+                }
+            }
+
+            if ($matchedRec) {
+                $finalFilename = BiovisaProcessor::buildFilename($matchedRec['nama'], $matchedRec['paspor'], $settings);
+            } else {
+                $cleanBase = preg_replace('/[^A-Za-z0-9_\- ]/', '', pathinfo($origName, PATHINFO_FILENAME));
+                $finalFilename = strtoupper(trim($cleanBase) ?: ('DOK_' . time())) . '.jpg';
+            }
+
+            $destPath = $targetDir . DIRECTORY_SEPARATOR . $finalFilename;
+
+            // Konversi & kompres otomatis menjadi JPEG sesuai batas KB kategori Siskohat
+            $gd = @imagecreatefromstring($rawBytes);
+            if ($gd !== false) {
+                $maxKb = floatval($catMeta['max_kb'] ?? 150);
+                $minKb = ($catKey === 'biovisa') ? floatval($settings['target_min_kb'] ?? 42) : 15.0;
+                $pad50 = ($catKey === 'biovisa') ? !empty($settings['strict_50kb_padding']) : false;
+                if ($catKey === 'biovisa') {
+                    $maxKb = min(49.5, $maxKb);
+                }
+                BiovisaProcessor::saveGdAs50KbJpg($gd, $destPath, $minKb, $maxKb, $pad50);
+                imagedestroy($gd);
+            } else {
+                file_put_contents($destPath, $rawBytes);
+            }
+
+            $finalSizeKb = is_file($destPath) ? round(filesize($destPath) / 1024, 2) : 0;
+
+            // Sinkronkan juga ke Sub-Folder Google Drive jika URL Web App GDrive sudah aktif
+            $gdriveSynced = false;
+            if (!empty($settings['auto_upload_gdrive']) && !empty($settings['gas_gdrive_webapp_url']) && is_file($destPath)) {
+                $docRec = [
+                    'filename' => $finalFilename,
+                    'nama' => $matchedRec['nama'] ?? pathinfo($finalFilename, PATHINFO_FILENAME),
+                    'paspor' => $matchedRec['paspor'] ?? '-',
+                    'enrollment_id' => $matchedRec['enrollment_id'] ?? $catMeta['label'],
+                    'size_kb' => $finalSizeKb,
+                    'custom_path' => $destPath,
+                    'subfolder' => $catMeta['gdrive_subfolder']
+                ];
+                $gdRes = GDriveSync::uploadCustomDocToDrive($docRec, $settings);
+                $gdriveSynced = !empty($gdRes['ok']);
+            }
+
+            $savedFiles[] = [
+                'category' => $catKey,
+                'category_label' => $catMeta['label'],
+                'filename' => $finalFilename,
+                'size_kb' => $finalSizeKb,
+                'matched_paspor' => $matchedRec['paspor'] ?? '',
+                'matched_nama' => $matchedRec['nama'] ?? '',
+                'gdrive_synced' => $gdriveSynced
+            ];
+        }
+
+        addSyncLog('success', "Berhasil menyimpan " . count($savedFiles) . " file pada kategori {$catMeta['label']}.");
+        jsonResponse([
+            'ok' => true,
+            'count' => count($savedFiles),
+            'saved' => $savedFiles,
+            'message' => "Berhasil menyimpan " . count($savedFiles) . " file dokumen pada kategori {$catMeta['label']}!"
+        ]);
+        break;
+
+    case 'delete_jamaah_doc':
+        $rawInput = file_get_contents('php://input');
+        $payload = json_decode($rawInput, true) ?: $_POST;
+        $id = trim((string)($payload['id'] ?? ''));
+        $catKey = strtolower(trim((string)($payload['category'] ?? '')));
+
+        $cats = getSiskohatDocCategories();
+        if (!isset($cats[$catKey])) {
+            jsonResponse(['ok' => false, 'error' => 'Kategori tidak valid.'], 400);
+        }
+
+        $records = getRecords();
+        $matched = null;
+        foreach ($records as $r) {
+            if (($r['id'] ?? '') === $id) {
+                $matched = $r;
+                break;
+            }
+        }
+        if (!$matched) {
+            jsonResponse(['ok' => false, 'error' => 'Data jamaah tidak ditemukan.'], 404);
+        }
+
+        $found = findJamaahDocFile($catKey, (string)$matched['paspor'], (string)$matched['nama'], $catKey === 'biovisa' ? (string)$matched['filename'] : '');
+        if ($found && is_file($found['path'])) {
+            @unlink($found['path']);
+        }
+        jsonResponse([
+            'ok' => true,
+            'message' => "File {$cats[$catKey]['label']} untuk {$matched['nama']} berhasil dihapus."
+        ]);
+        break;
+
+    case 'sync_gdrive_7docs':
+        $settings = getSettings();
+        $records  = getRecords();
+        $gasUrl   = trim((string)($settings['gas_gdrive_webapp_url'] ?? ''));
+        if ($gasUrl === '') {
+            jsonResponse(['ok' => false, 'error' => 'URL Web App Google Drive belum diisi di Konfigurasi Integrasi.'], 400);
+        }
+
+        $listUrl = $gasUrl . (strpos($gasUrl, '?') === false ? '?' : '&')
+            . 'action=list_gdrive_docs&folder_name=' . rawurlencode($settings['gdrive_folder_name'] ?? 'Biovisa_Jamaah_PHU_Pasuruan');
+        $listRes = GDriveSync::httpGetJson($listUrl);
+        if (empty($listRes['ok']) || empty($listRes['data']['ok'])) {
+            jsonResponse([
+                'ok' => false,
+                'error' => $listRes['error'] ?? ($listRes['data']['error'] ?? 'Gagal membaca 7 sub-folder dari Google Drive. Pastikan Script GDrive terbaru sudah di-Deploy.')
+            ]);
+        }
+
+        $cats = getSiskohatDocCategories();
+        $gdriveCats = $listRes['data']['categories'] ?? [];
+        $pulledCount = 0;
+
+        foreach ($cats as $catKey => $meta) {
+            $filesInCat = $gdriveCats[$catKey] ?? [];
+            if (!is_array($filesInCat)) continue;
+            $targetDir = ($catKey === 'biovisa') ? BIOVISA_DIR : getDocCategoryDir($catKey);
+
+            foreach ($filesInCat as $gf) {
+                $gName = basename((string)($gf['filename'] ?? ''));
+                $gId   = trim((string)($gf['file_id'] ?? ''));
+                if ($gName === '' || $gId === '') continue;
+
+                $destPath = $targetDir . DIRECTORY_SEPARATOR . $gName;
+                if (is_file($destPath)) {
+                    continue; // Sudah ada di lokal
+                }
+
+                $dlUrl = $gasUrl . (strpos($gasUrl, '?') === false ? '?' : '&') . 'action=get_gdrive_file&file_id=' . rawurlencode($gId);
+                $dlRes = GDriveSync::httpGetJson($dlUrl);
+                if (!empty($dlRes['ok']) && !empty($dlRes['data']['ok']) && !empty($dlRes['data']['base64'])) {
+                    $rawBytes = base64_decode($dlRes['data']['base64']);
+                    if ($rawBytes !== false && strlen($rawBytes) > 0) {
+                        file_put_contents($destPath, $rawBytes);
+                        $pulledCount++;
+                    }
+                }
+            }
+        }
+
+        addSyncLog('success', "Sinkronisasi 7 Folder Google Drive selesai: {$pulledCount} file dokumen baru diunduh ke server.");
+        jsonResponse([
+            'ok' => true,
+            'pulled_count' => $pulledCount,
+            'message' => $pulledCount > 0
+                ? "Berhasil menarik {$pulledCount} file dokumen baru dari 7 Sub-Folder Google Drive!"
+                : "7 Sub-Folder Google Drive sudah sinkron (1_Paspor s/d 7_Foto siap digunakan)."
         ]);
         break;
 

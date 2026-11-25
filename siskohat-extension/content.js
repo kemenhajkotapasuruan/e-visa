@@ -331,6 +331,25 @@
 
     listEl.innerHTML = filtered.map(r => {
       const isDone = !!r.siskohat_uploaded;
+      const docsObj = (r.seven_docs && r.seven_docs.docs) ? r.seven_docs.docs : null;
+      const availCount = (r.seven_docs && typeof r.seven_docs.available_count === 'number')
+        ? r.seven_docs.available_count
+        : 1;
+
+      const miniBadges = SISKOHAT_SEVEN_SLOTS.map(s => {
+        const hasFile = docsObj
+          ? !!(docsObj[s.key] && docsObj[s.key].exists)
+          : (s.key === 'biovisa');
+        const bg = hasFile ? '#111827' : '#F1F5F9';
+        const fg = hasFile ? '#D4AF37' : '#94A3B8';
+        const bd = hasFile ? '#D4AF37' : '#CBD5E1';
+        const icon = hasFile ? '✓' : '⊘';
+        const tip = hasFile
+          ? `${s.label}: Tersedia (Akan di-upload otomatis)`
+          : `${s.label}: Tidak ada file (Diblokir & lanjut ke file berikutnya)`;
+        return `<span title="${escapeHtml(tip)}" style="display:inline-block; font-size:9px; font-weight:800; padding:1px 4px; border-radius:3px; background:${bg}; color:${fg}; border:1px solid ${bd};">${icon}${s.num}</span>`;
+      }).join(' ');
+
       return `
         <div class="silahut-item ${isDone ? 'done-siskohat' : ''}">
           <div class="silahut-item-info">
@@ -338,7 +357,10 @@
               ${isDone ? '✅ ' : ''}${escapeHtml(r.nama)}
             </div>
             <div class="silahut-item-sub">
-              Paspor: <strong>${escapeHtml(r.paspor)}</strong> &bull; ${escapeHtml(r.size_kb)} KB
+              Paspor: <strong>${escapeHtml(r.paspor)}</strong> &bull; <strong>${availCount}/7 File</strong>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:2px; margin-top:3px;">
+              ${miniBadges}
             </div>
           </div>
           <button type="button" class="silahut-btn silahut-btn-gold" data-upload-id="${escapeHtml(r.id)}">
@@ -357,114 +379,185 @@
   }
 
   /**
-   * DAFTAR BLOKIR MUTLAK (5 Kolom Upload Lain di Siskohat Gen.2 yang DILARANG KERAS Disentuh):
+   * DEFINISI 7 KOLOM FILE UPLOAD PADA MENU "ENTRY DATA PASPOR DAN DOKUMEN PEMVISAAN":
    * 1. Scan Halaman Pertama Paspor
    * 2. Scan/Upload Halaman Endorsement
    * 3. Scan/Upload Keterangan Vaksin Meningitis *
-   * 4. Scan/Upload Dokumen Pendukung
-   * 5. Scan/Upload Foto Terbaru *
+   * 4. Scan/Upload Keterangan KITAS
+   * 5. Scan/Upload Dokumen Pendukung
+   * 6. Scan/Upload Biovisa (jpeg)
+   * 7. Scan/Upload Foto Terbaru
+   *
+   * ATURAN BLOKIR & LANJUT OTOMATIS:
+   * - Setiap slot (1..7) diisolasi secara ketat dari 6 slot lainnya.
+   * - Jika file untuk salah satu slot TIDAK ADA, maka slot tersebut DIBLOKIR MUTLAK
+   *   (tidak disentuh sama sekali) dan sistem langsung melanjutkan ke file upload berikutnya.
    */
-  const FORBIDDEN_SECTIONS_REGEX = /Halaman\s+Pertama\s+Paspor|Scan\s+Scanner|Halaman\s+Endorsement|Keterangan\s+Vaksin\s+Meningitis|Vaksin\s+Meningitis|Dokumen\s+Pendukung|Foto\s+Terbaru/i;
+  const SISKOHAT_SEVEN_SLOTS = [
+    {
+      num: 1,
+      key: 'paspor',
+      short: '1.Paspor',
+      label: '1. Scan Halaman Pertama Paspor',
+      regex: /Scan\s+Halaman\s+Pertama\s+Paspor/i
+    },
+    {
+      num: 2,
+      key: 'endorsement',
+      short: '2.Endorse',
+      label: '2. Scan/Upload Halaman Endorsement',
+      regex: /Scan\s*\/\s*Upload\s+Halaman\s+Endorsement|Halaman\s+Endorsement/i
+    },
+    {
+      num: 3,
+      key: 'vaksin',
+      short: '3.Vaksin',
+      label: '3. Scan/Upload Keterangan Vaksin Meningitis *',
+      regex: /Scan\s*\/\s*Upload\s+Keterangan\s+Vaksin\s+Meningitis|Keterangan\s+Vaksin\s+Meningitis/i
+    },
+    {
+      num: 4,
+      key: 'kitas',
+      short: '4.KITAS',
+      label: '4. Scan/Upload Keterangan KITAS',
+      regex: /Scan\s*\/\s*Upload\s+Keterangan\s+KITAS|Keterangan\s+KITAS/i
+    },
+    {
+      num: 5,
+      key: 'pendukung',
+      short: '5.Pendukung',
+      label: '5. Scan/Upload Dokumen Pendukung',
+      regex: /Scan\s*\/\s*Upload\s+Dokumen\s+Pendukung|Dokumen\s+Pendukung/i
+    },
+    {
+      num: 6,
+      key: 'biovisa',
+      short: '6.Biovisa',
+      label: '6. Scan/Upload Biovisa (jpeg)',
+      regex: /Scan\s*\/\s*Upload\s*Biovisa/i
+    },
+    {
+      num: 7,
+      key: 'foto',
+      short: '7.Foto',
+      label: '7. Scan/Upload Foto Terbaru',
+      regex: /Scan\s*\/\s*Upload\s+Foto\s+Terbaru|Foto\s+Terbaru/i
+    }
+  ];
+
+  const MRTD_FORBIDDEN_REGEX = /Scan\s+Paspor\s+dengan\s+MRTD/i;
 
   /**
-   * SATU-SATUNYA TARGET YANG DIIZINKAN:
-   * Scan/Upload Biovisa (jpeg) *
+   * Cek apakah teks sebuah elemen DOM mengandung salah satu dari 6 slot LAIN selain targetKey
    */
-  const BIOVISA_SECTION_REGEX = /Scan\s*\/\s*Upload\s*Biovisa/i;
+  function containsOtherSlotText(txt, targetKey) {
+    if (!txt) return false;
+    if (MRTD_FORBIDDEN_REGEX.test(txt)) return true;
+    for (const s of SISKOHAT_SEVEN_SLOTS) {
+      if (s.key !== targetKey && s.regex.test(txt)) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   /**
-   * Klasifikasikan sebuah <input type="file"> dengan menelusuri parentElement ke atas satu per satu.
-   * Jika menyentuh salah satu dari 5 bagian terlarang lebih dulu, kembalikan owner = 'FORBIDDEN'.
-   * Hanya jika menyentuh "Scan/Upload Biovisa" TANPA menyentuh 5 bagian terlarang, kembalikan owner = 'BIOVISA'.
+   * Klasifikasikan sebuah <input type="file"> milik slot mana (1..7) dengan menelusuri parentElement ke atas.
+   * Hanya mengembalikan ownerKey = slot.key jika container terdekat HANYA cocok dengan 1 slot tersebut
+   * dan sama sekali TIDAK mengandung 6 slot lainnya.
    */
-  function classifyFileInputOwner(inputEl) {
+  function classifySlotFileInputOwner(inputEl) {
     let p = inputEl.parentElement;
     for (let depth = 1; depth <= 18 && p && p !== document.body; depth++) {
-      const txt = (p.textContent || '');
-      const hasBiovisa   = BIOVISA_SECTION_REGEX.test(txt);
-      const hasForbidden = FORBIDDEN_SECTIONS_REGEX.test(txt);
+      const txt = p.textContent || '';
+      if (MRTD_FORBIDDEN_REGEX.test(txt)) {
+        return { ownerKey: 'FORBIDDEN_MRTD', depth };
+      }
 
-      if (hasForbidden && !hasBiovisa) {
-        return { owner: 'FORBIDDEN', depth, containerTag: p.tagName, containerId: p.id || '' };
+      const matchedSlots = SISKOHAT_SEVEN_SLOTS.filter(s => s.regex.test(txt));
+      if (matchedSlots.length === 1) {
+        return {
+          ownerKey: matchedSlots[0].key,
+          depth,
+          containerTag: p.tagName,
+          containerId: p.id || ''
+        };
       }
-      if (hasBiovisa && !hasForbidden) {
-        return { owner: 'BIOVISA', depth, containerTag: p.tagName, containerId: p.id || '' };
-      }
-      if (hasBiovisa && hasForbidden) {
-        // Sudah mencapai container induk seluruh form yang menggabungkan beberapa bagian
+      if (matchedSlots.length > 1) {
+        // Sudah mencapai container induk gabungan beberapa slot
         break;
       }
       p = p.parentElement;
     }
-    return { owner: 'UNKNOWN', depth: 99 };
+    return { ownerKey: 'UNKNOWN', depth: 99 };
   }
 
   /**
-   * Temukan container DOM yang HANYA membungkus baris "Scan/Upload Biovisa (jpeg) *"
-   * dan SAMA SEKALI TIDAK mengandung 5 bagian yang diblokir mutlak.
+   * Temukan container DOM terisolasi yang HANYA membungkus slot target (misal slot #1..#7)
+   * dan SAMA SEKALI TIDAK mengandung 6 slot lainnya.
    */
-  function findIsolatedBiovisaContainer() {
+  function findIsolatedSlotContainer(slot) {
     const allEls = Array.from(document.querySelectorAll('span, label, td, div, th'));
-    const biovisaLabelEl = allEls.find(
-      el => el.children.length === 0 && BIOVISA_SECTION_REGEX.test((el.textContent || '').trim())
-    );
+    const labelEl = allEls.find(el => {
+      if (el.children.length > 1) return false;
+      const txt = (el.textContent || '').trim();
+      if (!slot.regex.test(txt)) return false;
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && rect.left >= 195;
+    });
 
-    if (!biovisaLabelEl) {
-      return { biovisaLabelEl: null, biovisaContainer: null, pilihBtnInBiovisa: null };
+    if (!labelEl) {
+      return { labelEl: null, slotContainer: null, pilihBtn: null };
     }
 
-    // Telusuri ke atas dari label "Scan/Upload Biovisa (jpeg) *" selama TIDAK mengandung 1 pun dari 5 bagian terlarang
-    let bestContainer = biovisaLabelEl.parentElement;
-    let cur = biovisaLabelEl.parentElement;
+    let bestContainer = labelEl.parentElement;
+    let cur = labelEl.parentElement;
 
     for (let depth = 1; depth <= 15 && cur && cur !== document.body; depth++) {
       const txt = cur.textContent || '';
-      if (FORBIDDEN_SECTIONS_REGEX.test(txt)) {
-        // Berhenti! Jangan naik lagi karena level ini sudah bercampur dengan bagian yang diblokir
+      if (containsOtherSlotText(txt, slot.key)) {
+        // Berhenti! Jangan naik lagi karena level ini sudah bercampur dengan slot lain
         break;
       }
       bestContainer = cur;
       cur = cur.parentElement;
     }
 
-    // Cari tombol "Pilih file (maks." HANYA di dalam bestContainer (container khusus Biovisa)
-    let pilihBtnInBiovisa = null;
+    let pilihBtn = null;
     if (bestContainer) {
       const innerEls = Array.from(bestContainer.querySelectorAll('td, span, button, a, div'));
-      pilihBtnInBiovisa = innerEls.find(
+      pilihBtn = innerEls.find(
         el => el.children.length === 0 && /Pilih\s*file/i.test((el.textContent || '').trim())
       );
-      if (!pilihBtnInBiovisa) {
-        pilihBtnInBiovisa = innerEls.find(
+      if (!pilihBtn) {
+        pilihBtn = innerEls.find(
           el => el.children.length <= 2 && /Pilih\s*file/i.test((el.textContent || '').trim())
         );
       }
     }
 
-    return { biovisaLabelEl, biovisaContainer: bestContainer, pilihBtnInBiovisa };
+    return { labelEl, slotContainer: bestContainer, pilihBtn };
   }
 
   /**
-   * Cari elemen <input type="file"> KHUSUS untuk "Scan/Upload Biovisa (jpeg) *"
-   * dan BLOKIR MUTLAK 5 bagian lainnya.
+   * Cari elemen <input type="file"> KHUSUS untuk 1 slot tertentu (dan blokir mutlak 6 slot lainnya)
    */
-  async function findSiskohatBiovisaFileInput() {
-    let { biovisaLabelEl, biovisaContainer, pilihBtnInBiovisa } = findIsolatedBiovisaContainer();
+  async function findSiskohatFileInputForSlot(slot) {
+    let { labelEl, slotContainer, pilihBtn } = findIsolatedSlotContainer(slot);
 
-    if (!biovisaLabelEl || !biovisaContainer) {
+    if (!labelEl || !slotContainer) {
       return null;
     }
 
-    // Scroll ke bagian Scan/Upload Biovisa (jpeg) *
-    biovisaLabelEl.scrollIntoView({ behavior: 'instant', block: 'center' });
-    await new Promise(r => setTimeout(r, 120));
+    // Scroll ke bagian slot tersebut
+    labelEl.scrollIntoView({ behavior: 'instant', block: 'center' });
+    await new Promise(r => setTimeout(r, 110));
 
-    // Trigger mouseover/mouseenter pada tombol "Pilih file" yang berada DI DALAM container Biovisa
-    if (pilihBtnInBiovisa) {
-      let target = pilihBtnInBiovisa;
+    // Trigger mouseover/mouseenter pada tombol "Pilih file" DI DALAM slotContainer agar ZK membuat input[type=file]
+    if (pilihBtn) {
+      let target = pilihBtn;
       for (let i = 0; i < 6 && target && target !== document.body; i++) {
-        // Jangan pernah keluar dari biovisaContainer
-        if (FORBIDDEN_SECTIONS_REGEX.test(target.textContent || '')) break;
+        if (containsOtherSlotText(target.textContent || '', slot.key)) break;
         const rect = target.getBoundingClientRect();
         const cx = rect.left + rect.width / 2;
         const cy = rect.top + rect.height / 2;
@@ -479,115 +572,143 @@
         });
         target = target.parentElement;
       }
-      await new Promise(r => setTimeout(r, 220));
+      await new Promise(r => setTimeout(r, 200));
     }
 
     // Segarkan referensi container setelah event mouseover ZK
-    ({ biovisaLabelEl, biovisaContainer, pilihBtnInBiovisa } = findIsolatedBiovisaContainer());
+    ({ labelEl, slotContainer, pilihBtn } = findIsolatedSlotContainer(slot));
 
-    // 1. Cari <input type="file"> yang berada LANGSUNG DI DALAM biovisaContainer
-    if (biovisaContainer) {
-      const inputsInBiovisa = Array.from(biovisaContainer.querySelectorAll('input[type="file"]')).filter(
-        inp => classifyFileInputOwner(inp).owner === 'BIOVISA'
+    // 1. Cari <input type="file"> di dalam slotContainer yang ownerKey === slot.key
+    if (slotContainer) {
+      const inputsInSlot = Array.from(slotContainer.querySelectorAll('input[type="file"]')).filter(
+        inp => classifySlotFileInputOwner(inp).ownerKey === slot.key
       );
-      if (inputsInBiovisa.length >= 1) {
+      if (inputsInSlot.length >= 1) {
         return {
-          fileInput: inputsInBiovisa[inputsInBiovisa.length - 1],
-          source: 'isolated_biovisa_container'
+          fileInput: inputsInSlot[inputsInSlot.length - 1],
+          source: `isolated_${slot.key}`
         };
       }
     }
 
-    // 2. Periksa seluruh <input type="file"> di halaman, HANYA terima yang classifyFileInputOwner(inp).owner === 'BIOVISA'
+    // 2. Periksa seluruh <input type="file"> di halaman, HANYA terima yang ownerKey === slot.key
     const allFileInputs = Array.from(document.querySelectorAll('input[type="file"]'));
-    const classified = allFileInputs.map((inp, idx) => ({
-      inp,
-      idx,
-      name: inp.name || '',
-      id: inp.id || '',
-      ...classifyFileInputOwner(inp)
-    }));
-
-    chrome.runtime.sendMessage({
-      type: 'LOG_DOM_DEBUG',
-      debug: {
-        total_file_inputs: allFileInputs.length,
-        found_biovisa_label: !!biovisaLabelEl,
-        found_pilih_in_biovisa: !!pilihBtnInBiovisa,
-        classified: classified.map(c => ({ idx: c.idx, owner: c.owner, depth: c.depth, id: c.id, name: c.name, tag: c.containerTag }))
-      }
-    });
-
-    const strictlyBiovisa = classified.filter(c => c.owner === 'BIOVISA');
-    if (strictlyBiovisa.length >= 1) {
-      const picked = strictlyBiovisa[strictlyBiovisa.length - 1];
+    const strictlyMatched = allFileInputs.filter(inp => classifySlotFileInputOwner(inp).ownerKey === slot.key);
+    if (strictlyMatched.length >= 1) {
       return {
-        fileInput: picked.inp,
-        source: 'strict_BIOVISA_idx_' + picked.idx
+        fileInput: strictlyMatched[strictlyMatched.length - 1],
+        source: `strict_${slot.key}`
       };
     }
 
-    // TOLAK MUTLAK semua input lainnya (termasuk FORBIDDEN maupun UNKNOWN) agar 5 kolom terlarang tidak pernah tersentuh!
     return null;
   }
 
+  function base64ToJpegFile(base64Str, filename) {
+    const byteCharacters = atob(base64Str);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: 'image/jpeg' });
+    return new File([blob], filename, {
+      type: 'image/jpeg',
+      lastModified: Date.now()
+    });
+  }
+
   /**
-   * Konversi Base64 menjadi objek File dan suntikkan HANYA ke <input type="file"> Scan/Upload Biovisa (jpeg) *
+   * Proses Otomatisasi 7 File Upload secara Berurutan (1..7):
+   * - Jika file untuk slot ke-k TIDAK ADA -> Slot ke-k DIBLOKIR MUTLAK & langsung lanjut ke slot ke-(k+1)
+   * - Jika file untuk slot ke-k ADA -> Suntikkan khusus ke <input type="file"> slot ke-k, lalu lanjut ke slot ke-(k+1)
    */
   async function injectFileIntoSiskohat(recordData) {
     if (isUploadingNow) return;
     isUploadingNow = true;
 
     try {
-      setToast(`⏳ Memasukkan ${recordData.filename} (${recordData.size_kb} KB) khusus ke Scan/Upload Biovisa...`);
+      // Bentuk peta 7 dokumen dari respons API
+      const docsMap = (recordData && recordData.docs) ? recordData.docs : {
+        biovisa: {
+          exists: !!(recordData && recordData.base64),
+          filename: (recordData && recordData.filename) || 'BIOVISA.jpg',
+          size_kb: (recordData && recordData.size_kb) || 48,
+          base64: (recordData && recordData.base64) || ''
+        }
+      };
 
-      const target = await findSiskohatBiovisaFileInput();
+      const uploadedSlots = [];
+      const blockedEmptySlots = [];
+      const notReadyDomSlots = [];
 
-      if (!target || !target.fileInput) {
-        setToast('⚠️ Input khusus "Scan/Upload Biovisa (jpeg) *" belum aktif (5 kolom lain telah diblokir). Arahkan mouse ke tombol "Pilih file (maks." pada baris Scan/Upload Biovisa, lalu klik Masukkan.', true);
+      for (const slot of SISKOHAT_SEVEN_SLOTS) {
+        const docItem = docsMap[slot.key];
+
+        // 1. CEK KETERSEDIAAN FILE: Jika file tidak ada -> BLOKIR slot ini & LANJUT ke file upload berikutnya!
+        if (!docItem || !docItem.exists || !docItem.base64) {
+          blockedEmptySlots.push(slot.short);
+          continue;
+        }
+
+        setToast(`⏳ [${slot.num}/7] Memasukkan ${docItem.filename} (${docItem.size_kb} KB) ke ${slot.label}...`);
+
+        // 2. Cari <input type="file"> yang terisolasi khusus untuk slot ini (6 slot lainnya diblokir)
+        const target = await findSiskohatFileInputForSlot(slot);
+        if (!target || !target.fileInput) {
+          notReadyDomSlots.push(slot.short);
+          continue;
+        }
+
+        // 3. Suntikkan file ke <input type="file"> milik slot ini
+        const fileObj = base64ToJpegFile(docItem.base64, docItem.filename || `${recordData.nama}_${recordData.paspor}.jpg`);
+        const dt = new DataTransfer();
+        dt.items.add(fileObj);
+
+        const inputEl = target.fileInput;
+        inputEl.files = dt.files;
+        inputEl.dispatchEvent(new Event('input', { bubbles: true }));
+        inputEl.dispatchEvent(new Event('change', { bubbles: true }));
+
+        uploadedSlots.push(`${slot.short} (${docItem.size_kb}KB)`);
+
+        // Jeda singkat agar ZK Framework Siskohat memproses upload file ini sebelum pindah ke slot berikutnya
+        await new Promise(r => setTimeout(r, 420));
+      }
+
+      if (uploadedSlots.length === 0) {
+        if (notReadyDomSlots.length > 0) {
+          setToast(
+            `⚠️ Kolom upload [${notReadyDomSlots.join(', ')}] belum aktif di layar Siskohat. Arahkan mouse ke tombol "Pilih file" lalu klik Masukkan lagi.`,
+            true
+          );
+        } else {
+          setToast('⚠️ Tidak ada file dokumen yang tersedia untuk jamaah ini.', true);
+        }
         isUploadingNow = false;
         return;
       }
 
-      // Konversi base64 ke Uint8Array & File
-      const byteCharacters = atob(recordData.base64);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: 'image/jpeg' });
-      const fileObj = new File([blob], recordData.filename, {
-        type: 'image/jpeg',
-        lastModified: Date.now()
-      });
+      const blockedInfo = blockedEmptySlots.length > 0
+        ? ` | ⊘ Diblokir & Dilewati (File Tidak Ada): ${blockedEmptySlots.join(', ')}`
+        : '';
 
-      const dt = new DataTransfer();
-      dt.items.add(fileObj);
+      setToast(`✅ Berhasil Auto-Upload ${uploadedSlots.length} File [${uploadedSlots.join(', ')}]${blockedInfo}`);
 
-      const inputEl = target.fileInput;
-      inputEl.files = dt.files;
-
-      // Trigger event change & input agar ZK Framework langsung mengunggah file ke server Siskohat
-      inputEl.dispatchEvent(new Event('input', { bubbles: true }));
-      inputEl.dispatchEvent(new Event('change', { bubbles: true }));
-
-      setToast(`✅ Berhasil memasukkan ${recordData.filename} ke Scan/Upload Biovisa [${target.source || 'OK'}]!`);
-
-      // Tandai sudah diupload ke Siskohat pada database Laragon
+      // Tandai sudah diupload ke Siskohat
       chrome.runtime.sendMessage(
         { type: 'MARK_SISKOHAT_UPLOADED', id: recordData.id, status: true },
         () => loadQueueFromLaragon()
       );
 
-      // Jika opsi Auto-Klik Simpan diaktifkan, klik tombol "Simpan" di Siskohat setelah 1.8 detik
+      // Jika opsi Auto-Klik Simpan diaktifkan, klik tombol "Simpan" di Siskohat setelah seluruh dokumen selesai masuk
       if (autoClickSimpan) {
         setTimeout(() => {
           const allBtns = Array.from(document.querySelectorAll('button, input[type="button"], a.z-button'));
           const simpanBtn = allBtns.find(b => /^\s*Simpan\s*$/i.test(b.textContent || b.value || ''));
           if (simpanBtn) {
             simpanBtn.click();
-            setToast(`💾 File ${recordData.filename} masuk & tombol "Simpan" telah diklik otomatis!`);
+            setToast(`💾 ${uploadedSlots.length} Dokumen masuk & tombol "Simpan" telah diklik otomatis!`);
           }
         }, 1800);
       }

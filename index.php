@@ -303,6 +303,12 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                                 </p>
                             </div>
                             <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                <button class="btn btn-gold btn-sm" onclick="toggleSevenDocsManagerPanel()">
+                                    📂 Kelola &amp; Upload 7 Dokumen Siskohat
+                                </button>
+                                <button class="btn btn-charcoal btn-sm" id="btn-sync-gdrive-7docs" onclick="syncGDriveSevenDocs()">
+                                    ☁️ Tarik 7 Folder GDrive
+                                </button>
                                 <button class="btn btn-outline btn-sm" onclick="printOfficialReport()">
                                     Cetak Laporan
                                 </button>
@@ -312,6 +318,42 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                                 <a class="btn btn-gold btn-sm" id="btn-download-zip-filtered" href="api.php?action=download_zip">
                                     Unduh Arsip (.ZIP)
                                 </a>
+                            </div>
+                        </div>
+
+                        <!-- PANEL KELOLA & UPLOAD MASSAL 7 DOKUMEN PEMVISAAN SISKOHAT -->
+                        <div class="seven-docs-manager-box" id="seven-docs-manager-box" style="display:none;">
+                            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+                                <div>
+                                    <div style="font-weight:800; font-size:13.5px; color:var(--pure-black);">
+                                        ✦ Upload Massal / Sinkronisasi 7 Dokumen Pemvisaan Siskohat Gen.2 (ENTRY DATA PASPOR DAN DOKUMEN PEMVISAAN)
+                                    </div>
+                                    <div style="font-size:12px; color:var(--text-secondary); margin-top:2px;">
+                                        Anda dapat menaruh file <code>NomorPaspor.jpg</code> atau <code>Nama_NomorPaspor.jpg</code> di 7 folder lokal <code>c:\laragon\www\e-visa\storage\dokumen\{paspor, endorsement, vaksin, kitas, pendukung, biovisa, foto}</code>, di 7 sub-folder Google Drive (<code>1_Paspor</code> s/d <code>7_Foto</code>), atau unggah sekaligus di bawah ini. Jika salah satu dari 7 file tidak ada, Siskohat otomatis <strong>memblokir slot kosong tersebut dan lanjut ke file berikutnya</strong>.
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-outline btn-sm" onclick="copyTextToClipboard('c:\\laragon\\www\\e-visa\\storage\\dokumen', 'Folder 7 Dokumen Server')">
+                                    📋 Salin Path Folder Lokal
+                                </button>
+                            </div>
+
+                            <div class="seven-docs-upload-bar">
+                                <select id="bulk-doc-category" class="form-control" style="max-width:310px; font-weight:700;">
+                                    <option value="paspor">1. Scan Halaman Pertama Paspor</option>
+                                    <option value="endorsement">2. Scan/Upload Halaman Endorsement</option>
+                                    <option value="vaksin">3. Scan/Upload Keterangan Vaksin Meningitis *</option>
+                                    <option value="kitas">4. Scan/Upload Keterangan KITAS</option>
+                                    <option value="pendukung">5. Scan/Upload Dokumen Pendukung</option>
+                                    <option value="biovisa">6. Scan/Upload Biovisa (jpeg)</option>
+                                    <option value="foto">7. Scan/Upload Foto Terbaru</option>
+                                </select>
+                                <input type="file" id="bulk-doc-files" accept="image/*" multiple class="form-control" style="max-width:340px;">
+                                <button type="button" class="btn btn-gold" id="btn-bulk-doc-upload" onclick="uploadBulkSevenDocs()">
+                                    ⬆️ Upload &amp; Pasangkan Otomatis ke Jamaah
+                                </button>
+                                <button type="button" class="btn btn-charcoal" onclick="syncGDriveSevenDocs()">
+                                    ☁️ Sinkron dari 7 Folder Google Drive
+                                </button>
                             </div>
                         </div>
 
@@ -646,12 +688,18 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
 
                         <div class="verification-panel">
                             <div style="font-weight:800; font-size:14px; color:var(--pure-black); margin-bottom:6px;">
-                                Cara Kerja Ekstensi Chrome "SILAHUT Auto-Upload Biovisa Siskohat Gen.2":
+                                Cara Kerja Otomatisasi 7 Dokumen Pemvisaan Siskohat Gen.2 (Dengan Sistem Blokir &amp; Lanjut Otomatis):
                             </div>
-                            <div style="font-size:13px; color:var(--charcoal);">
-                                1. Saat Anda membuka halaman <strong>SISKOHAT Gen.2 (<code>https://10.100.88.48/SISKOHAT/WndMenu.zul</code>)</strong> menu <em>ENTRY DATA PASPOR DAN DOKUMEN PEMVISAAN</em>, akan muncul panel asisten <strong>✦ AUTO-BIOVISA SISKOHAT</strong> di pojok kanan layar Siskohat.<br>
-                                2. <strong>Mode Deteksi Paspor Otomatis</strong>: Begitu data jamaah terbuka di layar Siskohat dan Nomor Paspornya terbaca, ekstensi otomatis mengambil file <code>Nama_Nomor paspor.jpg</code> (&le; 50 KB) dari Laragon dan langsung memasukkannya ke tombol <strong><code>Pilih file (maks.)</code></strong> pada baris <strong><code>Scan/Upload Biovisa (jpeg) *</code></strong>.<br>
-                                3. <strong>Mode Klik 1x dari Daftar Samping</strong>: Anda juga dapat menekan tombol <strong><code>Masukkan</code></strong> pada nama jamaah di panel kanan layar Siskohat, serta mengaktifkan sakelar <strong><code>Auto-Klik Tombol "Simpan"</code></strong>.
+                            <div style="font-size:13px; color:var(--charcoal); line-height:1.65;">
+                                Saat Anda membuka menu <strong>ENTRY DATA PASPOR DAN DOKUMEN PEMVISAAN</strong> di Siskohat Gen.2 (<code>https://10.100.88.48/SISKOHAT/WndMenu.zul</code>), panel <strong>✦ AUTO-BIOVISA SISKOHAT</strong> otomatis muncul dan memeriksa ke-7 dokumen jamaah secara berurutan:<br>
+                                <strong>1. Scan Halaman Pertama Paspor</strong> &bull;
+                                <strong>2. Scan/Upload Halaman Endorsement</strong> &bull;
+                                <strong>3. Scan/Upload Keterangan Vaksin Meningitis *</strong> &bull;
+                                <strong>4. Scan/Upload Keterangan KITAS</strong> &bull;
+                                <strong>5. Scan/Upload Dokumen Pendukung</strong> &bull;
+                                <strong>6. Scan/Upload Biovisa (jpeg)</strong> &bull;
+                                <strong>7. Scan/Upload Foto Terbaru</strong>.<br>
+                                ✦ <strong>Blokir &amp; Lanjut Otomatis:</strong> Jika salah satu dari ke-7 file tersebut <strong>tidak ada</strong>, maka slot upload tersebut <strong>otomatis diblokir/dikunci</strong> (tidak akan pernah terisi file yang salah) dan sistem langsung <strong>melanjutkan ke file upload berikutnya</strong> yang tersedia!
                             </div>
                         </div>
 
@@ -773,6 +821,17 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                         </div>
                     </form>
                 </div>
+            </div>
+
+            <!-- KELENGKAPAN & UPLOAD 7 DOKUMEN PEMVISAAN SISKOHAT PER JAMAAH -->
+            <div style="margin-top:16px; padding-top:14px; border-top:2px solid var(--ui-gold);">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+                    <div>
+                        <strong style="font-size:14px; color:var(--pure-black);">✦ Kelengkapan 7 File Upload Siskohat (ENTRY DATA PASPOR DAN DOKUMEN PEMVISAAN)</strong>
+                        <div style="font-size:11.5px; color:var(--text-secondary);">File yang tersedia (✓) akan otomatis di-upload ke Siskohat. File yang belum ada (⊘) otomatis diblokir &amp; dilewati ke file berikutnya.</div>
+                    </div>
+                </div>
+                <div id="modal-seven-docs-grid" class="modal-seven-docs-grid"></div>
             </div>
         </div>
     </div>
@@ -1349,6 +1408,8 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                     ? `<div><span class="source-email-badge" onclick="copyTextToClipboard('${escapeHtml(srcInfo.email)}', 'Asal Email')" title="Klik untuk salin alamat email sumber">Asal: <strong>${escapeHtml(srcInfo.label)}</strong> (${escapeHtml(srcInfo.email)})</span></div>`
                     : `<div><span class="source-email-badge" onclick="copyTextToClipboard('${escapeHtml(srcInfo.email)}', 'Asal Email')" title="Klik untuk salin alamat email sumber">Asal Email: <strong>${escapeHtml(srcInfo.email)}</strong></span></div>`;
 
+                const sevenBadgesHtml = renderSevenDocsInlineBadges(r);
+
                 return `
                     <tr>
                         <td class="no-print" style="text-align:center;">
@@ -1356,7 +1417,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                         </td>
                         <td style="font-weight:700; color:var(--text-secondary);">${rowNum}</td>
                         <td class="no-print">
-                            <div class="thumb-box" onclick="openPreviewModal('${escapeHtml(r.id)}')" title="Klik untuk memperbesar & edit">
+                            <div class="thumb-box" onclick="openPreviewModal('${escapeHtml(r.id)}')" title="Klik untuk memperbesar & kelola 7 dokumen">
                                 <img src="${imgUrl}" alt="${escapeHtml(r.filename)}" loading="lazy">
                             </div>
                         </td>
@@ -1365,6 +1426,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                                 📄 ${escapeHtml(r.filename)}
                             </span>
                             ${srcLabelBadge}
+                            ${sevenBadgesHtml}
                         </td>
                         <td>
                             <div style="font-weight:800; color:var(--pure-black);">${escapeHtml(r.nama)}</div>
@@ -1851,7 +1913,211 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                 gdBtn.style.display = 'none';
             }
 
+            renderModalSevenDocsGrid(rec);
             document.getElementById('modal-preview').classList.add('open');
+        }
+
+        const SEVEN_DOC_DEFS = [
+            { num: 1, key: 'paspor', short: '1.Paspor', label: '1. Scan Halaman Pertama Paspor' },
+            { num: 2, key: 'endorsement', short: '2.Endorse', label: '2. Scan/Upload Halaman Endorsement' },
+            { num: 3, key: 'vaksin', short: '3.Vaksin', label: '3. Scan/Upload Keterangan Vaksin Meningitis *' },
+            { num: 4, key: 'kitas', short: '4.KITAS', label: '4. Scan/Upload Keterangan KITAS' },
+            { num: 5, key: 'pendukung', short: '5.Pendukung', label: '5. Scan/Upload Dokumen Pendukung' },
+            { num: 6, key: 'biovisa', short: '6.Biovisa', label: '6. Scan/Upload Biovisa (jpeg)' },
+            { num: 7, key: 'foto', short: '7.Foto', label: '7. Scan/Upload Foto Terbaru' }
+        ];
+
+        function getRecSevenDocsMap(rec) {
+            const raw = (rec && rec.seven_docs && rec.seven_docs.docs) ? rec.seven_docs.docs : {};
+            const map = {};
+            SEVEN_DOC_DEFS.forEach(d => {
+                if (raw[d.key]) {
+                    map[d.key] = raw[d.key];
+                } else if (d.key === 'biovisa' && rec && rec.filename) {
+                    map[d.key] = {
+                        exists: true,
+                        num: 6,
+                        key: 'biovisa',
+                        short: 'Biovisa',
+                        label: d.label,
+                        filename: rec.filename,
+                        size_kb: rec.size_kb || 48
+                    };
+                } else {
+                    map[d.key] = { exists: false, num: d.num, key: d.key, short: d.short, label: d.label, filename: '', size_kb: 0 };
+                }
+            });
+            return map;
+        }
+
+        function renderSevenDocsInlineBadges(rec) {
+            const map = getRecSevenDocsMap(rec);
+            let availCount = 0;
+            const chips = SEVEN_DOC_DEFS.map(d => {
+                const info = map[d.key];
+                if (info && info.exists) {
+                    availCount++;
+                    return `<span class="doc7-chip doc7-ready" onclick="openPreviewModal('${escapeHtml(rec.id)}')" title="✓ ${escapeHtml(d.label)}: ${escapeHtml(info.filename)} (${escapeHtml(info.size_kb)} KB) — Siap Auto-Upload ke Siskohat">✓ ${escapeHtml(d.short)}</span>`;
+                }
+                return `<span class="doc7-chip doc7-blocked" onclick="openPreviewModal('${escapeHtml(rec.id)}')" title="⊘ ${escapeHtml(d.label)}: Tidak ada file (Diblokir & lanjut ke dokumen berikutnya)">⊘ ${escapeHtml(d.short)}</span>`;
+            }).join('');
+            return `<div class="doc7-chip-row" title="Kelengkapan 7 Dokumen Pemvisaan Siskohat (${availCount}/7 Tersedia)">${chips}</div>`;
+        }
+
+        function renderModalSevenDocsGrid(rec) {
+            const container = document.getElementById('modal-seven-docs-grid');
+            if (!container || !rec) return;
+            const map = getRecSevenDocsMap(rec);
+
+            container.innerHTML = SEVEN_DOC_DEFS.map(d => {
+                const info = map[d.key] || { exists: false };
+                const isReady = !!info.exists;
+                const previewUrl = isReady
+                    ? `api.php?action=download_file&cat=${encodeURIComponent(d.key)}&inline=1&file=${encodeURIComponent(info.filename)}&t=${Date.now()}`
+                    : '';
+                return `
+                    <div class="modal-doc7-card ${isReady ? 'ready' : 'blocked'}">
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:6px; margin-bottom:6px;">
+                            <strong style="font-size:12px; color:var(--pure-black);">${escapeHtml(d.label)}</strong>
+                            <span class="badge ${isReady ? 'badge-gold' : 'badge-outline'}" style="font-size:10.5px;">
+                                ${isReady ? ('✓ Siap (' + escapeHtml(info.size_kb) + ' KB)') : '⊘ Kosong (Diblokir & Lewati)'}
+                            </span>
+                        </div>
+                        <div style="font-size:11px; color:var(--text-secondary); margin-bottom:8px; font-family:Consolas,monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                            ${isReady ? escapeHtml(info.filename) : 'Belum ada file — Klik Upload untuk menambahkan'}
+                        </div>
+                        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                            <label class="btn btn-gold btn-sm" style="cursor:pointer; margin:0;">
+                                ⬆️ ${isReady ? 'Ganti File' : 'Upload File'}
+                                <input type="file" accept="image/*" style="display:none;" onchange="uploadSingleJamaahDoc('${escapeHtml(rec.id)}', '${escapeHtml(d.key)}', this)">
+                            </label>
+                            ${isReady ? `
+                                <button type="button" class="btn btn-outline btn-sm" onclick="previewDocInModal('${escapeHtml(previewUrl)}', '${escapeHtml(d.label)}')">
+                                    👁️ Lihat
+                                </button>
+                                ${d.key !== 'biovisa' ? `
+                                    <button type="button" class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="deleteSingleJamaahDoc('${escapeHtml(rec.id)}', '${escapeHtml(d.key)}')">
+                                        🗑️
+                                    </button>
+                                ` : ''}
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function previewDocInModal(url, label) {
+            const imgEl = document.getElementById('modal-img');
+            if (imgEl && url) {
+                imgEl.src = url;
+                showToast(`👁️ Menampilkan preview: ${label}`);
+            }
+        }
+
+        function toggleSevenDocsManagerPanel() {
+            const box = document.getElementById('seven-docs-manager-box');
+            if (!box) return;
+            box.style.display = box.style.display === 'none' ? 'block' : 'none';
+        }
+
+        async function uploadSingleJamaahDoc(recId, catKey, fileInput) {
+            if (!fileInput.files || !fileInput.files[0]) return;
+            const fd = new FormData();
+            fd.append('action', 'upload_jamaah_doc');
+            fd.append('id', recId);
+            fd.append('category', catKey);
+            fd.append('file', fileInput.files[0]);
+
+            showToast('⏳ Mengunggah & menyesuaikan dokumen...');
+            try {
+                const res = await fetch('api.php?action=upload_jamaah_doc', { method: 'POST', body: fd });
+                const data = await res.json();
+                await loadAppStatus();
+                if (data.ok) {
+                    showToast(data.message || 'Dokumen berhasil disimpan!');
+                    openPreviewModal(recId);
+                } else {
+                    showToast(data.error || 'Gagal mengunggah dokumen.', true);
+                }
+            } catch (e) {
+                showToast('Gagal mengunggah dokumen.', true);
+            }
+        }
+
+        async function deleteSingleJamaahDoc(recId, catKey) {
+            if (!confirm('Hapus file dokumen kategori ini untuk jamaah tersebut?')) return;
+            const res = await fetch('api.php?action=delete_jamaah_doc', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: recId, category: catKey })
+            });
+            const data = await res.json();
+            await loadAppStatus();
+            if (data.ok) {
+                showToast(data.message);
+                openPreviewModal(recId);
+            } else {
+                showToast(data.error || 'Gagal menghapus dokumen.', true);
+            }
+        }
+
+        async function uploadBulkSevenDocs() {
+            const cat = document.getElementById('bulk-doc-category').value;
+            const fi  = document.getElementById('bulk-doc-files');
+            if (!fi.files || fi.files.length === 0) {
+                showToast('Pilih 1 atau beberapa file gambar (NomorPaspor.jpg / Nama_NomorPaspor.jpg) terlebih dahulu.', true);
+                return;
+            }
+            const btn = document.getElementById('btn-bulk-doc-upload');
+            const origText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = `⏳ Mengunggah ${fi.files.length} File...`;
+
+            try {
+                const fd = new FormData();
+                fd.append('action', 'upload_jamaah_doc');
+                fd.append('category', cat);
+                for (let i = 0; i < fi.files.length; i++) {
+                    fd.append('files[]', fi.files[i]);
+                }
+                const res = await fetch('api.php?action=upload_jamaah_doc', { method: 'POST', body: fd });
+                const data = await res.json();
+                await loadAppStatus();
+                if (data.ok) {
+                    playNotificationSound();
+                    showToast(data.message);
+                    fi.value = '';
+                } else {
+                    showToast(data.error || 'Gagal mengunggah file.', true);
+                }
+            } catch (e) {
+                showToast('Terjadi kesalahan saat mengunggah file.', true);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = origText;
+            }
+        }
+
+        async function syncGDriveSevenDocs() {
+            const btn = document.getElementById('btn-sync-gdrive-7docs');
+            if (btn) btn.disabled = true;
+            showToast('☁️ Memeriksa & menarik 7 Sub-Folder Dokumen dari Google Drive...');
+            try {
+                const res = await fetch('api.php?action=sync_gdrive_7docs', { method: 'POST' });
+                const data = await res.json();
+                await loadAppStatus();
+                if (data.ok) {
+                    if ((data.pulled_count || 0) > 0) playNotificationSound();
+                    showToast(data.message);
+                } else {
+                    showToast(data.error || 'Gagal menarik 7 folder Google Drive.', true);
+                }
+            } catch (e) {
+                showToast('Kesalahan jaringan saat menghubungi Google Drive.', true);
+            } finally {
+                if (btn) btn.disabled = false;
+            }
         }
 
         function toggleImageZoom(imgEl) {

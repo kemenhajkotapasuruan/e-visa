@@ -11,11 +11,98 @@ define('BASE_DIR', __DIR__);
 define('STORAGE_DIR', BASE_DIR . DIRECTORY_SEPARATOR . 'storage');
 define('DATA_DIR', STORAGE_DIR . DIRECTORY_SEPARATOR . 'data');
 define('BIOVISA_DIR', STORAGE_DIR . DIRECTORY_SEPARATOR . 'biovisa');
+define('DOKUMEN_DIR', STORAGE_DIR . DIRECTORY_SEPARATOR . 'dokumen');
 define('TEMP_DIR', STORAGE_DIR . DIRECTORY_SEPARATOR . 'temp');
 
-foreach ([STORAGE_DIR, DATA_DIR, BIOVISA_DIR, TEMP_DIR] as $dir) {
+/**
+ * Definisi Resmi 7 Dokumen Pemvisaan Siskohat Gen.2
+ * Urutan sesuai form ENTRY DATA PASPOR DAN DOKUMEN PEMVISAAN
+ */
+function getSiskohatDocCategories(): array {
+    return [
+        'paspor' => [
+            'num' => 1,
+            'key' => 'paspor',
+            'short' => 'Paspor',
+            'label' => '1. Scan Halaman Pertama Paspor',
+            'siskohat_label' => 'Scan Halaman Pertama Paspor *',
+            'folder' => 'paspor',
+            'gdrive_subfolder' => '1_Paspor',
+            'max_kb' => 200
+        ],
+        'endorsement' => [
+            'num' => 2,
+            'key' => 'endorsement',
+            'short' => 'Endorsement',
+            'label' => '2. Scan/Upload Halaman Endorsement',
+            'siskohat_label' => 'Scan/Upload Halaman Endorsement',
+            'folder' => 'endorsement',
+            'gdrive_subfolder' => '2_Endorsement',
+            'max_kb' => 200
+        ],
+        'vaksin' => [
+            'num' => 3,
+            'key' => 'vaksin',
+            'short' => 'Vaksin',
+            'label' => '3. Scan/Upload Keterangan Vaksin Meningitis *',
+            'siskohat_label' => 'Scan/Upload Keterangan Vaksin Meningitis *',
+            'folder' => 'vaksin',
+            'gdrive_subfolder' => '3_Vaksin',
+            'max_kb' => 200
+        ],
+        'kitas' => [
+            'num' => 4,
+            'key' => 'kitas',
+            'short' => 'KITAS',
+            'label' => '4. Scan/Upload Keterangan KITAS',
+            'siskohat_label' => 'Scan/Upload Keterangan KITAS',
+            'folder' => 'kitas',
+            'gdrive_subfolder' => '4_Kitas',
+            'max_kb' => 200
+        ],
+        'pendukung' => [
+            'num' => 5,
+            'key' => 'pendukung',
+            'short' => 'Pendukung',
+            'label' => '5. Scan/Upload Dokumen Pendukung',
+            'siskohat_label' => 'Scan/Upload Dokumen Pendukung',
+            'folder' => 'pendukung',
+            'gdrive_subfolder' => '5_Pendukung',
+            'max_kb' => 200
+        ],
+        'biovisa' => [
+            'num' => 6,
+            'key' => 'biovisa',
+            'short' => 'Biovisa',
+            'label' => '6. Scan/Upload Biovisa (jpeg)',
+            'siskohat_label' => 'Scan/Upload Biovisa (jpeg) *',
+            'folder' => 'biovisa',
+            'gdrive_subfolder' => '6_Biovisa',
+            'max_kb' => 50
+        ],
+        'foto' => [
+            'num' => 7,
+            'key' => 'foto',
+            'short' => 'Foto',
+            'label' => '7. Scan/Upload Foto Terbaru',
+            'siskohat_label' => 'Scan/Upload Foto Terbaru *',
+            'folder' => 'foto',
+            'gdrive_subfolder' => '7_Foto',
+            'max_kb' => 100
+        ]
+    ];
+}
+
+foreach ([STORAGE_DIR, DATA_DIR, BIOVISA_DIR, DOKUMEN_DIR, TEMP_DIR] as $dir) {
     if (!is_dir($dir)) {
         mkdir($dir, 0777, true);
+    }
+}
+
+foreach (getSiskohatDocCategories() as $catKey => $catMeta) {
+    $subDir = DOKUMEN_DIR . DIRECTORY_SEPARATOR . $catMeta['folder'];
+    if (!is_dir($subDir)) {
+        mkdir($subDir, 0777, true);
     }
 }
 
@@ -143,4 +230,155 @@ function addSyncLog(string $type, string $message, array $context = []): void {
         $logs = array_slice($logs, 0, 150);
     }
     saveJsonFile(LOGS_FILE, $logs);
+}
+
+/**
+ * Dapatkan path folder fisik untuk kategori dokumen tertentu (1..7)
+ */
+function getDocCategoryDir(string $catKey): string {
+    $cats = getSiskohatDocCategories();
+    $folder = $cats[$catKey]['folder'] ?? $catKey;
+    return DOKUMEN_DIR . DIRECTORY_SEPARATOR . $folder;
+}
+
+/**
+ * Cari file fisik untuk seorang jamaah pada kategori tertentu (paspor, endorsement, vaksin, kitas, pendukung, biovisa, foto).
+ * Mendukung pencocokan fleksibel:
+ * - Nama_NomorPaspor.jpg (contoh: HALIMAH MUNTARICIPTO_Y2047436.jpg)
+ * - NomorPaspor.jpg (contoh: Y2047436.jpg / Y2047436.jpeg / Y2047436.png)
+ * - File apa pun di folder kategori tersebut yang mengandung Nomor Paspor jamaah
+ * - Khusus kategori 'biovisa', memeriksa folder storage/biovisa/ dan storage/dokumen/biovisa/
+ */
+function findJamaahDocFile(string $catKey, string $paspor, string $nama = '', string $defaultBiovisaFile = ''): ?array {
+    $pasporClean = strtoupper(trim($paspor));
+    $namaClean   = strtoupper(trim($nama));
+
+    $searchDirs = [];
+    if ($catKey === 'biovisa') {
+        $searchDirs[] = BIOVISA_DIR;
+        $searchDirs[] = getDocCategoryDir('biovisa');
+    } else {
+        $searchDirs[] = getDocCategoryDir($catKey);
+    }
+
+    foreach ($searchDirs as $dir) {
+        if (!is_dir($dir)) {
+            continue;
+        }
+
+        // 1. Jika ada defaultBiovisaFile atau format Nama_Paspor.jpg persis
+        $candidates = [];
+        if ($defaultBiovisaFile !== '') {
+            $candidates[] = $defaultBiovisaFile;
+        }
+        if ($namaClean !== '' && $pasporClean !== '') {
+            $candidates[] = "{$namaClean}_{$pasporClean}.jpg";
+            $candidates[] = "{$namaClean}_{$pasporClean}.jpeg";
+            $candidates[] = "{$namaClean}_{$pasporClean}.png";
+        }
+        if ($pasporClean !== '') {
+            $candidates[] = "{$pasporClean}.jpg";
+            $candidates[] = "{$pasporClean}.jpeg";
+            $candidates[] = "{$pasporClean}.png";
+        }
+
+        foreach ($candidates as $cand) {
+            $fullPath = $dir . DIRECTORY_SEPARATOR . $cand;
+            if (is_file($fullPath)) {
+                $bytes = filesize($fullPath);
+                $relDir = ($dir === BIOVISA_DIR) ? 'storage/biovisa' : ('storage/dokumen/' . $catKey);
+                return [
+                    'exists' => true,
+                    'category' => $catKey,
+                    'filename' => basename($fullPath),
+                    'path' => $fullPath,
+                    'rel_url' => $relDir . '/' . rawurlencode(basename($fullPath)),
+                    'size_bytes' => $bytes,
+                    'size_kb' => round($bytes / 1024, 2)
+                ];
+            }
+        }
+
+        // 2. Scan isi folder untuk mencari file yang mengandung Nomor Paspor atau Nama Jamaah
+        if ($pasporClean !== '' && $pasporClean !== 'TANPAPASPOR') {
+            $files = @scandir($dir);
+            if (is_array($files)) {
+                foreach ($files as $f) {
+                    if ($f === '.' || $f === '..') continue;
+                    $ext = strtolower(pathinfo($f, PATHINFO_EXTENSION));
+                    if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) continue;
+                    $fUpper = strtoupper(pathinfo($f, PATHINFO_FILENAME));
+                    if (
+                        $fUpper === $pasporClean ||
+                        strpos($fUpper, '_' . $pasporClean) !== false ||
+                        strpos($fUpper, $pasporClean . '_') !== false ||
+                        strpos($fUpper, $pasporClean) !== false
+                    ) {
+                        $fullPath = $dir . DIRECTORY_SEPARATOR . $f;
+                        if (is_file($fullPath)) {
+                            $bytes = filesize($fullPath);
+                            $relDir = ($dir === BIOVISA_DIR) ? 'storage/biovisa' : ('storage/dokumen/' . $catKey);
+                            return [
+                                'exists' => true,
+                                'category' => $catKey,
+                                'filename' => $f,
+                                'path' => $fullPath,
+                                'rel_url' => $relDir . '/' . rawurlencode($f),
+                                'size_bytes' => $bytes,
+                                'size_kb' => round($bytes / 1024, 2)
+                            ];
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+/**
+ * Dapatkan peta kelengkapan 7 dokumen Siskohat untuk 1 record jamaah
+ */
+function getJamaahSevenDocsStatus(array $rec): array {
+    $cats = getSiskohatDocCategories();
+    $paspor = (string)($rec['paspor'] ?? '');
+    $nama   = (string)($rec['nama'] ?? '');
+    $bvFile = (string)($rec['filename'] ?? '');
+
+    $docs = [];
+    $availableCount = 0;
+    foreach ($cats as $catKey => $meta) {
+        $found = findJamaahDocFile($catKey, $paspor, $nama, $catKey === 'biovisa' ? $bvFile : '');
+        if ($found) {
+            $availableCount++;
+            $docs[$catKey] = [
+                'exists' => true,
+                'num' => $meta['num'],
+                'key' => $catKey,
+                'short' => $meta['short'],
+                'label' => $meta['label'],
+                'filename' => $found['filename'],
+                'rel_url' => $found['rel_url'],
+                'size_kb' => $found['size_kb']
+            ];
+        } else {
+            $docs[$catKey] = [
+                'exists' => false,
+                'num' => $meta['num'],
+                'key' => $catKey,
+                'short' => $meta['short'],
+                'label' => $meta['label'],
+                'filename' => '',
+                'rel_url' => '',
+                'size_kb' => 0
+            ];
+        }
+    }
+
+    return [
+        'available_count' => $availableCount,
+        'total_slots' => count($cats),
+        'docs' => $docs
+    ];
 }

@@ -1,16 +1,16 @@
 /**
  * ============================================================================
- * GOOGLE APPS SCRIPT ALL-IN-ONE (BISA UNTUK GMAIL & GDRIVE SEKALIGUS)
- * - Mendukung Pembacaan Email "Mofa Enrollment Confirmation" (doGet)
+ * GOOGLE APPS SCRIPT ALL-IN-ONE (BISA UNTUK GDRIVE & GMAIL SEKALIGUS)
  * - Mendukung Penyimpanan Otomatis ke Google Drive (doPost)
+ * - Mendukung Pembacaan Email "Mofa Enrollment Confirmation" (doGet)
  * ============================================================================
  * CARA UPDATE / DEPLOY ULANG (PENTING!):
  * 1. Buka project Anda di https://script.google.com
- *    - Untuk Gmail  : pastikan login akun phujtmkopasuruan@gmail.com
  *    - Untuk GDrive : pastikan login akun muchammad.ali.sanjaya@gmail.com
+ *    - Untuk Gmail  : pastikan login akun phujtmkopasuruan@gmail.com
  * 2. Hapus seluruh kode lama di editor Code.gs, lalu TEMPEL (Paste) seluruh kode ini.
  * 3. Tekan Ctrl+S (Simpan).
- * 4. PENTING: Agar izin Gmail & Google Drive aktif, pada toolbar atas di sebelah
+ * 4. PENTING: Agar izin Google Drive & Gmail aktif, pada toolbar atas di sebelah
  *    tombol "Run / Jalankan", pilih fungsi "cekIzinAkses" lalu klik "Run / Jalankan"
  *    dan klik "Review Permissions -> Allow / Izinkan".
  * 5. Klik tombol "Deploy" di kanan atas -> pilih "New deployment" (Deployment baru).
@@ -33,6 +33,11 @@ function cekIzinAkses() {
   Logger.log('Izin berhasil diaktifkan untuk akun: ' + emailAkun + ' | Drive: ' + rootFolder + ' | Inbox OK (' + inboxThreads.length + ')');
 }
 
+/**
+ * doGet: Digunakan untuk:
+ * 1. Menarik email "Mofa Enrollment Confirmation" (jika parameter action=fetch_mofa)
+ * 2. Mengecek status koneksi & akun aktif (jika dipanggil tanpa parameter atau action=ping)
+ */
 function doGet(e) {
   try {
     var params = (e && e.parameter) ? e.parameter : {};
@@ -45,11 +50,74 @@ function doGet(e) {
     if (action === 'ping' || action === 'status') {
       return jsonOut({
         ok: true,
-        service: 'Auto-BioVisa All-in-One (Gmail + GDrive Ready)',
+        service: 'Auto-BioVisa All-in-One (Gmail + GDrive 7-Dokumen Ready)',
         supports_post: true,
         supports_get: true,
         account_email: activeEmail,
         status: 'READY'
+      });
+    }
+
+    // Ambil 1 file dari Google Drive dalam bentuk Base64 (untuk sinkronisasi 7 Dokumen dari GDrive ke Server/Siskohat)
+    if (action === 'get_gdrive_file' && params.file_id) {
+      var gFile = DriveApp.getFileById(params.file_id);
+      var blob = gFile.getBlob();
+      return jsonOut({
+        ok: true,
+        file_id: gFile.getId(),
+        filename: gFile.getName(),
+        mime_type: blob.getContentType(),
+        size_bytes: gFile.getSize(),
+        base64: Utilities.base64Encode(blob.getBytes())
+      });
+    }
+
+    // Daftar seluruh file pada 7 Sub-Folder Dokumen di Google Drive
+    if (action === 'list_gdrive_docs') {
+      var rootFolder = getOrCreateTargetFolder(params.folder_name || DEFAULT_FOLDER_NAME, params.folder_id || '');
+      var catMap = {
+        'paspor': ['1_Paspor', 'Paspor', 'paspor'],
+        'endorsement': ['2_Endorsement', 'Endorsement', 'endorsement'],
+        'vaksin': ['3_Vaksin', 'Vaksin', 'vaksin'],
+        'kitas': ['4_Kitas', 'Kitas', 'KITAS', 'kitas'],
+        'pendukung': ['5_Pendukung', 'Pendukung', 'pendukung'],
+        'biovisa': ['6_Biovisa', 'Biovisa', 'biovisa'],
+        'foto': ['7_Foto', 'Foto', 'foto']
+      };
+      var resultDocs = {};
+      for (var catKey in catMap) {
+        resultDocs[catKey] = [];
+        var aliases = catMap[catKey];
+        var subFolder = null;
+        for (var a = 0; a < aliases.length; a++) {
+          var sfIt = rootFolder.getFoldersByName(aliases[a]);
+          if (sfIt.hasNext()) {
+            subFolder = sfIt.next();
+            break;
+          }
+        }
+        if (!subFolder) {
+          // Buat sub-folder resmi otomatis jika belum ada
+          subFolder = rootFolder.createFolder(aliases[0]);
+        }
+        var fIt = subFolder.getFiles();
+        while (fIt.hasNext()) {
+          var f = fIt.next();
+          resultDocs[catKey].push({
+            file_id: f.getId(),
+            filename: f.getName(),
+            size_bytes: f.getSize(),
+            size_kb: Math.round((f.getSize() / 1024) * 100) / 100,
+            url: f.getUrl()
+          });
+        }
+      }
+      return jsonOut({
+        ok: true,
+        account_email: activeEmail,
+        root_folder_id: rootFolder.getId(),
+        root_folder_url: rootFolder.getUrl(),
+        categories: resultDocs
       });
     }
 
@@ -67,7 +135,6 @@ function doGet(e) {
       for (var j = 0; j < messages.length; j++) {
         var msg = messages[j];
         var subj = msg.getSubject() || '';
-        // Lewati email OTP atau "Enrollment under review" agar eksekusi sangat cepat (< 2 detik)
         if (subj.toLowerCase().indexOf('enrollment confirmation') === -1) {
           continue;
         }
@@ -106,6 +173,9 @@ function doGet(e) {
   }
 }
 
+/**
+ * doPost: Digunakan untuk menyimpan file JPG Biovisa (Nama_Nomor paspor.jpg <= 50KB) ke Google Drive
+ */
 function doPost(e) {
   try {
     var raw = (e && e.postData && e.postData.contents) ? e.postData.contents : '{}';
@@ -132,19 +202,31 @@ function doPost(e) {
     var base64File = data.base64_file || '';
     var folderName = data.folder_name || DEFAULT_FOLDER_NAME;
     var folderId   = data.folder_id || '';
+    var subfolderName = data.subfolder || '';
 
     if (!base64File) {
       return jsonOut({ ok: false, error: 'Data base64_file kosong.' });
     }
 
-    var folder = getOrCreateTargetFolder(folderName, folderId);
+    var rootFolder = getOrCreateTargetFolder(folderName, folderId);
+    var folder = rootFolder;
+    if (subfolderName) {
+      var subIt = rootFolder.getFoldersByName(subfolderName);
+      if (subIt.hasNext()) {
+        folder = subIt.next();
+      } else {
+        folder = rootFolder.createFolder(subfolderName);
+      }
+    }
 
+    // Hapus file lama dengan nama yang sama di folder tersebut agar tidak duplikat
     var existingFiles = folder.getFilesByName(filename);
     while (existingFiles.hasNext()) {
       var oldFile = existingFiles.next();
       oldFile.setTrashed(true);
     }
 
+    // Simpan file JPG Biovisa (Nama_Nomor paspor.jpg <= 50KB)
     var decodedBytes = Utilities.base64Decode(base64File);
     var blob = Utilities.newBlob(decodedBytes, 'image/jpeg', filename);
     var createdFile = folder.createFile(blob);

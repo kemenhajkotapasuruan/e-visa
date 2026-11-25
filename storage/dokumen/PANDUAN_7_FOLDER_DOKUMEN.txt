@@ -1,0 +1,27 @@
+================================================================================
+PANDUAN 7 FOLDER DOKUMEN PEMVISAAN SISKOHAT GEN.2 (ENTRY DATA PASPOR & PEMVISAAN)
+Lokasi: C:\laragon\www\e-visa\storage\dokumen\
+================================================================================
+
+Daftar 7 Sub-Folder Kategori Dokumen:
+1. paspor       -> 1. Scan Halaman Pertama Paspor
+2. endorsement  -> 2. Scan/Upload Halaman Endorsement
+3. vaksin       -> 3. Scan/Upload Keterangan Vaksin Meningitis *
+4. kitas        -> 4. Scan/Upload Keterangan KITAS
+5. pendukung    -> 5. Scan/Upload Dokumen Pendukung
+6. biovisa      -> 6. Scan/Upload Biovisa (jpeg)  [Otomatis dari Email MOFA di storage/biovisa]
+7. foto         -> 7. Scan/Upload Foto Terbaru
+
+CARA PENAMAAN FILE DI TIAP FOLDER:
+- Cukup beri nama file dengan Nomor Paspor (contoh: Y2047436.jpg)
+  ATAU Nama_Nomor Paspor (contoh: HALIMAH MUNTARICIPTO_Y2047436.jpg).
+- Sistem juga mendukung Upload Massal langsung dari Dashboard Web E-Visa
+  (tombol "Kelola & Upload 7 Dokumen Siskohat") serta sinkronisasi otomatis dari
+  7 Sub-Folder Google Drive (1_Paspor s/d 7_Foto).
+
+ATURAN BLOKIR & LANJUT OTOMATIS DI SISKOHAT GEN.2:
+- Saat klik "Masukkan" atau saat Paspor terdeteksi otomatis di halaman Siskohat,
+  ekstensi memeriksa ke-7 dokumen secara berurutan (1 s/d 7).
+- Jika salah satu dari 7 file tersebut TIDAK ADA, maka kolom upload tersebut
+  otomatis DIBLOKIR (dikunci agar tidak salah masuk) dan langsung MELANJUTKAN
+  pada file upload berikutnya yang tersedia.

@@ -50,11 +50,74 @@ function doGet(e) {
     if (action === 'ping' || action === 'status') {
       return jsonOut({
         ok: true,
-        service: 'Auto-BioVisa All-in-One (Gmail + GDrive Ready)',
+        service: 'Auto-BioVisa All-in-One (Gmail + GDrive 7-Dokumen Ready)',
         supports_post: true,
         supports_get: true,
         account_email: activeEmail,
         status: 'READY'
+      });
+    }
+
+    // Ambil 1 file dari Google Drive dalam bentuk Base64 (untuk sinkronisasi 7 Dokumen dari GDrive ke Server/Siskohat)
+    if (action === 'get_gdrive_file' && params.file_id) {
+      var gFile = DriveApp.getFileById(params.file_id);
+      var blob = gFile.getBlob();
+      return jsonOut({
+        ok: true,
+        file_id: gFile.getId(),
+        filename: gFile.getName(),
+        mime_type: blob.getContentType(),
+        size_bytes: gFile.getSize(),
+        base64: Utilities.base64Encode(blob.getBytes())
+      });
+    }
+
+    // Daftar seluruh file pada 7 Sub-Folder Dokumen di Google Drive
+    if (action === 'list_gdrive_docs') {
+      var rootFolder = getOrCreateTargetFolder(params.folder_name || DEFAULT_FOLDER_NAME, params.folder_id || '');
+      var catMap = {
+        'paspor': ['1_Paspor', 'Paspor', 'paspor'],
+        'endorsement': ['2_Endorsement', 'Endorsement', 'endorsement'],
+        'vaksin': ['3_Vaksin', 'Vaksin', 'vaksin'],
+        'kitas': ['4_Kitas', 'Kitas', 'KITAS', 'kitas'],
+        'pendukung': ['5_Pendukung', 'Pendukung', 'pendukung'],
+        'biovisa': ['6_Biovisa', 'Biovisa', 'biovisa'],
+        'foto': ['7_Foto', 'Foto', 'foto']
+      };
+      var resultDocs = {};
+      for (var catKey in catMap) {
+        resultDocs[catKey] = [];
+        var aliases = catMap[catKey];
+        var subFolder = null;
+        for (var a = 0; a < aliases.length; a++) {
+          var sfIt = rootFolder.getFoldersByName(aliases[a]);
+          if (sfIt.hasNext()) {
+            subFolder = sfIt.next();
+            break;
+          }
+        }
+        if (!subFolder) {
+          // Buat sub-folder resmi otomatis jika belum ada
+          subFolder = rootFolder.createFolder(aliases[0]);
+        }
+        var fIt = subFolder.getFiles();
+        while (fIt.hasNext()) {
+          var f = fIt.next();
+          resultDocs[catKey].push({
+            file_id: f.getId(),
+            filename: f.getName(),
+            size_bytes: f.getSize(),
+            size_kb: Math.round((f.getSize() / 1024) * 100) / 100,
+            url: f.getUrl()
+          });
+        }
+      }
+      return jsonOut({
+        ok: true,
+        account_email: activeEmail,
+        root_folder_id: rootFolder.getId(),
+        root_folder_url: rootFolder.getUrl(),
+        categories: resultDocs
       });
     }
 
@@ -139,12 +202,22 @@ function doPost(e) {
     var base64File = data.base64_file || '';
     var folderName = data.folder_name || DEFAULT_FOLDER_NAME;
     var folderId   = data.folder_id || '';
+    var subfolderName = data.subfolder || '';
 
     if (!base64File) {
       return jsonOut({ ok: false, error: 'Data base64_file kosong.' });
     }
 
-    var folder = getOrCreateTargetFolder(folderName, folderId);
+    var rootFolder = getOrCreateTargetFolder(folderName, folderId);
+    var folder = rootFolder;
+    if (subfolderName) {
+      var subIt = rootFolder.getFoldersByName(subfolderName);
+      if (subIt.hasNext()) {
+        folder = subIt.next();
+      } else {
+        folder = rootFolder.createFolder(subfolderName);
+      }
+    }
 
     // Hapus file lama dengan nama yang sama di folder tersebut agar tidak duplikat
     var existingFiles = folder.getFilesByName(filename);

@@ -7,9 +7,19 @@ $b64LogoIcon = 'data:image/png;base64,' . base64_encode(file_get_contents('c:/la
 $b64LogoText = 'data:image/png;base64,' . base64_encode(file_get_contents('c:/laragon/www/e-visa/assets/biologotext.png'));
 $b64Success  = 'data:image/png;base64,' . base64_encode(file_get_contents('c:/laragon/www/e-visa/assets/success.png'));
 
-$initialRecords = file_exists('c:/laragon/www/e-visa/storage/data/records.json')
-    ? file_get_contents('c:/laragon/www/e-visa/storage/data/records.json')
-    : '[]';
+require_once 'c:/laragon/www/e-visa/config.php';
+
+$rawRecordsArr = getRecords();
+foreach ($rawRecordsArr as &$recItem) {
+    $recItem['seven_docs'] = getJamaahSevenDocsStatus($recItem);
+}
+unset($recItem);
+saveRecords($rawRecordsArr);
+if (is_dir('c:/laragon/www/e-visa/docs/storage/data')) {
+    copy('c:/laragon/www/e-visa/storage/data/records.json', 'c:/laragon/www/e-visa/docs/storage/data/records.json');
+}
+
+$initialRecords = json_encode($rawRecordsArr, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 $initialJamaah = file_exists('c:/laragon/www/e-visa/storage/data/jamaah_master.json')
     ? file_get_contents('c:/laragon/www/e-visa/storage/data/jamaah_master.json')
     : '[]';
@@ -18,7 +28,6 @@ $initialLogs = file_exists('c:/laragon/www/e-visa/storage/data/sync_logs.json')
     : '[]';
 
 // Ambil settings tanpa menampilkan password sensitif
-require_once 'c:/laragon/www/e-visa/config.php';
 $safeSettings = getSettings();
 $safeSettings['imap_app_password'] = '';
 if (!empty($safeSettings['source_accounts'])) {

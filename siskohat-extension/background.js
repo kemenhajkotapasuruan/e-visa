@@ -67,7 +67,8 @@ async function fetchQueueFromGitHubPages() {
         enrollment_id: r.enrollment_id || '',
         filename: r.filename || `${r.nama}_${r.paspor}.jpg`,
         size_kb: r.size_kb || 49.2,
-        siskohat_uploaded: isDone
+        siskohat_uploaded: isDone,
+        seven_docs: r.seven_docs || null
       });
     }
   }
@@ -101,37 +102,79 @@ async function fetchBiovisaFileFromGitHubPages(id, paspor, nama) {
   }
 
   const filename = matched.filename;
+  const sevenDocsMeta = (matched.seven_docs && matched.seven_docs.docs) ? matched.seven_docs.docs : {};
+  const slotKeys = ['paspor', 'endorsement', 'vaksin', 'kitas', 'pendukung', 'biovisa', 'foto'];
+  const docsPayload = {};
+  let availableCount = 0;
 
-  // 1. Cek apakah gambar baru dirender di tab GitHub Pages (tersimpan di cloudImages)
-  if (cloudImages[filename]) {
-    let b64 = cloudImages[filename];
-    if (b64.includes(',')) b64 = b64.split(',')[1];
-    return {
-      ok: true,
-      record: {
-        ...matched,
+  for (const catKey of slotKeys) {
+    const meta = sevenDocsMeta[catKey];
+    const shouldTryFetch = (catKey === 'biovisa') || (meta && meta.exists);
+    if (!shouldTryFetch) {
+      docsPayload[catKey] = {
+        exists: false,
+        blocked: true,
+        key: catKey,
+        filename: '',
+        size_kb: 0,
+        base64: ''
+      };
+      continue;
+    }
+
+    const targetFn = (meta && meta.filename) ? meta.filename : filename;
+    const cloudKey = catKey === 'biovisa' ? targetFn : (`${catKey}:${targetFn}`);
+
+    if (cloudImages[cloudKey] || (catKey === 'biovisa' && cloudImages[targetFn])) {
+      let b64 = cloudImages[cloudKey] || cloudImages[targetFn];
+      if (b64.includes(',')) b64 = b64.split(',')[1];
+      const approxKb = Number(((b64.length * 0.75) / 1024).toFixed(2));
+      availableCount++;
+      docsPayload[catKey] = {
+        exists: true,
+        blocked: false,
+        key: catKey,
+        filename: targetFn,
+        size_kb: approxKb,
         base64: b64
+      };
+      continue;
+    }
+
+    const folderPath = catKey === 'biovisa' ? 'storage/biovisa' : `storage/dokumen/${catKey}`;
+    const fileUrl = `${GITHUB_PAGES_BASE}/${folderPath}/${encodeURIComponent(targetFn)}?_t=${Date.now()}`;
+    try {
+      const imgRes = await fetch(fileUrl);
+      if (imgRes.ok) {
+        const buf = await imgRes.arrayBuffer();
+        const b64 = arrayBufferToBase64(buf);
+        const sizeKb = Number((buf.byteLength / 1024).toFixed(2));
+        availableCount++;
+        docsPayload[catKey] = {
+          exists: true,
+          blocked: false,
+          key: catKey,
+          filename: targetFn,
+          size_kb: sizeKb,
+          base64: b64
+        };
+      } else {
+        docsPayload[catKey] = { exists: false, blocked: true, key: catKey, filename: '', size_kb: 0, base64: '' };
       }
-    };
+    } catch (e) {
+      docsPayload[catKey] = { exists: false, blocked: true, key: catKey, filename: '', size_kb: 0, base64: '' };
+    }
   }
 
-  // 2. Unduh file JPG langsung dari https://kemenhajkotapasuruan.github.io/e-visa/storage/biovisa/<filename>
-  const fileUrl = `${GITHUB_PAGES_BASE}/storage/biovisa/${encodeURIComponent(filename)}?_t=${Date.now()}`;
-  const imgRes = await fetch(fileUrl);
-  if (!imgRes.ok) {
-    throw new Error(`File ${filename} belum tersedia di GitHub Pages (HTTP ${imgRes.status}).`);
-  }
-
-  const buf = await imgRes.arrayBuffer();
-  const b64 = arrayBufferToBase64(buf);
-  const sizeKb = Number((buf.byteLength / 1024).toFixed(2));
-
+  const bvDoc = docsPayload.biovisa || {};
   return {
     ok: true,
     record: {
       ...matched,
-      size_kb: sizeKb,
-      base64: b64
+      size_kb: bvDoc.size_kb || matched.size_kb,
+      base64: bvDoc.base64 || '',
+      available_count: availableCount,
+      docs: docsPayload
     }
   };
 }
@@ -178,12 +221,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (msg.type === 'FETCH_BIOVISA_FILE') {
         if (cfg.sourceMode !== 'github_only') {
           const params = new URLSearchParams({
-            action: 'siskohat_get_file',
+            action: 'siskohat_get_all_docs',
             id: msg.id || '',
             paspor: msg.paspor || '',
             nama: msg.nama || ''
           });
-          const localFile = await tryFetchLocalApi(`${cfg.apiUrl}?${params.toString()}`, {}, 2000);
+          const localFile = await tryFetchLocalApi(`${cfg.apiUrl}?${params.toString()}`, {}, 2500);
           if (localFile && localFile.ok && localFile.record) {
             sendResponse({ ok: true, data: localFile, activeSource: 'local' });
             return;

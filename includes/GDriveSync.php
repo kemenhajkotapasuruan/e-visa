@@ -199,6 +199,66 @@ class GDriveSync
     }
 
     /**
+     * Upload file kategori dokumen pemvisaan (1_Paspor s/d 7_Foto) ke Sub-Folder Google Drive
+     */
+    public static function uploadCustomDocToDrive(array $docRecord, array $settings = []): array
+    {
+        if (empty($settings)) {
+            $settings = getSettings();
+        }
+        $webappUrl = trim($settings['gas_gdrive_webapp_url'] ?? '');
+        if ($webappUrl === '') {
+            return ['ok' => false, 'error' => 'URL Web App GDrive belum diisi.'];
+        }
+        $filePath = $docRecord['custom_path'] ?? '';
+        if ($filePath === '' || !is_file($filePath)) {
+            return ['ok' => false, 'error' => 'File tidak ditemukan.'];
+        }
+        $fileBytes = file_get_contents($filePath);
+        return self::postToGasWebApp($webappUrl, [
+            'action' => 'upload_biovisa',
+            'filename' => $docRecord['filename'] ?? basename($filePath),
+            'mime_type' => 'image/jpeg',
+            'base64_file' => base64_encode($fileBytes),
+            'folder_name' => $settings['gdrive_folder_name'] ?? 'Biovisa_Jamaah_PHU_Pasuruan',
+            'folder_id' => $settings['gdrive_folder_id'] ?? '',
+            'subfolder' => $docRecord['subfolder'] ?? '',
+            'nama' => $docRecord['nama'] ?? '',
+            'paspor' => $docRecord['paspor'] ?? '',
+            'enrollment_id' => $docRecord['enrollment_id'] ?? '',
+            'size_kb' => $docRecord['size_kb'] ?? round(strlen($fileBytes) / 1024, 2)
+        ]);
+    }
+
+    /**
+     * Helper HTTP GET JSON untuk memanggil doGet pada Google Apps Script
+     */
+    public static function httpGetJson(string $url): array
+    {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS => 5,
+            CURLOPT_TIMEOUT => 35,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_USERAGENT => 'PHU-Pasuruan-AutoBiovisa/1.2'
+        ]);
+        $res = curl_exec($ch);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($res === false || $err !== '') {
+            return ['ok' => false, 'error' => $err];
+        }
+        $decoded = json_decode((string)$res, true);
+        if (!is_array($decoded)) {
+            return ['ok' => false, 'error' => 'Respons bukan JSON yang valid.'];
+        }
+        return ['ok' => true, 'data' => $decoded];
+    }
+
+    /**
      * Tes koneksi ke seluruh akun Web App Gmail (Multi-Email) & Web App Google Drive
      */
     public static function diagnoseConnections(array $settings): array
