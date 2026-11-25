@@ -12,6 +12,64 @@
   let autoClickSimpan = false;
   let lastAutoUploadedPassport = '';
   let isUploadingNow = false;
+  let wasEntryPasporMenuOpen = false;
+
+  /**
+   * Periksa apakah menu "ENTRY DATA PASPOR DAN DOKUMEN PEMVISAAN" sedang dibuka/aktif di layar utama.
+   * Mengabaikan teks pada daftar menu tree di sidebar kiri (rect.left < 195).
+   */
+  function isEntryPasporBiovisaMenuOpen() {
+    const candidates = document.querySelectorAll('span, label, div, td, th, caption');
+    for (let i = 0; i < candidates.length; i++) {
+      const el = candidates[i];
+      if (el.children.length > 2) continue;
+      const txt = (el.textContent || '').trim();
+      if (!txt) continue;
+
+      const isBiovisaField = /Scan\s*\/\s*Upload\s*Biovisa/i.test(txt);
+      const isEntryPasporSection = /Entry\s+Data\s+Paspor\s+Jemaah\s+Haji|Scan\s+Paspor\s+dengan\s+MRTD/i.test(txt);
+      const isHeaderTitle = /^ENTRY\s+DATA\s+PASPOR\s+DAN\s+DOKUMEN\s+PEMVISAAN$/i.test(txt);
+
+      if (isBiovisaField || isEntryPasporSection || isHeaderTitle) {
+        const rect = el.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0 && rect.left >= 195) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Tampilkan panel HANYA saat menu "ENTRY DATA PASPOR DAN DOKUMEN PEMVISAAN" sedang aktif.
+   * Sembunyikan otomatis saat berada di halaman awal, menu lain, atau setelah klik tombol Tutup.
+   */
+  function updatePanelVisibilityByMenu() {
+    const isOpen = isEntryPasporBiovisaMenuOpen();
+    let panel = document.getElementById('silahut-siskohat-panel');
+
+    if (isOpen) {
+      if (!panel) {
+        initPanel();
+        panel = document.getElementById('silahut-siskohat-panel');
+      }
+      if (panel && panel.style.display === 'none') {
+        panel.style.display = 'flex';
+      }
+      if (!wasEntryPasporMenuOpen) {
+        wasEntryPasporMenuOpen = true;
+        loadQueueFromLaragon();
+      }
+    } else {
+      if (panel && panel.style.display !== 'none') {
+        panel.style.display = 'none';
+      }
+      if (wasEntryPasporMenuOpen) {
+        wasEntryPasporMenuOpen = false;
+        lastAutoUploadedPassport = '';
+      }
+    }
+  }
 
   function initPanel() {
     if (document.getElementById('silahut-siskohat-panel')) return;
@@ -587,7 +645,26 @@
     }
   }
 
-  // Jalankan panel & pemantau otomatis
-  initPanel();
-  setInterval(scanSiskohatPageForActivePassport, 2200);
+  // Pantau perubahan menu di Siskohat Gen.2 (ZK AJAX DOM changes & klik menu)
+  updatePanelVisibilityByMenu();
+
+  const menuObserver = new MutationObserver(() => {
+    updatePanelVisibilityByMenu();
+  });
+  if (document.body) {
+    menuObserver.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class'] });
+  }
+
+  document.addEventListener('click', () => {
+    setTimeout(updatePanelVisibilityByMenu, 150);
+    setTimeout(updatePanelVisibilityByMenu, 500);
+    setTimeout(updatePanelVisibilityByMenu, 1100);
+  }, true);
+
+  setInterval(() => {
+    updatePanelVisibilityByMenu();
+    if (wasEntryPasporMenuOpen) {
+      scanSiskohatPageForActivePassport();
+    }
+  }, 1500);
 })();
