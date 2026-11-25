@@ -64,13 +64,13 @@ $clientEngineJs = <<<JS
     let cachedImgs = {};
 
     const DOC_CAT_META = {
-        paspor:      { num: 1, key: 'paspor',      short: 'Paspor',      label: '1. Scan Halaman Pertama Paspor',               subfolder: '1_Paspor',      max_kb: 180 },
-        endorsement: { num: 2, key: 'endorsement', short: 'Endorsement', label: '2. Scan/Upload Halaman Endorsement',           subfolder: '2_Endorsement', max_kb: 180 },
-        vaksin:      { num: 3, key: 'vaksin',      short: 'Vaksin',      label: '3. Scan/Upload Keterangan Vaksin Meningitis *', subfolder: '3_Vaksin',      max_kb: 180 },
-        kitas:       { num: 4, key: 'kitas',       short: 'KITAS',       label: '4. Scan/Upload Keterangan KITAS',              subfolder: '4_Kitas',       max_kb: 180 },
-        pendukung:   { num: 5, key: 'pendukung',   short: 'Pendukung',   label: '5. Scan/Upload Dokumen Pendukung',             subfolder: '5_Pendukung',   max_kb: 180 },
+        paspor:      { num: 1, key: 'paspor',      short: 'Paspor',      label: '1. Scan Halaman Pertama Paspor',               subfolder: '1_Paspor',      max_kb: 49.5 },
+        endorsement: { num: 2, key: 'endorsement', short: 'Endorsement', label: '2. Scan/Upload Halaman Endorsement',           subfolder: '2_Endorsement', max_kb: 49.5 },
+        vaksin:      { num: 3, key: 'vaksin',      short: 'Vaksin',      label: '3. Scan/Upload Keterangan Vaksin Meningitis *', subfolder: '3_Vaksin',      max_kb: 49.5 },
+        kitas:       { num: 4, key: 'kitas',       short: 'KITAS',       label: '4. Scan/Upload Keterangan KITAS',              subfolder: '4_Kitas',       max_kb: 49.5 },
+        pendukung:   { num: 5, key: 'pendukung',   short: 'Pendukung',   label: '5. Scan/Upload Dokumen Pendukung',             subfolder: '5_Pendukung',   max_kb: 49.5 },
         biovisa:     { num: 6, key: 'biovisa',     short: 'Biovisa',     label: '6. Scan/Upload Biovisa (jpeg)',                subfolder: '6_Biovisa',     max_kb: 49.5 },
-        foto:        { num: 7, key: 'foto',        short: 'Foto',        label: '7. Scan/Upload Foto Terbaru',                  subfolder: '7_Foto',        max_kb: 95 }
+        foto:        { num: 7, key: 'foto',        short: 'Foto',        label: '7. Scan/Upload Foto Terbaru',                  subfolder: '7_Foto',        max_kb: 49.5 }
     };
 
     function ensureRecordSevenDocs(rec) {
@@ -128,7 +128,65 @@ $clientEngineJs = <<<JS
         try { localStorage.setItem('gh_evisa_images', JSON.stringify(ghImages)); } catch (e) {}
     }
 
-    async function compressUploadedFileToJpg(fileObj, maxKb = 150) {
+    function padJpegDataUrlToTarget50KB(dataUrl, minBytes = 46500, maxBytes = 50500) {
+        try {
+            const parts = dataUrl.split(',');
+            const b64 = parts[1] || '';
+            const binStr = atob(b64);
+            const len = binStr.length;
+            if (len >= minBytes && len <= maxBytes) {
+                return { dataUrl, size_bytes: len, size_kb: Number((len / 1024).toFixed(2)) };
+            }
+            if (len > maxBytes) {
+                return { dataUrl, size_bytes: len, size_kb: Number((len / 1024).toFixed(2)) };
+            }
+            // Sisipkan JPEG COM marker (0xFF 0xFE) tepat sebelum EOI (0xFF 0xD9) agar ukuran file berada di 47-49.4 KB (<= 50 KB)
+            const targetLen = 49800;
+            const padNeeded = targetLen - len;
+            if (padNeeded <= 6 || padNeeded > 45000) {
+                return { dataUrl, size_bytes: len, size_kb: Number((len / 1024).toFixed(2)) };
+            }
+            const origBytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) origBytes[i] = binStr.charCodeAt(i);
+
+            // Pastikan 2 byte terakhir adalah EOI (0xFF 0xD9)
+            if (origBytes[len - 2] !== 0xFF || origBytes[len - 1] !== 0xD9) {
+                return { dataUrl, size_bytes: len, size_kb: Number((len / 1024).toFixed(2)) };
+            }
+
+            const payloadLen = padNeeded - 4; // 2 byte marker (FF FE) + 2 byte length
+            const segLen = payloadLen + 2;
+            const out = new Uint8Array(targetLen);
+            out.set(origBytes.subarray(0, len - 2), 0);
+            let pos = len - 2;
+            out[pos++] = 0xFF;
+            out[pos++] = 0xFE;
+            out[pos++] = (segLen >> 8) & 0xFF;
+            out[pos++] = segLen & 0xFF;
+            for (let k = 0; k < payloadLen; k++) {
+                out[pos++] = 0x20; // spasi ASCII
+            }
+            out[pos++] = 0xFF;
+            out[pos++] = 0xD9;
+
+            let newBin = '';
+            const chunkSize = 8192;
+            for (let i = 0; i < out.length; i += chunkSize) {
+                newBin += String.fromCharCode.apply(null, out.subarray(i, i + chunkSize));
+            }
+            const newDataUrl = 'data:image/jpeg;base64,' + btoa(newBin);
+            return {
+                dataUrl: newDataUrl,
+                size_bytes: out.length,
+                size_kb: Number((out.length / 1024).toFixed(2))
+            };
+        } catch (e) {
+            const approx = Math.round((dataUrl.length - 23) * 0.75);
+            return { dataUrl, size_bytes: approx, size_kb: Number((approx / 1024).toFixed(2)) };
+        }
+    }
+
+    async function compressUploadedFileToJpg(fileObj, maxKb = 49.5) {
         const dataUrlOrig = await new Promise((resolve, reject) => {
             const reader = new FileReader();
             reader.onload = () => resolve(reader.result);
@@ -138,39 +196,60 @@ $clientEngineJs = <<<JS
         const img = await loadCanvasImg(dataUrlOrig);
         let w = img.naturalWidth || img.width || 800;
         let h = img.naturalHeight || img.height || 1000;
-        const maxDim = maxKb <= 50 ? 900 : 1280;
+        const maxDim = 960;
         if (w > maxDim || h > maxDim) {
             const ratio = Math.min(maxDim / w, maxDim / h);
-            w = Math.round(w * ratio);
-            h = Math.round(h * ratio);
+            w = Math.max(320, Math.round(w * ratio));
+            h = Math.max(320, Math.round(h * ratio));
         }
-        const canvas = document.createElement('canvas');
-        canvas.width = w;
-        canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, w, h);
-        ctx.drawImage(img, 0, 0, w, h);
 
-        const maxBytes = Math.floor(maxKb * 1024);
-        let low = 0.25, high = 0.92, bestDataUrl = canvas.toDataURL('image/jpeg', 0.78);
-        for (let i = 0; i < 6; i++) {
-            const mid = (low + high) / 2;
-            const dUrl = canvas.toDataURL('image/jpeg', mid);
-            const approxBytes = Math.round((dUrl.length - 23) * 0.75);
-            if (approxBytes <= maxBytes) {
-                bestDataUrl = dUrl;
-                low = mid;
-            } else {
-                high = mid;
+        const maxBytes = 50500; // <= 49.31 KB (Strict <= 50 KB)
+        let bestDataUrl = '';
+        let bestBytes = 999999;
+
+        // Loop pengecilan dimensi jika pada kualitas rendah pun masih > 50 KB
+        for (let scaleStep = 0; scaleStep < 5; scaleStep++) {
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            const ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(img, 0, 0, w, h);
+
+            let low = 0.14, high = 0.94;
+            let candidateUrl = '';
+            let candidateBytes = 999999;
+
+            for (let i = 0; i < 8; i++) {
+                const mid = (low + high) / 2;
+                const dUrl = canvas.toDataURL('image/jpeg', mid);
+                const b64Part = dUrl.split(',')[1] || '';
+                const exactBytes = Math.floor((b64Part.length * 3) / 4);
+                if (exactBytes <= maxBytes) {
+                    candidateUrl = dUrl;
+                    candidateBytes = exactBytes;
+                    low = mid;
+                } else {
+                    high = mid;
+                }
             }
+
+            if (candidateUrl && candidateBytes <= maxBytes) {
+                bestDataUrl = candidateUrl;
+                bestBytes = candidateBytes;
+                break;
+            }
+
+            // Jika pada kualitas 0.14 masih > 50 KB, perkecil dimensi gambar 78% lalu ulangi
+            w = Math.max(260, Math.round(w * 0.78));
+            h = Math.max(260, Math.round(h * 0.78));
+            bestDataUrl = canvas.toDataURL('image/jpeg', 0.14);
+            bestBytes = Math.floor(((bestDataUrl.split(',')[1] || '').length * 3) / 4);
         }
-        const sizeBytes = Math.round((bestDataUrl.length - 23) * 0.75);
-        return {
-            dataUrl: bestDataUrl,
-            size_bytes: sizeBytes,
-            size_kb: Number((sizeBytes / 1024).toFixed(2))
-        };
+
+        // Sesuaikan agar ukuran tepat berada di rentang 46 - 49.4 KB (<= 50 KB) sama persis seperti di Lokal
+        return padJpegDataUrlToTarget50KB(bestDataUrl, 46000, maxBytes);
     }
 
     function addGhLog(type, message) {

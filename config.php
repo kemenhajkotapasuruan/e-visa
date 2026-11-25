@@ -28,7 +28,7 @@ function getSiskohatDocCategories(): array {
             'siskohat_label' => 'Scan Halaman Pertama Paspor *',
             'folder' => 'paspor',
             'gdrive_subfolder' => '1_Paspor',
-            'max_kb' => 200
+            'max_kb' => 49.5
         ],
         'endorsement' => [
             'num' => 2,
@@ -38,7 +38,7 @@ function getSiskohatDocCategories(): array {
             'siskohat_label' => 'Scan/Upload Halaman Endorsement',
             'folder' => 'endorsement',
             'gdrive_subfolder' => '2_Endorsement',
-            'max_kb' => 200
+            'max_kb' => 49.5
         ],
         'vaksin' => [
             'num' => 3,
@@ -48,7 +48,7 @@ function getSiskohatDocCategories(): array {
             'siskohat_label' => 'Scan/Upload Keterangan Vaksin Meningitis *',
             'folder' => 'vaksin',
             'gdrive_subfolder' => '3_Vaksin',
-            'max_kb' => 200
+            'max_kb' => 49.5
         ],
         'kitas' => [
             'num' => 4,
@@ -58,7 +58,7 @@ function getSiskohatDocCategories(): array {
             'siskohat_label' => 'Scan/Upload Keterangan KITAS',
             'folder' => 'kitas',
             'gdrive_subfolder' => '4_Kitas',
-            'max_kb' => 200
+            'max_kb' => 49.5
         ],
         'pendukung' => [
             'num' => 5,
@@ -68,7 +68,7 @@ function getSiskohatDocCategories(): array {
             'siskohat_label' => 'Scan/Upload Dokumen Pendukung',
             'folder' => 'pendukung',
             'gdrive_subfolder' => '5_Pendukung',
-            'max_kb' => 200
+            'max_kb' => 49.5
         ],
         'biovisa' => [
             'num' => 6,
@@ -78,7 +78,7 @@ function getSiskohatDocCategories(): array {
             'siskohat_label' => 'Scan/Upload Biovisa (jpeg) *',
             'folder' => 'biovisa',
             'gdrive_subfolder' => '6_Biovisa',
-            'max_kb' => 50
+            'max_kb' => 49.5
         ],
         'foto' => [
             'num' => 7,
@@ -88,7 +88,7 @@ function getSiskohatDocCategories(): array {
             'siskohat_label' => 'Scan/Upload Foto Terbaru *',
             'folder' => 'foto',
             'gdrive_subfolder' => '7_Foto',
-            'max_kb' => 100
+            'max_kb' => 49.5
         ]
     ];
 }

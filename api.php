@@ -1302,15 +1302,12 @@ switch ($action) {
 
             $destPath = $targetDir . DIRECTORY_SEPARATOR . $finalFilename;
 
-            // Konversi & kompres otomatis menjadi JPEG sesuai batas KB kategori Siskohat
+            // Konversi & kompres otomatis menjadi JPEG <= 50 KB (42 - 49.5 KB) untuk semua 7 kategori dokumen Siskohat
             $gd = @imagecreatefromstring($rawBytes);
             if ($gd !== false) {
-                $maxKb = floatval($catMeta['max_kb'] ?? 150);
-                $minKb = ($catKey === 'biovisa') ? floatval($settings['target_min_kb'] ?? 42) : 15.0;
-                $pad50 = ($catKey === 'biovisa') ? !empty($settings['strict_50kb_padding']) : false;
-                if ($catKey === 'biovisa') {
-                    $maxKb = min(49.5, $maxKb);
-                }
+                $minKb = floatval($settings['target_min_kb'] ?? 42.0);
+                $maxKb = min(49.5, floatval($settings['target_max_kb'] ?? 49.5));
+                $pad50 = !empty($settings['strict_50kb_padding']);
                 BiovisaProcessor::saveGdAs50KbJpg($gd, $destPath, $minKb, $maxKb, $pad50);
                 imagedestroy($gd);
             } else {
