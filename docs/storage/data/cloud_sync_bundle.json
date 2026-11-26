@@ -1,7 +1,7 @@
 {
     "ok": true,
-    "version_ts": 1795675877,
-    "updated_at": "2026-11-26 13:51:17",
+    "version_ts": 1795685312,
+    "updated_at": "2026-11-26 16:28:32",
     "settings": {
         "source_email": "phujtmkopasuruan@gmail.com",
         "target_gdrive_email": "muchammad.ali.sanjaya@gmail.com",
@@ -60,7 +60,7 @@
         "strict_50kb_padding": true,
         "filename_pattern": "{NAMA}_{PASPOR}",
         "uppercase_filename": true,
-        "last_sync_at": "2026-11-26 13:30:04",
+        "last_sync_at": "2026-11-26 16:14:05",
         "last_sync_status": "Sinkronisasi berhasil (Tidak ada email baru)"
     },
     "records": [

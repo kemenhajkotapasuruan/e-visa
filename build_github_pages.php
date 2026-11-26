@@ -696,15 +696,24 @@ $clientEngineJs = <<<JS
 
             let fileId = docInfo.gdrive_file_id || '';
             if (!fileId) {
-                const listUrl = gasUrl + (gasUrl.includes('?') ? '&' : '?') + 'action=list_gdrive_docs&folder_name=' + encodeURIComponent(ghSettings.gdrive_folder_name || 'Biovisa_Jamaah_PHU_Pasuruan');
+                const listUrl = gasUrl + (gasUrl.includes('?') ? '&' : '?') + 'action=list_gdrive_docs&folder_name=' + encodeURIComponent(ghSettings.gdrive_folder_name || 'Biovisa_Jamaah_PHU_Pasuruan') + '&_t=' + Date.now();
                 const lRes = await origFetch(listUrl);
                 if (lRes.ok) {
                     const lJson = await lRes.json();
                     if (lJson && lJson.ok && lJson.categories) {
                         mergeSevenDocsFromGDriveCategories(lJson.categories);
-                        saveGhState();
                         const updatedInfo = (rec.seven_docs && rec.seven_docs.docs && rec.seven_docs.docs[cleanCat]) || {};
                         fileId = updatedInfo.gdrive_file_id || '';
+                        if (!fileId) {
+                            const files = Array.isArray(lJson.categories[cleanCat]) ? lJson.categories[cleanCat] : [];
+                            const passport = String(rec.paspor || '').toUpperCase();
+                            const match = files.find(f => {
+                                const name = String(f.filename || '').replace(/\.[^.]+$/, '').toUpperCase();
+                                return passport && passport !== 'TANPAPASPOR' && name.includes(passport);
+                            });
+                            fileId = match && match.file_id ? match.file_id : '';
+                        }
+                        saveGhState();
                     }
                 }
             }
@@ -715,7 +724,8 @@ $clientEngineJs = <<<JS
             if (!dlRes.ok) return '';
             const dlJson = await dlRes.json();
             if (dlJson && dlJson.ok && dlJson.base64) {
-                const dUrl = 'data:image/jpeg;base64,' + dlJson.base64;
+                const mimeType = String(dlJson.mime_type || 'image/jpeg').toLowerCase();
+                const dUrl = `data:${mimeType};base64,${dlJson.base64}`;
                 ghImages[cloudKey] = dUrl;
                 saveGhState();
                 window.postMessage({ type: 'SILAHUT_CLOUD_IMAGE_UPDATE', key: cloudKey, dataUrl: dUrl }, '*');
@@ -1354,7 +1364,7 @@ $clientEngineJs = <<<JS
                 return makeJsonRes({ ok: false, error: 'URL Web App Google Drive belum diisi di Konfigurasi Integrasi.' });
             }
             try {
-                const listUrl = gasUrl + (gasUrl.includes('?') ? '&' : '?') + 'action=list_gdrive_docs&folder_name=' + encodeURIComponent(ghSettings.gdrive_folder_name || 'Biovisa_Jamaah_PHU_Pasuruan');
+                const listUrl = gasUrl + (gasUrl.includes('?') ? '&' : '?') + 'action=list_gdrive_docs&folder_name=' + encodeURIComponent(ghSettings.gdrive_folder_name || 'Biovisa_Jamaah_PHU_Pasuruan') + '&_t=' + Date.now();
                 const res = await origFetch(listUrl);
                 const data = await res.json();
                 if (!data || !data.ok) {
