@@ -1,5 +1,19 @@
 [
     {
+        "id": "log_6b07b59e0b3ca",
+        "time": "2026-11-26 11:29:18",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> MULAZAMAHABD MUNTOLIB_E9784343.jpg (49.18 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b07b59e056fe",
+        "time": "2026-11-26 11:29:18",
+        "type": "success",
+        "message": "File MULAZAMAHABD MUNTOLIB_E9784343.jpg (49.18 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
         "id": "log_6b07ac66edfd0",
         "time": "2026-11-26 10:49:58",
         "type": "success",
@@ -1031,20 +1045,6 @@
     {
         "id": "log_6b06573264b53",
         "time": "2026-11-25 10:34:19",
-        "type": "info",
-        "message": "Pengaturan sistem & integrasi berhasil disimpan.",
-        "context": []
-    },
-    {
-        "id": "log_6b0656c7d7cd3",
-        "time": "2026-11-25 10:32:23",
-        "type": "success",
-        "message": "Tes Koneksi Berhasil: [phujtmkopasuruan@gmail.com] Terhubung ke Web App Gmail — Ditemukan 36 pesan. | Terhubung ke Google Drive (muchammad.ali.sanjaya@gmail.com)! Folder 'Biovisa_Jamaah_PHU_Pasuruan' siap menerima file JPG.",
-        "context": []
-    },
-    {
-        "id": "log_6b064b57a39ad",
-        "time": "2026-11-25 10:32:02",
         "type": "info",
         "message": "Pengaturan sistem & integrasi berhasil disimpan.",
         "context": []
