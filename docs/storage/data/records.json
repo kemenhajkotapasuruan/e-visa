@@ -3080,7 +3080,7 @@
         "gdrive_target_email": "muchammad.ali.sanjaya@gmail.com",
         "gdrive_error": "",
         "seven_docs": {
-            "available_count": 3,
+            "available_count": 4,
             "total_slots": 7,
             "docs": {
                 "paspor": {
@@ -3144,14 +3144,14 @@
                     "size_kb": 49.11
                 },
                 "foto": {
-                    "exists": false,
+                    "exists": true,
                     "num": 7,
                     "key": "foto",
                     "short": "Foto",
                     "label": "7. Scan/Upload Foto Terbaru",
-                    "filename": "",
-                    "rel_url": "",
-                    "size_kb": 0
+                    "filename": "SUPRIADISHOLEH_X9935134.jpg",
+                    "rel_url": "storage/dokumen/foto/SUPRIADISHOLEH_X9935134.jpg",
+                    "size_kb": 48.63
                 }
             }
         }
