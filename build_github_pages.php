@@ -93,7 +93,9 @@ $clientEngineJs = <<<JS
                     short: m.short,
                     label: m.label,
                     filename: fn,
-                    size_kb: (cur && cur.size_kb) || (ini && ini.size_kb) || (k === 'biovisa' ? (rec.size_kb || 49.2) : 48.0)
+                    size_kb: (cur && cur.size_kb) || (ini && ini.size_kb) || (k === 'biovisa' ? (rec.size_kb || 49.2) : 48.0),
+                    gdrive_file_id: (cur && cur.gdrive_file_id) || (ini && ini.gdrive_file_id) || '',
+                    gdrive_url: (cur && cur.gdrive_url) || (ini && ini.gdrive_url) || ''
                 };
             } else {
                 rec.seven_docs.docs[k] = {
@@ -212,21 +214,35 @@ $clientEngineJs = <<<JS
                 mergedList.push(ensureRecordSevenDocs(JSON.parse(JSON.stringify(rr))));
                 changed = true;
             } else {
-                const combined = { ...rr, ...lr };
+                const combined = JSON.parse(JSON.stringify({ ...rr, ...lr }));
                 if (rr.gdrive_uploaded) {
+                    if (!lr.gdrive_uploaded) changed = true;
                     combined.gdrive_uploaded = true;
                     combined.gdrive_url = rr.gdrive_url || lr.gdrive_url;
                 }
                 if (rr.siskohat_uploaded || lr.siskohat_uploaded) {
+                    if (!lr.siskohat_uploaded && rr.siskohat_uploaded) changed = true;
                     combined.siskohat_uploaded = true;
                 }
                 if (rr.seven_docs && rr.seven_docs.docs) {
                     if (!combined.seven_docs || !combined.seven_docs.docs) {
                         combined.seven_docs = JSON.parse(JSON.stringify(rr.seven_docs));
+                        changed = true;
                     } else {
                         Object.keys(rr.seven_docs.docs).forEach(ck => {
-                            if (rr.seven_docs.docs[ck] && rr.seven_docs.docs[ck].exists) {
-                                combined.seven_docs.docs[ck] = rr.seven_docs.docs[ck];
+                            const rDoc = rr.seven_docs.docs[ck];
+                            const lDoc = combined.seven_docs.docs[ck];
+                            if (rDoc && rDoc.exists) {
+                                if (!lDoc || !lDoc.exists || (rDoc.gdrive_file_id && !lDoc.gdrive_file_id)) {
+                                    changed = true;
+                                }
+                                combined.seven_docs.docs[ck] = {
+                                    ...(lDoc || {}),
+                                    ...rDoc,
+                                    exists: true,
+                                    gdrive_file_id: rDoc.gdrive_file_id || (lDoc && lDoc.gdrive_file_id) || '',
+                                    gdrive_url: rDoc.gdrive_url || (lDoc && lDoc.gdrive_url) || ''
+                                };
                             }
                         });
                     }
@@ -252,6 +268,47 @@ $clientEngineJs = <<<JS
         return changed;
     }
 
+    /**
+     * Gabungkan status kelengkapan 7 dokumen langsung dari 7 Sub-Folder Google Drive (1_Paspor s/d 7_Foto)
+     * agar Komputer Lain langsung mendeteksi dokumen 1..7 yang sudah diupload tanpa harus klik manual.
+     */
+    function mergeSevenDocsFromGDriveCategories(gCats) {
+        if (!gCats || typeof gCats !== 'object') return false;
+        let changed = false;
+        Object.keys(DOC_CAT_META).forEach(catKey => {
+            const catMeta = DOC_CAT_META[catKey];
+            const filesInCat = Array.isArray(gCats[catKey]) ? gCats[catKey] : [];
+            filesInCat.forEach(gf => {
+                const gName = String(gf.filename || '');
+                if (!gName) return;
+                const baseUpper = gName.replace(/\\.[^.]+$/, '').toUpperCase();
+                ghRecords.forEach(rec => {
+                    const p = String(rec.paspor || '').toUpperCase();
+                    if (p && p !== 'TANPAPASPOR' && baseUpper.includes(p)) {
+                        ensureRecordSevenDocs(rec);
+                        const curDoc = rec.seven_docs.docs[catKey];
+                        if (!curDoc || !curDoc.exists || (gf.file_id && curDoc.gdrive_file_id !== gf.file_id)) {
+                            rec.seven_docs.docs[catKey] = {
+                                exists: true,
+                                num: catMeta.num,
+                                key: catKey,
+                                short: catMeta.short,
+                                label: catMeta.label,
+                                filename: gName,
+                                size_kb: gf.size_kb || (curDoc && curDoc.size_kb) || 48,
+                                gdrive_file_id: gf.file_id || (curDoc && curDoc.gdrive_file_id) || '',
+                                gdrive_url: gf.url || (curDoc && curDoc.gdrive_url) || ''
+                            };
+                            rec.seven_docs.available_count = Object.values(rec.seven_docs.docs).filter(d => d && d.exists).length;
+                            changed = true;
+                        }
+                    }
+                });
+            });
+        });
+        return changed;
+    }
+
     // Pastikan INITIAL_SETTINGS (4 Email) & INITIAL_RECORDS (63 Jamaah) langsung tergabung dengan aman!
     mergeSettingsFromBundle(INITIAL_SETTINGS, true);
     mergeRecordsFromBundle(INITIAL_RECORDS);
@@ -269,8 +326,8 @@ $clientEngineJs = <<<JS
      * Sinkronisasi Multi-Komputer (Komputer Server <-> GitHub Pages <-> Google Drive Cloud DB <-> Komputer Lain):
      * 1. Jika dibuka di Komputer Server (http://localhost/e-visa/api.php aktif), kirim perubahan ke Server Lokal
      *    dan otomatis jalankan build + git push ke GitHub Pages di background.
-     * 2. Simpan & tarik juga dari cloud_sync_bundle.json (GitHub Pages) serta Google Drive Cloud DB (SILAHUT_CLOUD_DB.json)
-     *    agar Komputer Lain langsung membaca daftar Akun Email Pembaca & Data Biovisa yang 100% sama.
+     * 2. Simpan & tarik juga dari cloud_sync_bundle.json (GitHub Pages), Google Drive Cloud DB (SILAHUT_CLOUD_DB.json),
+     *    serta 7 Sub-Folder Google Drive (list_gdrive_docs) agar Komputer Lain langsung membaca Dokumen 1..7 yang 100% sama.
      */
     async function syncMultiComputerCloudState(isWriteAction = false, replaceAccounts = false) {
         let anyUpdated = false;
@@ -291,15 +348,21 @@ $clientEngineJs = <<<JS
 
         // 2. Hubungi Server Laragon Lokal (jika browser ini sedang dibuka di Komputer Server)
         try {
+            const imagesToMirror = {};
+            Object.keys(ghImages || {}).forEach(k => {
+                if (isWriteAction || k.includes(':')) {
+                    imagesToMirror[k] = ghImages[k];
+                }
+            });
             const ctrl = new AbortController();
-            const timer = setTimeout(() => ctrl.abort(), 2800);
+            const timer = setTimeout(() => ctrl.abort(), 3200);
             const locRes = await origFetch('http://localhost/e-visa/api.php?action=mirror_cloud_to_local', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     settings: ghSettings,
                     records: ghRecords,
-                    images: isWriteAction ? ghImages : {},
+                    images: imagesToMirror,
                     replace_accounts: replaceAccounts,
                     force_publish: isWriteAction
                 }),
@@ -315,9 +378,10 @@ $clientEngineJs = <<<JS
             }
         } catch (e) {}
 
-        // 3. Sinkronkan juga lewat Google Drive Cloud DB (agar Komputer Lain di luar jaringan langsung sinkron real-time)
+        // 3. Sinkronkan juga lewat Google Drive Cloud DB & 7 Sub-Folder Google Drive (agar Komputer Lain langsung sinkron real-time)
         const gdriveUrl = String(ghSettings.gas_gdrive_webapp_url || '').trim();
         if (gdriveUrl) {
+            const folderName = ghSettings.gdrive_folder_name || 'Biovisa_Jamaah_PHU_Pasuruan';
             if (isWriteAction) {
                 try {
                     const snapshot = {
@@ -333,20 +397,31 @@ $clientEngineJs = <<<JS
                         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                         body: JSON.stringify({
                             action: 'save_cloud_db',
-                            folder_name: ghSettings.gdrive_folder_name || 'Biovisa_Jamaah_PHU_Pasuruan',
+                            folder_name: folderName,
                             cloud_db_json: JSON.stringify(snapshot)
                         })
                     }).catch(() => {});
                 } catch (e) {}
             } else {
                 try {
-                    const dbUrl = gdriveUrl + (gdriveUrl.includes('?') ? '&' : '?') + 'action=get_cloud_db&folder_name=' + encodeURIComponent(ghSettings.gdrive_folder_name || 'Biovisa_Jamaah_PHU_Pasuruan') + '&_t=' + Date.now();
+                    const dbUrl = gdriveUrl + (gdriveUrl.includes('?') ? '&' : '?') + 'action=get_cloud_db&folder_name=' + encodeURIComponent(folderName) + '&_t=' + Date.now();
                     const gRes = await origFetch(dbUrl);
                     if (gRes.ok) {
                         const gJson = await gRes.json();
                         if (gJson && gJson.ok && gJson.found && gJson.bundle) {
                             if (mergeSettingsFromBundle(gJson.bundle.settings, false)) anyUpdated = true;
                             if (mergeRecordsFromBundle(gJson.bundle.records)) anyUpdated = true;
+                        }
+                    }
+                } catch (e) {}
+
+                try {
+                    const listUrl = gdriveUrl + (gdriveUrl.includes('?') ? '&' : '?') + 'action=list_gdrive_docs&folder_name=' + encodeURIComponent(folderName) + '&_t=' + Date.now();
+                    const lRes = await origFetch(listUrl);
+                    if (lRes.ok) {
+                        const lJson = await lRes.json();
+                        if (lJson && lJson.ok && lJson.categories) {
+                            if (mergeSevenDocsFromGDriveCategories(lJson.categories)) anyUpdated = true;
                         }
                     }
                 } catch (e) {}
@@ -604,6 +679,52 @@ $clientEngineJs = <<<JS
         return folder + encodeURIComponent(filename);
     };
 
+    // Fallback ambil base64 dokumen langsung dari Google Drive (7 Sub-Folder) jika file statis GitHub Pages belum ter-deploy
+    window.__fetchGDriveDocDataUrl = async function(recId, catKey) {
+        try {
+            const cleanCat = String(catKey || 'paspor').toLowerCase();
+            const rec = ghRecords.find(r => r.id === recId);
+            if (!rec) return '';
+            ensureRecordSevenDocs(rec);
+            const docInfo = (rec.seven_docs && rec.seven_docs.docs && rec.seven_docs.docs[cleanCat]) || {};
+            const fn = docInfo.filename || `\${rec.nama}_\${rec.paspor}.jpg`;
+            const cloudKey = cleanCat === 'biovisa' ? fn : `\${cleanCat}:\${fn}`;
+            if (ghImages[cloudKey]) return ghImages[cloudKey];
+
+            const gasUrl = String(ghSettings.gas_gdrive_webapp_url || '').trim();
+            if (!gasUrl) return '';
+
+            let fileId = docInfo.gdrive_file_id || '';
+            if (!fileId) {
+                const listUrl = gasUrl + (gasUrl.includes('?') ? '&' : '?') + 'action=list_gdrive_docs&folder_name=' + encodeURIComponent(ghSettings.gdrive_folder_name || 'Biovisa_Jamaah_PHU_Pasuruan');
+                const lRes = await origFetch(listUrl);
+                if (lRes.ok) {
+                    const lJson = await lRes.json();
+                    if (lJson && lJson.ok && lJson.categories) {
+                        mergeSevenDocsFromGDriveCategories(lJson.categories);
+                        saveGhState();
+                        const updatedInfo = (rec.seven_docs && rec.seven_docs.docs && rec.seven_docs.docs[cleanCat]) || {};
+                        fileId = updatedInfo.gdrive_file_id || '';
+                    }
+                }
+            }
+            if (!fileId) return '';
+
+            const dlUrl = gasUrl + (gasUrl.includes('?') ? '&' : '?') + 'action=get_gdrive_file&file_id=' + encodeURIComponent(fileId);
+            const dlRes = await origFetch(dlUrl);
+            if (!dlRes.ok) return '';
+            const dlJson = await dlRes.json();
+            if (dlJson && dlJson.ok && dlJson.base64) {
+                const dUrl = 'data:image/jpeg;base64,' + dlJson.base64;
+                ghImages[cloudKey] = dUrl;
+                saveGhState();
+                window.postMessage({ type: 'SILAHUT_CLOUD_IMAGE_UPDATE', key: cloudKey, dataUrl: dUrl }, '*');
+                return dUrl;
+            }
+        } catch (e) {}
+        return '';
+    };
+
     // Intercept links & images pointing to api.php?action=download_file
     const origSetAttr = Element.prototype.setAttribute;
     document.addEventListener('click', function(e) {
@@ -841,6 +962,7 @@ $clientEngineJs = <<<JS
             ghRecords.unshift(rec);
             addGhLog('info', `[Simulasi Email Masuk] \${filename} (\${rendered.size_kb} KB) berhasil dibuat.`);
             saveGhState();
+            await syncMultiComputerCloudState(true, false);
             return makeJsonRes({ ok: true, message: `Simulasi \${filename} (\${rendered.size_kb} KB) berhasil dibuat!`, record: rec });
         }
 
@@ -870,6 +992,7 @@ $clientEngineJs = <<<JS
             ghRecords.unshift(rec);
             addGhLog('success', `Konversi manual berhasil dibuat: \${filename} (\${rendered.size_kb} KB)`);
             saveGhState();
+            await syncMultiComputerCloudState(true, false);
             return makeJsonRes({ ok: true, message: `File \${filename} (\${rendered.size_kb} KB) berhasil dibuat!`, record: rec });
         }
 
@@ -890,6 +1013,7 @@ $clientEngineJs = <<<JS
             ghRecords[idx].size_bytes = rendered.size_bytes;
             ghRecords[idx].size_kb = rendered.size_kb;
             saveGhState();
+            await syncMultiComputerCloudState(true, false);
             return makeJsonRes({ ok: true, message: `Berhasil mengubah nama file menjadi \${filename}`, record: ghRecords[idx] });
         }
 
@@ -897,6 +1021,7 @@ $clientEngineJs = <<<JS
             const ids = bodyData.ids || (bodyData.id ? [bodyData.id] : []);
             ghRecords = ghRecords.filter(r => !ids.includes(r.id));
             saveGhState();
+            await syncMultiComputerCloudState(true, false);
             return makeJsonRes({ ok: true, message: 'Data berhasil dihapus.' });
         }
 
@@ -905,6 +1030,7 @@ $clientEngineJs = <<<JS
             if (idx !== -1) {
                 ghRecords[idx].siskohat_uploaded = !!bodyData.status;
                 saveGhState();
+                await syncMultiComputerCloudState(true, false);
             }
             return makeJsonRes({ ok: true, message: 'Status Siskohat diperbarui.' });
         }
@@ -1004,6 +1130,7 @@ $clientEngineJs = <<<JS
                         matchedRec.seven_docs.available_count = Object.values(matchedRec.seven_docs.docs).filter(d => d && d.exists).length;
                     }
                     saveGhState();
+                    await syncMultiComputerCloudState(true, false);
                     return makeJsonRes({
                         ok: true,
                         filename: finalFilename,
@@ -1055,6 +1182,7 @@ $clientEngineJs = <<<JS
                     matchedRec.seven_docs.available_count = Object.values(matchedRec.seven_docs.docs).filter(d => d && d.exists).length;
                 }
                 saveGhState();
+                await syncMultiComputerCloudState(true, false);
                 return makeJsonRes({
                     ok: true,
                     filename: finalFilename,
@@ -1173,6 +1301,7 @@ $clientEngineJs = <<<JS
 
             addGhLog('success', `Berhasil mengunggah \${savedFiles.length} file pada kategori \${catMeta.label}.`);
             saveGhState();
+            await syncMultiComputerCloudState(true, false);
             return makeJsonRes({
                 ok: true,
                 count: savedFiles.length,
@@ -1212,6 +1341,7 @@ $clientEngineJs = <<<JS
             };
             rec.seven_docs.available_count = Object.values(rec.seven_docs.docs).filter(d => d && d.exists).length;
             saveGhState();
+            await syncMultiComputerCloudState(true, false);
             return makeJsonRes({
                 ok: true,
                 message: `File \${catMeta.label} untuk \${rec.nama} berhasil dihapus.`
@@ -1243,24 +1373,15 @@ $clientEngineJs = <<<JS
                             if (p && p !== 'TANPAPASPOR' && baseUpper.includes(p)) {
                                 ensureRecordSevenDocs(rec);
                                 if (!rec.seven_docs.docs[catKey] || !rec.seven_docs.docs[catKey].exists) {
-                                    rec.seven_docs.docs[catKey] = {
-                                        exists: true,
-                                        num: catMeta.num,
-                                        key: catKey,
-                                        short: catMeta.short,
-                                        label: catMeta.label,
-                                        filename: gName,
-                                        size_kb: gf.size_kb || 48,
-                                        gdrive_file_id: gf.file_id || ''
-                                    };
-                                    rec.seven_docs.available_count = Object.values(rec.seven_docs.docs).filter(d => d && d.exists).length;
                                     matchedCount++;
                                 }
                             }
                         });
                     });
                 });
+                mergeSevenDocsFromGDriveCategories(gCats);
                 saveGhState();
+                await syncMultiComputerCloudState(true, false);
                 return makeJsonRes({
                     ok: true,
                     pulled_count: matchedCount,

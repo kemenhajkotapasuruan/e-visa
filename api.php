@@ -1331,6 +1331,7 @@ switch ($action) {
         }
 
         addSyncLog('success', "Berhasil scan dari [{$scanRes['scanner_name']}] -> {$finalFilename} ({$finalSizeKb} KB) pada kategori {$catMeta['label']}.");
+        triggerBackgroundGitHubPush("Auto-sync hasil scan dokumen {$catMeta['short']} ({$finalFilename}) ke GitHub Pages & Cloud DB");
         jsonResponse([
             'ok' => true,
             'scanner_name' => $scanRes['scanner_name'],
@@ -1464,6 +1465,7 @@ switch ($action) {
         }
 
         addSyncLog('success', "Berhasil menyimpan " . count($savedFiles) . " file pada kategori {$catMeta['label']}.");
+        triggerBackgroundGitHubPush("Auto-sync upload " . count($savedFiles) . " dokumen {$catMeta['short']} ke GitHub Pages & Cloud DB");
         jsonResponse([
             'ok' => true,
             'count' => count($savedFiles),
@@ -1499,6 +1501,11 @@ switch ($action) {
         if ($found && is_file($found['path'])) {
             @unlink($found['path']);
         }
+        $docsBackupPath = BASE_DIR . DIRECTORY_SEPARATOR . 'docs' . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'dokumen' . DIRECTORY_SEPARATOR . ($cats[$catKey]['folder'] ?? $catKey) . DIRECTORY_SEPARATOR . ($found['filename'] ?? '');
+        if (!empty($found['filename']) && is_file($docsBackupPath)) {
+            @unlink($docsBackupPath);
+        }
+        triggerBackgroundGitHubPush("Auto-sync hapus dokumen {$cats[$catKey]['short']} ({$matched['nama']})");
         jsonResponse([
             'ok' => true,
             'message' => "File {$cats[$catKey]['label']} untuk {$matched['nama']} berhasil dihapus."
@@ -1507,54 +1514,19 @@ switch ($action) {
 
     case 'sync_gdrive_7docs':
         $settings = getSettings();
-        $records  = getRecords();
         $gasUrl   = trim((string)($settings['gas_gdrive_webapp_url'] ?? ''));
         if ($gasUrl === '') {
             jsonResponse(['ok' => false, 'error' => 'URL Web App Google Drive belum diisi di Konfigurasi Integrasi.'], 400);
         }
 
-        $listUrl = $gasUrl . (strpos($gasUrl, '?') === false ? '?' : '&')
-            . 'action=list_gdrive_docs&folder_name=' . rawurlencode($settings['gdrive_folder_name'] ?? 'Biovisa_Jamaah_PHU_Pasuruan');
-        $listRes = GDriveSync::httpGetJson($listUrl);
-        if (empty($listRes['ok']) || empty($listRes['data']['ok'])) {
-            jsonResponse([
-                'ok' => false,
-                'error' => $listRes['error'] ?? ($listRes['data']['error'] ?? 'Gagal membaca 7 sub-folder dari Google Drive. Pastikan Script GDrive terbaru sudah di-Deploy.')
-            ]);
-        }
-
-        $cats = getSiskohatDocCategories();
-        $gdriveCats = $listRes['data']['categories'] ?? [];
-        $pulledCount = 0;
-
-        foreach ($cats as $catKey => $meta) {
-            $filesInCat = $gdriveCats[$catKey] ?? [];
-            if (!is_array($filesInCat)) continue;
-            $targetDir = ($catKey === 'biovisa') ? BIOVISA_DIR : getDocCategoryDir($catKey);
-
-            foreach ($filesInCat as $gf) {
-                $gName = basename((string)($gf['filename'] ?? ''));
-                $gId   = trim((string)($gf['file_id'] ?? ''));
-                if ($gName === '' || $gId === '') continue;
-
-                $destPath = $targetDir . DIRECTORY_SEPARATOR . $gName;
-                if (is_file($destPath)) {
-                    continue; // Sudah ada di lokal
-                }
-
-                $dlUrl = $gasUrl . (strpos($gasUrl, '?') === false ? '?' : '&') . 'action=get_gdrive_file&file_id=' . rawurlencode($gId);
-                $dlRes = GDriveSync::httpGetJson($dlUrl);
-                if (!empty($dlRes['ok']) && !empty($dlRes['data']['ok']) && !empty($dlRes['data']['base64'])) {
-                    $rawBytes = base64_decode($dlRes['data']['base64']);
-                    if ($rawBytes !== false && strlen($rawBytes) > 0) {
-                        file_put_contents($destPath, $rawBytes);
-                        $pulledCount++;
-                    }
-                }
-            }
-        }
+        $pulledCount = pullMissingSevenDocsFromGDrive($settings);
 
         addSyncLog('success', "Sinkronisasi 7 Folder Google Drive selesai: {$pulledCount} file dokumen baru diunduh ke server.");
+        if ($pulledCount > 0) {
+            triggerBackgroundGitHubPush("Auto-sync {$pulledCount} dokumen dari 7 Folder GDrive ke GitHub Pages");
+        } else {
+            writeCloudSyncBundle();
+        }
         jsonResponse([
             'ok' => true,
             'pulled_count' => $pulledCount,
@@ -1591,6 +1563,7 @@ switch ($action) {
         if ($status) {
             addSyncLog('success', "File {$targetName} telah diunggah ke halaman SISKOHAT Gen.2.");
         }
+        triggerBackgroundGitHubPush("Auto-sync status Siskohat {$targetName}");
         jsonResponse([
             'ok' => true,
             'message' => $status
@@ -1712,7 +1685,7 @@ switch ($action) {
                 }
                 if ($fnPart !== '' && is_dir($dirPath)) {
                     $destFile = $dirPath . DIRECTORY_SEPARATOR . $fnPart;
-                    if (!is_file($destFile)) {
+                    if (!is_file($destFile) || filesize($destFile) !== strlen($rawBytes)) {
                         file_put_contents($destFile, $rawBytes);
                         $changedAnything = true;
                     }
@@ -1721,6 +1694,7 @@ switch ($action) {
         }
 
         // 3. Gabungkan daftar records Biovisa dari Cloud Tab ke Server Lokal berdasarkan Nomor Paspor
+        $needPullGDriveDocs = false;
         if (!empty($payload['records']) && is_array($payload['records'])) {
             $localByPaspor = [];
             foreach ($localRecords as $idx => $lr) {
@@ -1755,13 +1729,43 @@ switch ($action) {
                     array_unshift($localRecords, $cr);
                     $localByPaspor[$cp] = 0;
                     $changedAnything = true;
+                } else {
+                    $lIdx = $localByPaspor[$cp];
+                    if (!empty($cr['siskohat_uploaded']) && empty($localRecords[$lIdx]['siskohat_uploaded'])) {
+                        $localRecords[$lIdx]['siskohat_uploaded'] = true;
+                        $localRecords[$lIdx]['siskohat_uploaded_at'] = $cr['siskohat_uploaded_at'] ?? date('Y-m-d H:i:s');
+                        $changedAnything = true;
+                    }
+                    if (!empty($cr['gdrive_uploaded']) && empty($localRecords[$lIdx]['gdrive_uploaded'])) {
+                        $localRecords[$lIdx]['gdrive_uploaded'] = true;
+                        if (!empty($cr['gdrive_url'])) {
+                            $localRecords[$lIdx]['gdrive_url'] = $cr['gdrive_url'];
+                        }
+                        $changedAnything = true;
+                    }
+                    if (!empty($cr['seven_docs']['docs']) && is_array($cr['seven_docs']['docs'])) {
+                        foreach ($cr['seven_docs']['docs'] as $catKey => $cDoc) {
+                            if ($catKey === 'biovisa' || empty($cDoc['exists'])) continue;
+                            $foundLocal = findJamaahDocFile($catKey, $cp, (string)($localRecords[$lIdx]['nama'] ?? ''), '');
+                            if (!$foundLocal) {
+                                $needPullGDriveDocs = true;
+                            }
+                        }
+                    }
                 }
+            }
+        }
+
+        if ($needPullGDriveDocs || !empty($payload['force_publish'])) {
+            $pulled = pullMissingSevenDocsFromGDrive($localSettings);
+            if ($pulled > 0) {
+                $changedAnything = true;
             }
         }
 
         if ($changedAnything || !empty($payload['force_publish'])) {
             saveRecords($localRecords);
-            triggerBackgroundGitHubPush('Auto-sync data Biovisa & Akun Email dari Komputer Server ke GitHub Pages');
+            triggerBackgroundGitHubPush('Auto-sync data Biovisa & 7 Dokumen dari Komputer Server ke GitHub Pages');
         } else {
             writeCloudSyncBundle();
         }

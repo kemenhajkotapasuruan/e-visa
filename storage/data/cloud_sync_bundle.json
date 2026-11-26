@@ -1,7 +1,7 @@
 {
     "ok": true,
-    "version_ts": 1795672351,
-    "updated_at": "2026-11-26 12:52:31",
+    "version_ts": 1795675871,
+    "updated_at": "2026-11-26 13:51:11",
     "settings": {
         "source_email": "phujtmkopasuruan@gmail.com",
         "target_gdrive_email": "muchammad.ali.sanjaya@gmail.com",
@@ -60,7 +60,7 @@
         "strict_50kb_padding": true,
         "filename_pattern": "{NAMA}_{PASPOR}",
         "uppercase_filename": true,
-        "last_sync_at": "2026-11-26 12:52:03",
+        "last_sync_at": "2026-11-26 13:30:04",
         "last_sync_status": "Sinkronisasi berhasil (Tidak ada email baru)"
     },
     "records": [
@@ -83,28 +83,28 @@
             "processed_at": "2026-11-26 04:29:06",
             "gdrive_uploaded": false,
             "seven_docs": {
-                "available_count": 1,
+                "available_count": 4,
                 "total_slots": 7,
                 "docs": {
                     "paspor": {
-                        "exists": false,
+                        "exists": true,
                         "num": 1,
                         "key": "paspor",
                         "short": "Paspor",
                         "label": "1. Scan Halaman Pertama Paspor",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "SUGITOBIIN_E9784344.jpg",
+                        "rel_url": "storage/dokumen/paspor/SUGITOBIIN_E9784344.jpg",
+                        "size_kb": 49.23
                     },
                     "endorsement": {
-                        "exists": false,
+                        "exists": true,
                         "num": 2,
                         "key": "endorsement",
                         "short": "Endorsement",
                         "label": "2. Scan/Upload Halaman Endorsement",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "SUGITOBIIN_E9784344.jpg",
+                        "rel_url": "storage/dokumen/endorsement/SUGITOBIIN_E9784344.jpg",
+                        "size_kb": 48.42
                     },
                     "vaksin": {
                         "exists": false,
@@ -147,14 +147,14 @@
                         "size_kb": 48.62
                     },
                     "foto": {
-                        "exists": false,
+                        "exists": true,
                         "num": 7,
                         "key": "foto",
                         "short": "Foto",
                         "label": "7. Scan/Upload Foto Terbaru",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "SUGITOBIIN_E9784344.jpg",
+                        "rel_url": "storage/dokumen/foto/SUGITOBIIN_E9784344.jpg",
+                        "size_kb": 48.63
                     }
                 }
             },
@@ -286,28 +286,28 @@
             "processed_at": "2026-11-26 04:03:05",
             "gdrive_uploaded": false,
             "seven_docs": {
-                "available_count": 1,
+                "available_count": 4,
                 "total_slots": 7,
                 "docs": {
                     "paspor": {
-                        "exists": false,
+                        "exists": true,
                         "num": 1,
                         "key": "paspor",
                         "short": "Paspor",
                         "label": "1. Scan Halaman Pertama Paspor",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "SURYANISOEOED_X9936388.jpg",
+                        "rel_url": "storage/dokumen/paspor/SURYANISOEOED_X9936388.jpg",
+                        "size_kb": 49.06
                     },
                     "endorsement": {
-                        "exists": false,
+                        "exists": true,
                         "num": 2,
                         "key": "endorsement",
                         "short": "Endorsement",
                         "label": "2. Scan/Upload Halaman Endorsement",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "SURYANISOEOED_X9936388.jpg",
+                        "rel_url": "storage/dokumen/endorsement/SURYANISOEOED_X9936388.jpg",
+                        "size_kb": 48.95
                     },
                     "vaksin": {
                         "exists": false,
@@ -350,14 +350,14 @@
                         "size_kb": 48.89
                     },
                     "foto": {
-                        "exists": false,
+                        "exists": true,
                         "num": 7,
                         "key": "foto",
                         "short": "Foto",
                         "label": "7. Scan/Upload Foto Terbaru",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "SURYANISOEOED_X9936388.jpg",
+                        "rel_url": "storage/dokumen/foto/SURYANISOEOED_X9936388.jpg",
+                        "size_kb": 48.63
                     }
                 }
             },
@@ -394,18 +394,18 @@
                 "1a215f86f70b6f91"
             ],
             "seven_docs": {
-                "available_count": 1,
+                "available_count": 3,
                 "total_slots": 7,
                 "docs": {
                     "paspor": {
-                        "exists": false,
+                        "exists": true,
                         "num": 1,
                         "key": "paspor",
                         "short": "Paspor",
                         "label": "1. Scan Halaman Pertama Paspor",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "MOHALIMUDIN_Y2046365.jpg",
+                        "rel_url": "storage/dokumen/paspor/MOHALIMUDIN_Y2046365.jpg",
+                        "size_kb": 48.78
                     },
                     "endorsement": {
                         "exists": false,
@@ -458,14 +458,14 @@
                         "size_kb": 49
                     },
                     "foto": {
-                        "exists": false,
+                        "exists": true,
                         "num": 7,
                         "key": "foto",
                         "short": "Foto",
                         "label": "7. Scan/Upload Foto Terbaru",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "MOHALIMUDIN_Y2046365.jpg",
+                        "rel_url": "storage/dokumen/foto/MOHALIMUDIN_Y2046365.jpg",
+                        "size_kb": 48.63
                     }
                 }
             }
@@ -489,18 +489,18 @@
             "processed_at": "2026-11-26 03:48:40",
             "gdrive_uploaded": false,
             "seven_docs": {
-                "available_count": 1,
+                "available_count": 3,
                 "total_slots": 7,
                 "docs": {
                     "paspor": {
-                        "exists": false,
+                        "exists": true,
                         "num": 1,
                         "key": "paspor",
                         "short": "Paspor",
                         "label": "1. Scan Halaman Pertama Paspor",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "KHOTIMATULKHUSNAH_Y2046363.jpg",
+                        "rel_url": "storage/dokumen/paspor/KHOTIMATULKHUSNAH_Y2046363.jpg",
+                        "size_kb": 49.05
                     },
                     "endorsement": {
                         "exists": false,
@@ -553,14 +553,14 @@
                         "size_kb": 49.16
                     },
                     "foto": {
-                        "exists": false,
+                        "exists": true,
                         "num": 7,
                         "key": "foto",
                         "short": "Foto",
                         "label": "7. Scan/Upload Foto Terbaru",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "KHOTIMATULKHUSNAH_Y2046363.jpg",
+                        "rel_url": "storage/dokumen/foto/KHOTIMATULKHUSNAH_Y2046363.jpg",
+                        "size_kb": 48.63
                     }
                 }
             },
@@ -588,18 +588,18 @@
             "processed_at": "2026-11-26 03:48:43",
             "gdrive_uploaded": false,
             "seven_docs": {
-                "available_count": 1,
+                "available_count": 3,
                 "total_slots": 7,
                 "docs": {
                     "paspor": {
-                        "exists": false,
+                        "exists": true,
                         "num": 1,
                         "key": "paspor",
                         "short": "Paspor",
                         "label": "1. Scan Halaman Pertama Paspor",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "MUCHAMMADFAISOL_X9936404.jpg",
+                        "rel_url": "storage/dokumen/paspor/MUCHAMMADFAISOL_X9936404.jpg",
+                        "size_kb": 48.84
                     },
                     "endorsement": {
                         "exists": false,
@@ -652,14 +652,14 @@
                         "size_kb": 49.05
                     },
                     "foto": {
-                        "exists": false,
+                        "exists": true,
                         "num": 7,
                         "key": "foto",
                         "short": "Foto",
                         "label": "7. Scan/Upload Foto Terbaru",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "MUCHAMMADFAISOL_X9936404.jpg",
+                        "rel_url": "storage/dokumen/foto/MUCHAMMADFAISOL_X9936404.jpg",
+                        "size_kb": 48.63
                     }
                 }
             },
@@ -687,18 +687,18 @@
             "processed_at": "2026-11-26 03:44:11",
             "gdrive_uploaded": false,
             "seven_docs": {
-                "available_count": 1,
+                "available_count": 3,
                 "total_slots": 7,
                 "docs": {
                     "paspor": {
-                        "exists": false,
+                        "exists": true,
                         "num": 1,
                         "key": "paspor",
                         "short": "Paspor",
                         "label": "1. Scan Halaman Pertama Paspor",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "NURHAYATI_Y1983256.jpg",
+                        "rel_url": "storage/dokumen/paspor/NURHAYATI_Y1983256.jpg",
+                        "size_kb": 49.28
                     },
                     "endorsement": {
                         "exists": false,
@@ -751,14 +751,14 @@
                         "size_kb": 48.62
                     },
                     "foto": {
-                        "exists": false,
+                        "exists": true,
                         "num": 7,
                         "key": "foto",
                         "short": "Foto",
                         "label": "7. Scan/Upload Foto Terbaru",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "NURHAYATI_Y1983256.jpg",
+                        "rel_url": "storage/dokumen/foto/NURHAYATI_Y1983256.jpg",
+                        "size_kb": 48.63
                     }
                 }
             },
@@ -795,28 +795,28 @@
                 "1a215ea148645730"
             ],
             "seven_docs": {
-                "available_count": 1,
+                "available_count": 4,
                 "total_slots": 7,
                 "docs": {
                     "paspor": {
-                        "exists": false,
+                        "exists": true,
                         "num": 1,
                         "key": "paspor",
                         "short": "Paspor",
                         "label": "1. Scan Halaman Pertama Paspor",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "SUBIDINNUR HALIM_Y1983298.jpg",
+                        "rel_url": "storage/dokumen/paspor/SUBIDINNUR%20HALIM_Y1983298.jpg",
+                        "size_kb": 49.31
                     },
                     "endorsement": {
-                        "exists": false,
+                        "exists": true,
                         "num": 2,
                         "key": "endorsement",
                         "short": "Endorsement",
                         "label": "2. Scan/Upload Halaman Endorsement",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "SUBIDINNUR HALIM_Y1983298.jpg",
+                        "rel_url": "storage/dokumen/endorsement/SUBIDINNUR%20HALIM_Y1983298.jpg",
+                        "size_kb": 48.61
                     },
                     "vaksin": {
                         "exists": false,
@@ -859,14 +859,14 @@
                         "size_kb": 49.25
                     },
                     "foto": {
-                        "exists": false,
+                        "exists": true,
                         "num": 7,
                         "key": "foto",
                         "short": "Foto",
                         "label": "7. Scan/Upload Foto Terbaru",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "SUBIDINNUR HALIM_Y1983298.jpg",
+                        "rel_url": "storage/dokumen/foto/SUBIDINNUR%20HALIM_Y1983298.jpg",
+                        "size_kb": 48.63
                     }
                 }
             }
@@ -3145,28 +3145,28 @@
             "gdrive_target_email": "muchammad.ali.sanjaya@gmail.com",
             "gdrive_error": "",
             "seven_docs": {
-                "available_count": 1,
+                "available_count": 3,
                 "total_slots": 7,
                 "docs": {
                     "paspor": {
-                        "exists": false,
+                        "exists": true,
                         "num": 1,
                         "key": "paspor",
                         "short": "Paspor",
                         "label": "1. Scan Halaman Pertama Paspor",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "SUPRIADISHOLEH_X9935134.jpg",
+                        "rel_url": "storage/dokumen/paspor/SUPRIADISHOLEH_X9935134.jpg",
+                        "size_kb": 49.2
                     },
                     "endorsement": {
-                        "exists": false,
+                        "exists": true,
                         "num": 2,
                         "key": "endorsement",
                         "short": "Endorsement",
                         "label": "2. Scan/Upload Halaman Endorsement",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "SUPRIADISHOLEH_X9935134.jpg",
+                        "rel_url": "storage/dokumen/endorsement/SUPRIADISHOLEH_X9935134.jpg",
+                        "size_kb": 47.37
                     },
                     "vaksin": {
                         "exists": false,
@@ -5831,18 +5831,18 @@
             "gdrive_target_email": "muchammad.ali.sanjaya@gmail.com",
             "gdrive_error": "",
             "seven_docs": {
-                "available_count": 1,
+                "available_count": 3,
                 "total_slots": 7,
                 "docs": {
                     "paspor": {
-                        "exists": false,
+                        "exists": true,
                         "num": 1,
                         "key": "paspor",
                         "short": "Paspor",
                         "label": "1. Scan Halaman Pertama Paspor",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "EDISANTOSO_Y1983296.jpg",
+                        "rel_url": "storage/dokumen/paspor/EDISANTOSO_Y1983296.jpg",
+                        "size_kb": 49.19
                     },
                     "endorsement": {
                         "exists": false,
@@ -5895,14 +5895,14 @@
                         "size_kb": 48.92
                     },
                     "foto": {
-                        "exists": false,
+                        "exists": true,
                         "num": 7,
                         "key": "foto",
                         "short": "Foto",
                         "label": "7. Scan/Upload Foto Terbaru",
-                        "filename": "",
-                        "rel_url": "",
-                        "size_kb": 0
+                        "filename": "EDISANTOSO_Y1983296.jpg",
+                        "rel_url": "storage/dokumen/foto/EDISANTOSO_Y1983296.jpg",
+                        "size_kb": 48.63
                     }
                 }
             }
@@ -7396,7 +7396,9 @@
                         "size_kb": 0
                     }
                 }
-            }
+            },
+            "siskohat_uploaded": true,
+            "siskohat_uploaded_at": "2026-11-25 15:51:15"
         }
     ]
 }

@@ -403,6 +403,63 @@ function getPublicCloudSettings(?array $settings = null): array {
 }
 
 /**
+ * Tarik otomatis file dokumen pemvisaan (1_Paspor s/d 7_Foto) dari Google Drive
+ * yang belum ada di folder lokal storage/dokumen/<kategori>/
+ */
+function pullMissingSevenDocsFromGDrive(?array $settings = null): int {
+    if ($settings === null) {
+        $settings = getSettings();
+    }
+    $gasUrl = trim((string)($settings['gas_gdrive_webapp_url'] ?? ''));
+    if ($gasUrl === '' || !class_exists('GDriveSync')) {
+        return 0;
+    }
+
+    $listUrl = $gasUrl . (strpos($gasUrl, '?') === false ? '?' : '&')
+        . 'action=list_gdrive_docs&folder_name=' . rawurlencode($settings['gdrive_folder_name'] ?? 'Biovisa_Jamaah_PHU_Pasuruan');
+    $listRes = GDriveSync::httpGetJson($listUrl);
+    if (empty($listRes['ok']) || empty($listRes['data']['ok'])) {
+        return 0;
+    }
+
+    $cats = getSiskohatDocCategories();
+    $gdriveCats = $listRes['data']['categories'] ?? [];
+    $pulledCount = 0;
+
+    foreach ($cats as $catKey => $meta) {
+        $filesInCat = $gdriveCats[$catKey] ?? [];
+        if (!is_array($filesInCat)) continue;
+        $targetDir = ($catKey === 'biovisa') ? BIOVISA_DIR : getDocCategoryDir($catKey);
+        if (!is_dir($targetDir)) {
+            @mkdir($targetDir, 0777, true);
+        }
+
+        foreach ($filesInCat as $gf) {
+            $gName = basename((string)($gf['filename'] ?? ''));
+            $gId   = trim((string)($gf['file_id'] ?? ''));
+            if ($gName === '' || $gId === '') continue;
+
+            $destPath = $targetDir . DIRECTORY_SEPARATOR . $gName;
+            if (is_file($destPath) && filesize($destPath) > 100) {
+                continue;
+            }
+
+            $dlUrl = $gasUrl . (strpos($gasUrl, '?') === false ? '?' : '&') . 'action=get_gdrive_file&file_id=' . rawurlencode($gId);
+            $dlRes = GDriveSync::httpGetJson($dlUrl);
+            if (!empty($dlRes['ok']) && !empty($dlRes['data']['ok']) && !empty($dlRes['data']['base64'])) {
+                $rawBytes = base64_decode($dlRes['data']['base64']);
+                if ($rawBytes !== false && strlen($rawBytes) > 100) {
+                    file_put_contents($destPath, $rawBytes);
+                    $pulledCount++;
+                }
+            }
+        }
+    }
+
+    return $pulledCount;
+}
+
+/**
  * Tulis paket sinkronisasi Cloud (cloud_sync_bundle.json) ke storage/data/ dan docs/storage/data/
  * serta salin file JPG baru ke docs/storage/ agar seluruh komputer lain yang membuka GitHub Pages
  * selalu mendapatkan daftar Akun Email Pembaca & Data Biovisa yang 100% sama dengan Komputer Server.

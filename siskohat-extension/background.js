@@ -55,11 +55,11 @@ async function fetchQueueFromGitHubPages() {
 
   // Gabungkan cloudRecords (yang baru ditarik dari Gmail di tab github.io) dengan staticRecords dari repo GitHub
   const byPaspor = new Map();
-  for (const r of [...cloudRecords, ...staticRecords]) {
+  for (const r of [...staticRecords, ...cloudRecords]) {
     const key = (r.paspor || r.id || r.filename || '').toUpperCase();
     if (!key || key === 'TANPAPASPOR') continue;
+    const isDone = !!(r.siskohat_uploaded || doneIds[r.id] || doneIds[r.paspor]);
     if (!byPaspor.has(key)) {
-      const isDone = !!(r.siskohat_uploaded || doneIds[r.id] || doneIds[r.paspor]);
       byPaspor.set(key, {
         id: r.id || ('bv_' + r.paspor),
         nama: r.nama || '',
@@ -68,8 +68,27 @@ async function fetchQueueFromGitHubPages() {
         filename: r.filename || `${r.nama}_${r.paspor}.jpg`,
         size_kb: r.size_kb || 49.2,
         siskohat_uploaded: isDone,
-        seven_docs: r.seven_docs || null
+        seven_docs: r.seven_docs ? JSON.parse(JSON.stringify(r.seven_docs)) : null
       });
+    } else {
+      const existing = byPaspor.get(key);
+      if (isDone) existing.siskohat_uploaded = true;
+      if (r.seven_docs && r.seven_docs.docs) {
+        if (!existing.seven_docs || !existing.seven_docs.docs) {
+          existing.seven_docs = JSON.parse(JSON.stringify(r.seven_docs));
+        } else {
+          Object.keys(r.seven_docs.docs).forEach(ck => {
+            if (r.seven_docs.docs[ck] && r.seven_docs.docs[ck].exists) {
+              existing.seven_docs.docs[ck] = {
+                ...(existing.seven_docs.docs[ck] || {}),
+                ...r.seven_docs.docs[ck],
+                exists: true
+              };
+            }
+          });
+          existing.seven_docs.available_count = Object.values(existing.seven_docs.docs).filter(d => d && d.exists).length;
+        }
+      }
     }
   }
 

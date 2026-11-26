@@ -2195,7 +2195,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                                 🖨️ Dari Scanner
                             </button>
                             ${isReady ? `
-                                <button type="button" class="btn btn-outline btn-sm" onclick="previewDocInModal('${escapeHtml(previewUrl)}', '${escapeHtml(d.label)}')">
+                                <button type="button" class="btn btn-outline btn-sm" onclick="previewDocInModal('${escapeHtml(previewUrl)}', '${escapeHtml(d.label)}', '${escapeHtml(rec.id)}', '${escapeHtml(d.key)}')">
                                     👁️ Lihat
                                 </button>
                                 ${d.key !== 'biovisa' ? `
@@ -2210,11 +2210,25 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             }).join('');
         }
 
-        function previewDocInModal(url, label) {
+        async function previewDocInModal(url, label, recId = '', catKey = '') {
             const imgEl = document.getElementById('modal-img');
-            if (imgEl && url) {
-                imgEl.src = url;
-                showToast(`👁️ Menampilkan preview: ${label}`);
+            const dlBtn = document.getElementById('modal-download-btn');
+            if (!imgEl || !url) return;
+
+            showToast(`👁️ Menampilkan preview: ${label}`);
+            imgEl.onerror = async function() {
+                imgEl.onerror = null;
+                if (typeof window.__fetchGDriveDocDataUrl === 'function' && recId && catKey) {
+                    const gUrl = await window.__fetchGDriveDocDataUrl(recId, catKey);
+                    if (gUrl) {
+                        imgEl.src = gUrl;
+                        if (dlBtn) dlBtn.href = gUrl;
+                    }
+                }
+            };
+            imgEl.src = url;
+            if (dlBtn) {
+                dlBtn.href = url;
             }
         }
 
