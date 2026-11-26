@@ -1,5 +1,109 @@
 [
     {
+        "id": "bv_f881c2e69e",
+        "message_id": "1a215ea148645730",
+        "nama": "SUBIDINNUR HALIM",
+        "paspor": "Y1983298",
+        "enrollment_id": "42183379",
+        "enrollment_time": "2026-11-26 03:33:05",
+        "filename": "SUBIDINNUR HALIM_Y1983298.jpg",
+        "size_bytes": 50430,
+        "size_kb": 49.25,
+        "source_type": "saudivisabio_email",
+        "subject": "Enrollment confirmation",
+        "from_email": "Mofa <MofaBioApp@mofa.gov.sa>",
+        "to_email": "boynikma@gmail.com",
+        "source_account_email": "boynikma@gmail.com",
+        "source_account_label": "Email ke-2",
+        "email_date": "26 Nov 2026, 10:33:09 WIB",
+        "body_excerpt": "Application Submitted Successfully \nApplication Submitted Successfully \n\nDear SUBIDINNUR HALIM، \n\nThank you for enrolling your biometric information for your passport \nnumber: Y1983298 . \n\non 2026-11-26 03:33:05 as part of your visa application process to the \nKingdom of Saudi Arabia. and Your Enrollment Id is : 42183379 .\nFor any questions on submission of your biometric data or the status of \nyour visa application, please visit www.mofa.gov.sa \n\n*This is an automated message, please do not rep",
+        "processed_at": "2026-11-26 10:33:24",
+        "gdrive_uploaded": true,
+        "gdrive_file_id": "1kU8qiKPiIR2nzHnfWCwGJg6dNIj7o2dZ",
+        "gdrive_url": "https://drive.google.com/file/d/1kU8qiKPiIR2nzHnfWCwGJg6dNIj7o2dZ/view?usp=drivesdk",
+        "gdrive_target_email": "muchammad.ali.sanjaya@gmail.com",
+        "gdrive_error": "",
+        "all_message_ids": [
+            "1a215ea148645730"
+        ],
+        "seven_docs": {
+            "available_count": 1,
+            "total_slots": 7,
+            "docs": {
+                "paspor": {
+                    "exists": false,
+                    "num": 1,
+                    "key": "paspor",
+                    "short": "Paspor",
+                    "label": "1. Scan Halaman Pertama Paspor",
+                    "filename": "",
+                    "rel_url": "",
+                    "size_kb": 0
+                },
+                "endorsement": {
+                    "exists": false,
+                    "num": 2,
+                    "key": "endorsement",
+                    "short": "Endorsement",
+                    "label": "2. Scan/Upload Halaman Endorsement",
+                    "filename": "",
+                    "rel_url": "",
+                    "size_kb": 0
+                },
+                "vaksin": {
+                    "exists": false,
+                    "num": 3,
+                    "key": "vaksin",
+                    "short": "Vaksin",
+                    "label": "3. Scan/Upload Keterangan Vaksin Meningitis *",
+                    "filename": "",
+                    "rel_url": "",
+                    "size_kb": 0
+                },
+                "kitas": {
+                    "exists": false,
+                    "num": 4,
+                    "key": "kitas",
+                    "short": "KITAS",
+                    "label": "4. Scan/Upload Keterangan KITAS",
+                    "filename": "",
+                    "rel_url": "",
+                    "size_kb": 0
+                },
+                "pendukung": {
+                    "exists": false,
+                    "num": 5,
+                    "key": "pendukung",
+                    "short": "Pendukung",
+                    "label": "5. Scan/Upload Dokumen Pendukung",
+                    "filename": "",
+                    "rel_url": "",
+                    "size_kb": 0
+                },
+                "biovisa": {
+                    "exists": true,
+                    "num": 6,
+                    "key": "biovisa",
+                    "short": "Biovisa",
+                    "label": "6. Scan/Upload Biovisa (jpeg)",
+                    "filename": "SUBIDINNUR HALIM_Y1983298.jpg",
+                    "rel_url": "storage/biovisa/SUBIDINNUR%20HALIM_Y1983298.jpg",
+                    "size_kb": 49.25
+                },
+                "foto": {
+                    "exists": false,
+                    "num": 7,
+                    "key": "foto",
+                    "short": "Foto",
+                    "label": "7. Scan/Upload Foto Terbaru",
+                    "filename": "",
+                    "rel_url": "",
+                    "size_kb": 0
+                }
+            }
+        }
+    },
+    {
         "id": "bv_1795663627043_q4lt",
         "message_id": "1a215dd0ca99ac1f_Y2047891",
         "nama": "YUNIMINARSIH",
@@ -92,7 +196,11 @@
                     "size_kb": 0
                 }
             }
-        }
+        },
+        "all_message_ids": [
+            "1a215dd0ca99ac1f_Y2047891",
+            "1a215dd0ca99ac1f"
+        ]
     },
     {
         "id": "bv_1795663010496_0gqg",
