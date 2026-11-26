@@ -56,138 +56,6 @@ $clientEngineJs = <<<JS
     let cachedImgs = {};
     let lastCloudSyncPoll = 0;
 
-    /**
-     * Gabungkan daftar akun email pembaca (source_accounts) & pengaturan dari Server/GitHub/GDrive
-     * agar Komputer Lain tidak pernah terjebak cache localStorage lama.
-     */
-    function mergeSettingsFromBundle(remoteSet, preferRemoteList = false) {
-        if (!remoteSet || typeof remoteSet !== 'object') return false;
-        let changed = false;
-
-        if (!Array.isArray(ghSettings.source_accounts)) {
-            ghSettings.source_accounts = [];
-        }
-        const remoteAccs = Array.isArray(remoteSet.source_accounts) ? remoteSet.source_accounts : [];
-
-        if (preferRemoteList && remoteAccs.length > 0) {
-            const oldJson = JSON.stringify(ghSettings.source_accounts);
-            // Gabungkan akun dari remote + akun lokal yang baru ditambahkan
-            const mapByEmail = new Map();
-            remoteAccs.forEach(ra => {
-                const em = String(ra.email || '').trim().toLowerCase();
-                if (em) mapByEmail.set(em, ra);
-            });
-            ghSettings.source_accounts.forEach(la => {
-                const em = String(la.email || '').trim().toLowerCase();
-                if (em && !mapByEmail.has(em) && la.gas_url) {
-                    mapByEmail.set(em, la);
-                }
-            });
-            ghSettings.source_accounts = Array.from(mapByEmail.values());
-            if (JSON.stringify(ghSettings.source_accounts) !== oldJson) {
-                changed = true;
-            }
-        } else {
-            const existingEmails = new Map();
-            ghSettings.source_accounts.forEach((a, i) => {
-                const em = String(a.email || '').trim().toLowerCase();
-                if (em) existingEmails.set(em, i);
-            });
-            remoteAccs.forEach(ra => {
-                const em = String(ra.email || '').trim().toLowerCase();
-                if (!em) return;
-                if (!existingEmails.has(em)) {
-                    ghSettings.source_accounts.push(ra);
-                    existingEmails.set(em, ghSettings.source_accounts.length - 1);
-                    changed = true;
-                } else {
-                    const idx = existingEmails.get(em);
-                    if (ra.gas_url && !ghSettings.source_accounts[idx].gas_url) {
-                        ghSettings.source_accounts[idx].gas_url = ra.gas_url;
-                        changed = true;
-                    }
-                    if (ra.label && ghSettings.source_accounts[idx].label !== ra.label) {
-                        ghSettings.source_accounts[idx].label = ra.label;
-                        changed = true;
-                    }
-                }
-            });
-        }
-
-        ['gas_gdrive_webapp_url', 'target_gdrive_email', 'gdrive_folder_name', 'email_subject_filter'].forEach(k => {
-            if (remoteSet[k] && !ghSettings[k]) {
-                ghSettings[k] = remoteSet[k];
-                changed = true;
-            }
-        });
-
-        if (changed && typeof window.uiState === 'object' && window.uiState) {
-            window.uiState.accountsInitialized = false;
-        }
-        return changed;
-    }
-
-    /**
-     * Gabungkan daftar records Biovisa dari Server/GitHub/GDrive berdasarkan Nomor Paspor
-     * agar data Biovisa di Komputer Server dan Komputer Lain selalu 100% sama.
-     */
-    function mergeRecordsFromBundle(remoteRecs) {
-        if (!Array.isArray(remoteRecs) || remoteRecs.length === 0) return false;
-        let changed = false;
-
-        const localByPaspor = new Map();
-        ghRecords.forEach((r, idx) => {
-            const p = String(r.paspor || '').trim().toUpperCase();
-            if (p && p !== 'TANPAPASPOR') localByPaspor.set(p, idx);
-        });
-
-        remoteRecs.forEach(rr => {
-            if (!rr || typeof rr !== 'object') return;
-            const rp = String(rr.paspor || '').trim().toUpperCase();
-            if (!rp || rp === 'TANPAPASPOR') return;
-
-            if (!localByPaspor.has(rp)) {
-                ghRecords.push(rr);
-                localByPaspor.set(rp, ghRecords.length - 1);
-                changed = true;
-            } else {
-                const idx = localByPaspor.get(rp);
-                const lr = ghRecords[idx];
-                if (rr.gdrive_uploaded && !lr.gdrive_uploaded) {
-                    lr.gdrive_uploaded = true;
-                    lr.gdrive_url = rr.gdrive_url || lr.gdrive_url;
-                    changed = true;
-                }
-                if (rr.siskohat_uploaded && !lr.siskohat_uploaded) {
-                    lr.siskohat_uploaded = true;
-                    changed = true;
-                }
-                if (rr.seven_docs && rr.seven_docs.docs) {
-                    if (!lr.seven_docs || !lr.seven_docs.docs) {
-                        lr.seven_docs = rr.seven_docs;
-                        changed = true;
-                    } else {
-                        Object.keys(rr.seven_docs.docs).forEach(ck => {
-                            if (rr.seven_docs.docs[ck] && rr.seven_docs.docs[ck].exists && (!lr.seven_docs.docs[ck] || !lr.seven_docs.docs[ck].exists)) {
-                                lr.seven_docs.docs[ck] = rr.seven_docs.docs[ck];
-                                changed = true;
-                            }
-                        });
-                    }
-                }
-            }
-        });
-
-        if (changed) {
-            ghRecords.forEach(r => ensureRecordSevenDocs(r));
-        }
-        return changed;
-    }
-
-    // Langsung gabungkan INITIAL_SETTINGS & INITIAL_RECORDS terbaru dari halaman ke dalam localStorage saat pertama kali dimuat!
-    mergeSettingsFromBundle(INITIAL_SETTINGS, false);
-    mergeRecordsFromBundle(INITIAL_RECORDS);
-
     const DOC_CAT_META = {
         paspor:      { num: 1, key: 'paspor',      short: 'Paspor',      label: '1. Scan Halaman Pertama Paspor',               subfolder: '1_Paspor',      max_kb: 49.5 },
         endorsement: { num: 2, key: 'endorsement', short: 'Endorsement', label: '2. Scan/Upload Halaman Endorsement',           subfolder: '2_Endorsement', max_kb: 49.5 },
@@ -199,11 +67,13 @@ $clientEngineJs = <<<JS
     };
 
     function ensureRecordSevenDocs(rec) {
+        if (!rec || typeof rec !== 'object') return rec;
         if (!rec.seven_docs || !rec.seven_docs.docs) {
             rec.seven_docs = { available_count: 0, total_slots: 7, docs: {} };
         }
-        // Gabungkan dari INITIAL_RECORDS jika di repo GitHub ada file baru
-        const initMatch = INITIAL_RECORDS.find(ir => ir.id === rec.id || (ir.paspor && ir.paspor === rec.paspor));
+        const initMatch = Array.isArray(INITIAL_RECORDS)
+            ? INITIAL_RECORDS.find(ir => ir.id === rec.id || (ir.paspor && ir.paspor === rec.paspor))
+            : null;
         const initDocs = (initMatch && initMatch.seven_docs && initMatch.seven_docs.docs) ? initMatch.seven_docs.docs : {};
 
         let count = 0;
@@ -242,7 +112,149 @@ $clientEngineJs = <<<JS
         return rec;
     }
 
-    // Pastikan setiap record di ghRecords memiliki struktur seven_docs terbaru
+    /**
+     * Gabungkan daftar akun email pembaca (source_accounts) & pengaturan dari Server/GitHub/GDrive
+     * agar Komputer Lain tidak pernah terjebak cache localStorage lama.
+     */
+    function mergeSettingsFromBundle(remoteSet, preferRemoteList = false) {
+        if (!remoteSet || typeof remoteSet !== 'object') return false;
+        let changed = false;
+
+        if (!Array.isArray(ghSettings.source_accounts)) {
+            ghSettings.source_accounts = [];
+        }
+        const remoteAccs = Array.isArray(remoteSet.source_accounts) ? remoteSet.source_accounts : [];
+
+        if (preferRemoteList && remoteAccs.length > 0) {
+            const oldJson = JSON.stringify(ghSettings.source_accounts);
+            const mapByEmail = new Map();
+            remoteAccs.forEach(ra => {
+                const em = String(ra.email || '').trim().toLowerCase();
+                if (em) mapByEmail.set(em, ra);
+            });
+            ghSettings.source_accounts.forEach(la => {
+                const em = String(la.email || '').trim().toLowerCase();
+                if (em && !mapByEmail.has(em) && la.gas_url) {
+                    mapByEmail.set(em, la);
+                }
+            });
+            ghSettings.source_accounts = Array.from(mapByEmail.values());
+            if (JSON.stringify(ghSettings.source_accounts) !== oldJson) {
+                changed = true;
+            }
+        } else if (remoteAccs.length > 0) {
+            const existingEmails = new Map();
+            ghSettings.source_accounts.forEach((a, i) => {
+                const em = String(a.email || '').trim().toLowerCase();
+                if (em) existingEmails.set(em, i);
+            });
+            remoteAccs.forEach(ra => {
+                const em = String(ra.email || '').trim().toLowerCase();
+                if (!em) return;
+                if (!existingEmails.has(em)) {
+                    ghSettings.source_accounts.push(ra);
+                    existingEmails.set(em, ghSettings.source_accounts.length - 1);
+                    changed = true;
+                } else {
+                    const idx = existingEmails.get(em);
+                    if (ra.gas_url && ghSettings.source_accounts[idx].gas_url !== ra.gas_url) {
+                        ghSettings.source_accounts[idx].gas_url = ra.gas_url;
+                        changed = true;
+                    }
+                    if (ra.label && ghSettings.source_accounts[idx].label !== ra.label) {
+                        ghSettings.source_accounts[idx].label = ra.label;
+                        changed = true;
+                    }
+                }
+            });
+        }
+
+        ['gas_gdrive_webapp_url', 'target_gdrive_email', 'gdrive_folder_name', 'email_subject_filter', 'last_sync_at', 'last_sync_status'].forEach(k => {
+            if (remoteSet[k] && ghSettings[k] !== remoteSet[k]) {
+                ghSettings[k] = remoteSet[k];
+                changed = true;
+            }
+        });
+
+        if (changed && typeof window.uiState === 'object' && window.uiState) {
+            window.uiState.accountsInitialized = false;
+        }
+        return changed;
+    }
+
+    /**
+     * Gabungkan daftar records Biovisa dari Server/GitHub/GDrive berdasarkan Nomor Paspor
+     * dengan menjaga urutan terbaru sama persis seperti di Komputer Server.
+     */
+    function mergeRecordsFromBundle(remoteRecs) {
+        if (!Array.isArray(remoteRecs) || remoteRecs.length === 0) return false;
+        let changed = false;
+
+        const localByPaspor = new Map();
+        (Array.isArray(ghRecords) ? ghRecords : []).forEach(r => {
+            if (!r || typeof r !== 'object') return;
+            const p = String(r.paspor || '').trim().toUpperCase();
+            if (p && p !== 'TANPAPASPOR') localByPaspor.set(p, r);
+        });
+
+        const mergedList = [];
+        const seenPassports = new Set();
+
+        // 1. Masukkan semua record dari Server/Bundle sesuai urutan aslinya (terbaru di atas)
+        remoteRecs.forEach(rr => {
+            if (!rr || typeof rr !== 'object') return;
+            const rp = String(rr.paspor || '').trim().toUpperCase();
+            if (!rp || rp === 'TANPAPASPOR' || seenPassports.has(rp)) return;
+            seenPassports.add(rp);
+
+            const lr = localByPaspor.get(rp);
+            if (!lr) {
+                mergedList.push(ensureRecordSevenDocs(JSON.parse(JSON.stringify(rr))));
+                changed = true;
+            } else {
+                const combined = { ...rr, ...lr };
+                if (rr.gdrive_uploaded) {
+                    combined.gdrive_uploaded = true;
+                    combined.gdrive_url = rr.gdrive_url || lr.gdrive_url;
+                }
+                if (rr.siskohat_uploaded || lr.siskohat_uploaded) {
+                    combined.siskohat_uploaded = true;
+                }
+                if (rr.seven_docs && rr.seven_docs.docs) {
+                    if (!combined.seven_docs || !combined.seven_docs.docs) {
+                        combined.seven_docs = JSON.parse(JSON.stringify(rr.seven_docs));
+                    } else {
+                        Object.keys(rr.seven_docs.docs).forEach(ck => {
+                            if (rr.seven_docs.docs[ck] && rr.seven_docs.docs[ck].exists) {
+                                combined.seven_docs.docs[ck] = rr.seven_docs.docs[ck];
+                            }
+                        });
+                    }
+                }
+                mergedList.push(ensureRecordSevenDocs(combined));
+            }
+        });
+
+        // 2. Tambahkan record yang baru ditarik di browser lokal namun belum ada di remoteRecs
+        (Array.isArray(ghRecords) ? ghRecords : []).forEach(lr => {
+            if (!lr || typeof lr !== 'object') return;
+            const lp = String(lr.paspor || '').trim().toUpperCase();
+            if (!lp || lp === 'TANPAPASPOR' || seenPassports.has(lp)) return;
+            seenPassports.add(lp);
+            mergedList.unshift(ensureRecordSevenDocs(lr));
+            changed = true;
+        });
+
+        if (mergedList.length !== ghRecords.length) {
+            changed = true;
+        }
+        ghRecords = mergedList;
+        return changed;
+    }
+
+    // Pastikan INITIAL_SETTINGS (4 Email) & INITIAL_RECORDS (63 Jamaah) langsung tergabung dengan aman!
+    mergeSettingsFromBundle(INITIAL_SETTINGS, true);
+    mergeRecordsFromBundle(INITIAL_RECORDS);
     ghRecords.forEach(r => ensureRecordSevenDocs(r));
 
     function saveGhState() {
