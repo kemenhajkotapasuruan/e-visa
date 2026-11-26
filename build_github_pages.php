@@ -9,16 +9,8 @@ $b64Success  = 'data:image/png;base64,' . base64_encode(file_get_contents('c:/la
 
 require_once 'c:/laragon/www/e-visa/config.php';
 
-$rawRecordsArr = getRecords();
-foreach ($rawRecordsArr as &$recItem) {
-    $recItem['seven_docs'] = getJamaahSevenDocsStatus($recItem);
-}
-unset($recItem);
-saveRecords($rawRecordsArr);
-if (is_dir('c:/laragon/www/e-visa/docs/storage/data')) {
-    copy('c:/laragon/www/e-visa/storage/data/records.json', 'c:/laragon/www/e-visa/docs/storage/data/records.json');
-}
-
+$bundleData = writeCloudSyncBundle();
+$rawRecordsArr = $bundleData['records'];
 $initialRecords = json_encode($rawRecordsArr, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 $initialJamaah = file_exists('c:/laragon/www/e-visa/storage/data/jamaah_master.json')
     ? file_get_contents('c:/laragon/www/e-visa/storage/data/jamaah_master.json')
@@ -62,6 +54,139 @@ $clientEngineJs = <<<JS
     let ghLogs     = JSON.parse(localStorage.getItem('gh_evisa_logs') || 'null') || INITIAL_LOGS;
     let ghImages   = JSON.parse(localStorage.getItem('gh_evisa_images') || '{}');
     let cachedImgs = {};
+    let lastCloudSyncPoll = 0;
+
+    /**
+     * Gabungkan daftar akun email pembaca (source_accounts) & pengaturan dari Server/GitHub/GDrive
+     * agar Komputer Lain tidak pernah terjebak cache localStorage lama.
+     */
+    function mergeSettingsFromBundle(remoteSet, preferRemoteList = false) {
+        if (!remoteSet || typeof remoteSet !== 'object') return false;
+        let changed = false;
+
+        if (!Array.isArray(ghSettings.source_accounts)) {
+            ghSettings.source_accounts = [];
+        }
+        const remoteAccs = Array.isArray(remoteSet.source_accounts) ? remoteSet.source_accounts : [];
+
+        if (preferRemoteList && remoteAccs.length > 0) {
+            const oldJson = JSON.stringify(ghSettings.source_accounts);
+            // Gabungkan akun dari remote + akun lokal yang baru ditambahkan
+            const mapByEmail = new Map();
+            remoteAccs.forEach(ra => {
+                const em = String(ra.email || '').trim().toLowerCase();
+                if (em) mapByEmail.set(em, ra);
+            });
+            ghSettings.source_accounts.forEach(la => {
+                const em = String(la.email || '').trim().toLowerCase();
+                if (em && !mapByEmail.has(em) && la.gas_url) {
+                    mapByEmail.set(em, la);
+                }
+            });
+            ghSettings.source_accounts = Array.from(mapByEmail.values());
+            if (JSON.stringify(ghSettings.source_accounts) !== oldJson) {
+                changed = true;
+            }
+        } else {
+            const existingEmails = new Map();
+            ghSettings.source_accounts.forEach((a, i) => {
+                const em = String(a.email || '').trim().toLowerCase();
+                if (em) existingEmails.set(em, i);
+            });
+            remoteAccs.forEach(ra => {
+                const em = String(ra.email || '').trim().toLowerCase();
+                if (!em) return;
+                if (!existingEmails.has(em)) {
+                    ghSettings.source_accounts.push(ra);
+                    existingEmails.set(em, ghSettings.source_accounts.length - 1);
+                    changed = true;
+                } else {
+                    const idx = existingEmails.get(em);
+                    if (ra.gas_url && !ghSettings.source_accounts[idx].gas_url) {
+                        ghSettings.source_accounts[idx].gas_url = ra.gas_url;
+                        changed = true;
+                    }
+                    if (ra.label && ghSettings.source_accounts[idx].label !== ra.label) {
+                        ghSettings.source_accounts[idx].label = ra.label;
+                        changed = true;
+                    }
+                }
+            });
+        }
+
+        ['gas_gdrive_webapp_url', 'target_gdrive_email', 'gdrive_folder_name', 'email_subject_filter'].forEach(k => {
+            if (remoteSet[k] && !ghSettings[k]) {
+                ghSettings[k] = remoteSet[k];
+                changed = true;
+            }
+        });
+
+        if (changed && typeof window.uiState === 'object' && window.uiState) {
+            window.uiState.accountsInitialized = false;
+        }
+        return changed;
+    }
+
+    /**
+     * Gabungkan daftar records Biovisa dari Server/GitHub/GDrive berdasarkan Nomor Paspor
+     * agar data Biovisa di Komputer Server dan Komputer Lain selalu 100% sama.
+     */
+    function mergeRecordsFromBundle(remoteRecs) {
+        if (!Array.isArray(remoteRecs) || remoteRecs.length === 0) return false;
+        let changed = false;
+
+        const localByPaspor = new Map();
+        ghRecords.forEach((r, idx) => {
+            const p = String(r.paspor || '').trim().toUpperCase();
+            if (p && p !== 'TANPAPASPOR') localByPaspor.set(p, idx);
+        });
+
+        remoteRecs.forEach(rr => {
+            if (!rr || typeof rr !== 'object') return;
+            const rp = String(rr.paspor || '').trim().toUpperCase();
+            if (!rp || rp === 'TANPAPASPOR') return;
+
+            if (!localByPaspor.has(rp)) {
+                ghRecords.push(rr);
+                localByPaspor.set(rp, ghRecords.length - 1);
+                changed = true;
+            } else {
+                const idx = localByPaspor.get(rp);
+                const lr = ghRecords[idx];
+                if (rr.gdrive_uploaded && !lr.gdrive_uploaded) {
+                    lr.gdrive_uploaded = true;
+                    lr.gdrive_url = rr.gdrive_url || lr.gdrive_url;
+                    changed = true;
+                }
+                if (rr.siskohat_uploaded && !lr.siskohat_uploaded) {
+                    lr.siskohat_uploaded = true;
+                    changed = true;
+                }
+                if (rr.seven_docs && rr.seven_docs.docs) {
+                    if (!lr.seven_docs || !lr.seven_docs.docs) {
+                        lr.seven_docs = rr.seven_docs;
+                        changed = true;
+                    } else {
+                        Object.keys(rr.seven_docs.docs).forEach(ck => {
+                            if (rr.seven_docs.docs[ck] && rr.seven_docs.docs[ck].exists && (!lr.seven_docs.docs[ck] || !lr.seven_docs.docs[ck].exists)) {
+                                lr.seven_docs.docs[ck] = rr.seven_docs.docs[ck];
+                                changed = true;
+                            }
+                        });
+                    }
+                }
+            }
+        });
+
+        if (changed) {
+            ghRecords.forEach(r => ensureRecordSevenDocs(r));
+        }
+        return changed;
+    }
+
+    // Langsung gabungkan INITIAL_SETTINGS & INITIAL_RECORDS terbaru dari halaman ke dalam localStorage saat pertama kali dimuat!
+    mergeSettingsFromBundle(INITIAL_SETTINGS, false);
+    mergeRecordsFromBundle(INITIAL_RECORDS);
 
     const DOC_CAT_META = {
         paspor:      { num: 1, key: 'paspor',      short: 'Paspor',      label: '1. Scan Halaman Pertama Paspor',               subfolder: '1_Paspor',      max_kb: 49.5 },
@@ -126,6 +251,100 @@ $clientEngineJs = <<<JS
         try { localStorage.setItem('gh_evisa_jamaah', JSON.stringify(ghJamaah)); } catch (e) {}
         try { localStorage.setItem('gh_evisa_logs', JSON.stringify(ghLogs.slice(0, 100))); } catch (e) {}
         try { localStorage.setItem('gh_evisa_images', JSON.stringify(ghImages)); } catch (e) {}
+    }
+
+    /**
+     * Sinkronisasi Multi-Komputer (Komputer Server <-> GitHub Pages <-> Google Drive Cloud DB <-> Komputer Lain):
+     * 1. Jika dibuka di Komputer Server (http://localhost/e-visa/api.php aktif), kirim perubahan ke Server Lokal
+     *    dan otomatis jalankan build + git push ke GitHub Pages di background.
+     * 2. Simpan & tarik juga dari cloud_sync_bundle.json (GitHub Pages) serta Google Drive Cloud DB (SILAHUT_CLOUD_DB.json)
+     *    agar Komputer Lain langsung membaca daftar Akun Email Pembaca & Data Biovisa yang 100% sama.
+     */
+    async function syncMultiComputerCloudState(isWriteAction = false, replaceAccounts = false) {
+        let anyUpdated = false;
+
+        // 1. Tarik cloud_sync_bundle.json terbaru langsung dari server GitHub Pages (tanpa cache browser)
+        if (!isWriteAction) {
+            try {
+                const bRes = await origFetch('storage/data/cloud_sync_bundle.json?_t=' + Date.now(), { cache: 'no-store' });
+                if (bRes.ok) {
+                    const bJson = await bRes.json();
+                    if (bJson && bJson.ok) {
+                        if (mergeSettingsFromBundle(bJson.settings, false)) anyUpdated = true;
+                        if (mergeRecordsFromBundle(bJson.records)) anyUpdated = true;
+                    }
+                }
+            } catch (e) {}
+        }
+
+        // 2. Hubungi Server Laragon Lokal (jika browser ini sedang dibuka di Komputer Server)
+        try {
+            const ctrl = new AbortController();
+            const timer = setTimeout(() => ctrl.abort(), 2800);
+            const locRes = await origFetch('http://localhost/e-visa/api.php?action=mirror_cloud_to_local', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    settings: ghSettings,
+                    records: ghRecords,
+                    images: isWriteAction ? ghImages : {},
+                    replace_accounts: replaceAccounts,
+                    force_publish: isWriteAction
+                }),
+                signal: ctrl.signal
+            });
+            clearTimeout(timer);
+            if (locRes.ok) {
+                const locData = await locRes.json();
+                if (locData && locData.ok && locData.bundle) {
+                    if (mergeSettingsFromBundle(locData.bundle.settings, true)) anyUpdated = true;
+                    if (mergeRecordsFromBundle(locData.bundle.records)) anyUpdated = true;
+                }
+            }
+        } catch (e) {}
+
+        // 3. Sinkronkan juga lewat Google Drive Cloud DB (agar Komputer Lain di luar jaringan langsung sinkron real-time)
+        const gdriveUrl = String(ghSettings.gas_gdrive_webapp_url || '').trim();
+        if (gdriveUrl) {
+            if (isWriteAction) {
+                try {
+                    const snapshot = {
+                        ok: true,
+                        version_ts: Math.floor(Date.now() / 1000),
+                        updated_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
+                        settings: ghSettings,
+                        records: ghRecords
+                    };
+                    origFetch(gdriveUrl, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({
+                            action: 'save_cloud_db',
+                            folder_name: ghSettings.gdrive_folder_name || 'Biovisa_Jamaah_PHU_Pasuruan',
+                            cloud_db_json: JSON.stringify(snapshot)
+                        })
+                    }).catch(() => {});
+                } catch (e) {}
+            } else {
+                try {
+                    const dbUrl = gdriveUrl + (gdriveUrl.includes('?') ? '&' : '?') + 'action=get_cloud_db&folder_name=' + encodeURIComponent(ghSettings.gdrive_folder_name || 'Biovisa_Jamaah_PHU_Pasuruan') + '&_t=' + Date.now();
+                    const gRes = await origFetch(dbUrl);
+                    if (gRes.ok) {
+                        const gJson = await gRes.json();
+                        if (gJson && gJson.ok && gJson.found && gJson.bundle) {
+                            if (mergeSettingsFromBundle(gJson.bundle.settings, false)) anyUpdated = true;
+                            if (mergeRecordsFromBundle(gJson.bundle.records)) anyUpdated = true;
+                        }
+                    }
+                } catch (e) {}
+            }
+        }
+
+        if (anyUpdated || isWriteAction) {
+            saveGhState();
+        }
+        return anyUpdated;
     }
 
     function padJpegDataUrlToTarget50KB(dataUrl, minBytes = 46500, maxBytes = 50500) {
@@ -459,6 +678,11 @@ $clientEngineJs = <<<JS
         });
 
         if (action === 'status') {
+            // Sinkronkan daftar akun email pembaca & data Biovisa antar-komputer (maksimal 1x tiap 8 detik)
+            if (Date.now() - lastCloudSyncPoll > 8000) {
+                lastCloudSyncPoll = Date.now();
+                await syncMultiComputerCloudState(false, false);
+            }
             const total = ghRecords.length;
             const upGdrive = ghRecords.filter(r => r.gdrive_uploaded).length;
             const valid50 = ghRecords.filter(r => (parseFloat(r.size_kb) || 0) <= 50).length;
@@ -567,6 +791,9 @@ $clientEngineJs = <<<JS
             ghSettings.last_sync_at = new Date().toISOString().slice(0, 19).replace('T', ' ');
             ghSettings.last_sync_status = newRecords.length > 0 ? `Berhasil memproses \${newRecords.length} Biovisa baru` : 'Sinkronisasi berhasil (Tidak ada email baru)';
             saveGhState();
+            if (newRecords.length > 0) {
+                await syncMultiComputerCloudState(true, false);
+            }
             return makeJsonRes({
                 ok: true,
                 new_count: newRecords.length,
@@ -1037,7 +1264,8 @@ $clientEngineJs = <<<JS
         if (action === 'save_settings') {
             ghSettings = { ...ghSettings, ...bodyData };
             saveGhState();
-            return makeJsonRes({ ok: true, message: 'Pengaturan berhasil disimpan.', settings: ghSettings });
+            await syncMultiComputerCloudState(true, true);
+            return makeJsonRes({ ok: true, message: 'Pengaturan berhasil disimpan & disinkronkan untuk semua komputer.', settings: ghSettings });
         }
 
         if (action === 'clear_logs') {

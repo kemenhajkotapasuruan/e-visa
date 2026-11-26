@@ -50,12 +50,30 @@ function doGet(e) {
     if (action === 'ping' || action === 'status') {
       return jsonOut({
         ok: true,
-        service: 'Auto-BioVisa All-in-One (Gmail + GDrive 7-Dokumen Ready)',
+        service: 'Auto-BioVisa All-in-One (Gmail + GDrive 7-Dokumen & Multi-PC Cloud Sync Ready)',
         supports_post: true,
         supports_get: true,
         account_email: activeEmail,
         status: 'READY'
       });
+    }
+
+    // Ambil snapshot database Cloud bersama (daftar akun email pembaca & data Biovisa) agar semua komputer 100% sinkron
+    if (action === 'get_cloud_db') {
+      var dbRoot = getOrCreateTargetFolder(params.folder_name || DEFAULT_FOLDER_NAME, params.folder_id || '');
+      var dbFiles = dbRoot.getFilesByName('SILAHUT_CLOUD_DB.json');
+      if (dbFiles.hasNext()) {
+        var dbFile = dbFiles.next();
+        var rawJson = dbFile.getBlob().getDataAsString('UTF-8');
+        var parsedDb = JSON.parse(rawJson);
+        return jsonOut({
+          ok: true,
+          found: true,
+          updated_at: dbFile.getLastUpdated().toISOString(),
+          bundle: parsedDb
+        });
+      }
+      return jsonOut({ ok: true, found: false, bundle: null });
     }
 
     // Ambil 1 file dari Google Drive dalam bentuk Base64 (untuk sinkronisasi 7 Dokumen dari GDrive ke Server/Siskohat)
@@ -199,6 +217,22 @@ function doPost(e) {
         folder_name: testFolder.getName(),
         folder_url: testFolder.getUrl(),
         message: 'Koneksi tulis Google Drive berhasil pada akun ' + (activeEmail || 'ini')
+      });
+    }
+
+    // Simpan snapshot database Cloud bersama (daftar akun email pembaca & data Biovisa) ke Google Drive
+    if (data.action === 'save_cloud_db' && data.cloud_db_json) {
+      var dbFolder = getOrCreateTargetFolder(data.folder_name || DEFAULT_FOLDER_NAME, data.folder_id || '');
+      var oldDbs = dbFolder.getFilesByName('SILAHUT_CLOUD_DB.json');
+      while (oldDbs.hasNext()) {
+        oldDbs.next().setTrashed(true);
+      }
+      var dbBlob = Utilities.newBlob(data.cloud_db_json, 'application/json', 'SILAHUT_CLOUD_DB.json');
+      var createdDb = dbFolder.createFile(dbBlob);
+      return jsonOut({
+        ok: true,
+        file_id: createdDb.getId(),
+        updated_at: new Date().toISOString()
       });
     }
 

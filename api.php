@@ -576,6 +576,11 @@ switch ($action) {
         if ($recordsModified) {
             saveRecords($records);
         }
+        if (count($newRecords) > 0) {
+            triggerBackgroundGitHubPush('Auto-sync ' . count($newRecords) . ' Biovisa baru ke GitHub Pages');
+        } else {
+            writeCloudSyncBundle();
+        }
 
         $statusMsg = count($newRecords) > 0
             ? 'Berhasil memproses ' . count($newRecords) . ' Biovisa baru'
@@ -996,10 +1001,11 @@ switch ($action) {
 
         $updated = saveSettings($toSave);
         addSyncLog('info', 'Pengaturan sistem & integrasi berhasil disimpan.');
+        triggerBackgroundGitHubPush('Auto-sync daftar akun email pembaca & pengaturan ke GitHub Pages');
 
         jsonResponse([
             'ok' => true,
-            'message' => 'Pengaturan berhasil disimpan.',
+            'message' => 'Pengaturan berhasil disimpan & disinkronkan ke Cloud.',
             'settings' => $updated
         ]);
         break;
@@ -1599,6 +1605,173 @@ switch ($action) {
         $payload['time'] = date('Y-m-d H:i:s');
         saveJsonFile(DATA_DIR . DIRECTORY_SEPARATOR . 'siskohat_dom_debug.json', $payload);
         jsonResponse(['ok' => true]);
+        break;
+
+    case 'mirror_cloud_to_local':
+        // Jembatan sinkronisasi 2 arah antara halaman GitHub Pages (saat dibuka di Komputer Server) dan Server Laragon
+        $rawInput = file_get_contents('php://input');
+        $payload = json_decode($rawInput, true) ?: [];
+
+        $localSettings = getSettings();
+        $localRecords  = getRecords();
+        $changedAnything = false;
+
+        // 1. Gabungkan daftar akun email pembaca (source_accounts) dari Cloud Tab ke Server Lokal
+        if (!empty($payload['settings']) && is_array($payload['settings'])) {
+            $incSet = $payload['settings'];
+            $replaceAccounts = !empty($payload['replace_accounts']);
+
+            if (!empty($incSet['source_accounts']) && is_array($incSet['source_accounts'])) {
+                if ($replaceAccounts) {
+                    // Pertahankan imap_password lokal jika di cloud kosong
+                    $oldPassByEmail = [];
+                    foreach ($localSettings['source_accounts'] ?? [] as $oa) {
+                        $emKey = strtolower(trim((string)($oa['email'] ?? '')));
+                        if ($emKey !== '' && !empty($oa['imap_password'])) {
+                            $oldPassByEmail[$emKey] = $oa['imap_password'];
+                        }
+                    }
+                    $newAccList = [];
+                    foreach ($incSet['source_accounts'] as $idx => $ca) {
+                        $emAddr = trim((string)($ca['email'] ?? ''));
+                        $gUrl   = trim((string)($ca['gas_url'] ?? ''));
+                        if ($emAddr === '' && $gUrl === '') continue;
+                        $emKey = strtolower($emAddr);
+                        $newAccList[] = [
+                            'id' => !empty($ca['id']) ? (string)$ca['id'] : ('acc_' . ($idx + 1) . '_' . substr(md5($emAddr . $idx), 0, 6)),
+                            'label' => trim((string)($ca['label'] ?? ('Email Pembaca #' . ($idx + 1)))),
+                            'email' => $emAddr,
+                            'mode' => in_array(($ca['mode'] ?? 'gas'), ['gas', 'imap'], true) ? $ca['mode'] : 'gas',
+                            'gas_url' => $gUrl,
+                            'imap_password' => !empty($ca['imap_password']) ? $ca['imap_password'] : ($oldPassByEmail[$emKey] ?? ''),
+                            'enabled' => !isset($ca['enabled']) || !empty($ca['enabled'])
+                        ];
+                    }
+                    if (!empty($newAccList)) {
+                        $localSettings['source_accounts'] = $newAccList;
+                        $changedAnything = true;
+                    }
+                } else {
+                    // Mode union/merge: tambahkan akun email yang ada di browser Komputer Server tapi belum ada di settings.json
+                    $existingEmails = [];
+                    foreach ($localSettings['source_accounts'] ?? [] as $laIdx => $la) {
+                        $existingEmails[strtolower(trim((string)($la['email'] ?? '')))] = $laIdx;
+                    }
+                    foreach ($incSet['source_accounts'] as $ca) {
+                        $emAddr = trim((string)($ca['email'] ?? ''));
+                        $gUrl   = trim((string)($ca['gas_url'] ?? ''));
+                        if ($emAddr === '' && $gUrl === '') continue;
+                        $emKey = strtolower($emAddr);
+                        if (!isset($existingEmails[$emKey])) {
+                            $localSettings['source_accounts'][] = [
+                                'id' => !empty($ca['id']) ? (string)$ca['id'] : ('acc_' . uniqid()),
+                                'label' => trim((string)($ca['label'] ?? $emAddr)),
+                                'email' => $emAddr,
+                                'mode' => in_array(($ca['mode'] ?? 'gas'), ['gas', 'imap'], true) ? $ca['mode'] : 'gas',
+                                'gas_url' => $gUrl,
+                                'imap_password' => $ca['imap_password'] ?? '',
+                                'enabled' => !isset($ca['enabled']) || !empty($ca['enabled'])
+                            ];
+                            $changedAnything = true;
+                        } elseif ($gUrl !== '' && empty($localSettings['source_accounts'][$existingEmails[$emKey]]['gas_url'])) {
+                            $localSettings['source_accounts'][$existingEmails[$emKey]]['gas_url'] = $gUrl;
+                            $changedAnything = true;
+                        }
+                    }
+                }
+            }
+
+            foreach (['target_gdrive_email', 'email_subject_filter', 'gas_gdrive_webapp_url', 'gdrive_folder_name'] as $k) {
+                if (!empty($incSet[$k]) && ($localSettings[$k] ?? '') !== $incSet[$k]) {
+                    $localSettings[$k] = $incSet[$k];
+                    $changedAnything = true;
+                }
+            }
+
+            if ($changedAnything) {
+                $localSettings = saveSettings($localSettings);
+            }
+        }
+
+        // 2. Simpan file gambar baru dari ghImages browser ke folder storage/biovisa/ atau storage/dokumen/<cat>/
+        if (!empty($payload['images']) && is_array($payload['images'])) {
+            foreach ($payload['images'] as $imgKey => $dataUrl) {
+                if (!is_string($dataUrl) || $dataUrl === '') continue;
+                $b64 = (strpos($dataUrl, ',') !== false) ? explode(',', $dataUrl, 2)[1] : $dataUrl;
+                $rawBytes = base64_decode($b64);
+                if ($rawBytes === false || strlen($rawBytes) < 100) continue;
+
+                if (strpos($imgKey, ':') !== false) {
+                    [$catPart, $fnPart] = explode(':', $imgKey, 2);
+                    $catPart = preg_replace('/[^a-z_]/', '', strtolower($catPart));
+                    $fnPart  = basename($fnPart);
+                    $dirPath = ($catPart === 'biovisa') ? BIOVISA_DIR : getDocCategoryDir($catPart);
+                } else {
+                    $fnPart  = basename($imgKey);
+                    $dirPath = BIOVISA_DIR;
+                }
+                if ($fnPart !== '' && is_dir($dirPath)) {
+                    $destFile = $dirPath . DIRECTORY_SEPARATOR . $fnPart;
+                    if (!is_file($destFile)) {
+                        file_put_contents($destFile, $rawBytes);
+                        $changedAnything = true;
+                    }
+                }
+            }
+        }
+
+        // 3. Gabungkan daftar records Biovisa dari Cloud Tab ke Server Lokal berdasarkan Nomor Paspor
+        if (!empty($payload['records']) && is_array($payload['records'])) {
+            $localByPaspor = [];
+            foreach ($localRecords as $idx => $lr) {
+                $p = strtoupper(trim((string)($lr['paspor'] ?? '')));
+                if ($p !== '' && $p !== 'TANPAPASPOR') {
+                    $localByPaspor[$p] = $idx;
+                }
+            }
+
+            foreach ($payload['records'] as $cr) {
+                if (!is_array($cr)) continue;
+                $cp = strtoupper(trim((string)($cr['paspor'] ?? '')));
+                if ($cp === '' || $cp === 'TANPAPASPOR') continue;
+
+                if (!isset($localByPaspor[$cp])) {
+                    // Jika file JPG belum ada di disk, render otomatis menggunakan template asli SaudiVisaBio <= 50KB
+                    $fn = basename((string)($cr['filename'] ?? "{$cr['nama']}_{$cp}.jpg"));
+                    $fp = BIOVISA_DIR . DIRECTORY_SEPARATOR . $fn;
+                    if (!is_file($fp)) {
+                        $gd = BiovisaProcessor::renderEmailConfirmationToGd([
+                            'nama' => $cr['nama'] ?? 'JAMAAH',
+                            'paspor' => $cp,
+                            'enrollment_id' => $cr['enrollment_id'] ?? '-',
+                            'enrollment_time' => $cr['enrollment_time'] ?? date('Y-m-d H:i:s')
+                        ]);
+                        BiovisaProcessor::saveGdAs50KbJpg($gd, $fp, 42.0, 49.5, true);
+                        imagedestroy($gd);
+                    }
+                    $cr['filename'] = $fn;
+                    $cr['size_bytes'] = is_file($fp) ? filesize($fp) : ($cr['size_bytes'] ?? 49800);
+                    $cr['size_kb'] = round($cr['size_bytes'] / 1024, 2);
+                    array_unshift($localRecords, $cr);
+                    $localByPaspor[$cp] = 0;
+                    $changedAnything = true;
+                }
+            }
+        }
+
+        if ($changedAnything || !empty($payload['force_publish'])) {
+            saveRecords($localRecords);
+            triggerBackgroundGitHubPush('Auto-sync data Biovisa & Akun Email dari Komputer Server ke GitHub Pages');
+        } else {
+            writeCloudSyncBundle();
+        }
+
+        $bundle = loadJsonFile(DATA_DIR . DIRECTORY_SEPARATOR . 'cloud_sync_bundle.json', []);
+        jsonResponse([
+            'ok' => true,
+            'changed' => $changedAnything,
+            'bundle' => $bundle
+        ]);
         break;
 
     default:

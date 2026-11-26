@@ -382,3 +382,123 @@ function getJamaahSevenDocsStatus(array $rec): array {
         'docs' => $docs
     ];
 }
+
+/**
+ * Ambil settings yang aman untuk disinkronkan ke Cloud GitHub Pages & antar-komputer
+ * (Menyertakan seluruh daftar source_accounts beserta URL Web App GAS-nya, tanpa password IMAP)
+ */
+function getPublicCloudSettings(?array $settings = null): array {
+    if ($settings === null) {
+        $settings = getSettings();
+    }
+    $safe = $settings;
+    $safe['imap_app_password'] = '';
+    if (!empty($safe['source_accounts']) && is_array($safe['source_accounts'])) {
+        foreach ($safe['source_accounts'] as &$acc) {
+            $acc['imap_password'] = '';
+        }
+        unset($acc);
+    }
+    return $safe;
+}
+
+/**
+ * Tulis paket sinkronisasi Cloud (cloud_sync_bundle.json) ke storage/data/ dan docs/storage/data/
+ * serta salin file JPG baru ke docs/storage/ agar seluruh komputer lain yang membuka GitHub Pages
+ * selalu mendapatkan daftar Akun Email Pembaca & Data Biovisa yang 100% sama dengan Komputer Server.
+ */
+function writeCloudSyncBundle(): array {
+    $safeSettings = getPublicCloudSettings();
+    $records = getRecords();
+    foreach ($records as &$r) {
+        $r['seven_docs'] = getJamaahSevenDocsStatus($r);
+    }
+    unset($r);
+    saveRecords($records);
+
+    $bundle = [
+        'ok' => true,
+        'version_ts' => time(),
+        'updated_at' => date('Y-m-d H:i:s'),
+        'settings' => $safeSettings,
+        'records' => $records
+    ];
+
+    $bundlePath = DATA_DIR . DIRECTORY_SEPARATOR . 'cloud_sync_bundle.json';
+    saveJsonFile($bundlePath, $bundle);
+
+    $docsDataDir = BASE_DIR . DIRECTORY_SEPARATOR . 'docs' . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'data';
+    if (!is_dir($docsDataDir)) {
+        @mkdir($docsDataDir, 0777, true);
+    }
+    saveJsonFile($docsDataDir . DIRECTORY_SEPARATOR . 'cloud_sync_bundle.json', $bundle);
+    saveJsonFile($docsDataDir . DIRECTORY_SEPARATOR . 'records.json', $records);
+
+    // Salin juga file JPG Biovisa dan 7 Dokumen yang belum ada di docs/storage/
+    $docsBiovisaDir = BASE_DIR . DIRECTORY_SEPARATOR . 'docs' . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'biovisa';
+    if (!is_dir($docsBiovisaDir)) {
+        @mkdir($docsBiovisaDir, 0777, true);
+    }
+    foreach (glob(BIOVISA_DIR . DIRECTORY_SEPARATOR . '*.jpg') ?: [] as $jpgFile) {
+        $dest = $docsBiovisaDir . DIRECTORY_SEPARATOR . basename($jpgFile);
+        if (!is_file($dest) || filesize($dest) !== filesize($jpgFile)) {
+            @copy($jpgFile, $dest);
+        }
+    }
+
+    foreach (getSiskohatDocCategories() as $catKey => $meta) {
+        $srcCatDir = getDocCategoryDir($catKey);
+        $dstCatDir = BASE_DIR . DIRECTORY_SEPARATOR . 'docs' . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'dokumen' . DIRECTORY_SEPARATOR . $meta['folder'];
+        if (!is_dir($dstCatDir)) {
+            @mkdir($dstCatDir, 0777, true);
+        }
+        foreach (glob($srcCatDir . DIRECTORY_SEPARATOR . '*.jpg') ?: [] as $docJpg) {
+            $dest = $dstCatDir . DIRECTORY_SEPARATOR . basename($docJpg);
+            if (!is_file($dest) || filesize($dest) !== filesize($docJpg)) {
+                @copy($docJpg, $dest);
+            }
+        }
+    }
+
+    return $bundle;
+}
+
+/**
+ * Jalankan kompilasi build_github_pages.php & git push otomatis di background (non-blocking)
+ * setiap kali ada penambahan email pembaca atau data Biovisa baru di Komputer Server.
+ */
+function triggerBackgroundGitHubPush(string $commitMsg = 'Auto-sync Biovisa & Email Pembaca dari Komputer Server'): void {
+    $bundle = writeCloudSyncBundle();
+
+    // Simpan juga snapshot Cloud DB ke Google Drive jika URL Web App GDrive aktif
+    $settings = getSettings();
+    if (!empty($settings['gas_gdrive_webapp_url']) && class_exists('GDriveSync')) {
+        try {
+            GDriveSync::postToGasWebApp($settings['gas_gdrive_webapp_url'], [
+                'action' => 'save_cloud_db',
+                'folder_name' => $settings['gdrive_folder_name'] ?? 'Biovisa_Jamaah_PHU_Pasuruan',
+                'cloud_db_json' => json_encode($bundle, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
+            ]);
+        } catch (\Throwable $e) {}
+    }
+
+    $phpExe = 'C:\laragon\bin\php\php-8.1.10-Win32-vs16-x64\php.exe';
+    $gitExe = 'C:\laragon\bin\git\cmd\git.exe';
+    if (!is_file($phpExe) || !is_file($gitExe)) {
+        return;
+    }
+
+    $safeMsg = str_replace(['"', "'", '&', '|'], '', $commitMsg);
+    $batPath = TEMP_DIR . DIRECTORY_SEPARATOR . 'auto_git_push.bat';
+    $batContent = "@echo off\r\n"
+        . "cd /d \"" . BASE_DIR . "\"\r\n"
+        . "\"{$phpExe}\" build_github_pages.php >nul 2>&1\r\n"
+        . "\"{$gitExe}\" add -A >nul 2>&1\r\n"
+        . "\"{$gitExe}\" commit -m \"{$safeMsg}\" >nul 2>&1\r\n"
+        . "\"{$gitExe}\" push -u origin main >nul 2>&1\r\n";
+    @file_put_contents($batPath, $batContent);
+
+    if (function_exists('popen')) {
+        @pclose(@popen('start /B "" cmd /c "' . $batPath . '"', 'r'));
+    }
+}

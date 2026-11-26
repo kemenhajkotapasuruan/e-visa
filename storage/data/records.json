@@ -1,5 +1,109 @@
 [
     {
+        "id": "bv_216e36517b",
+        "message_id": "1a215b15f0dc1916",
+        "nama": "SHOFIYAHBOELAN",
+        "paspor": "E7264996",
+        "enrollment_id": "42182717",
+        "enrollment_time": "2026-11-26 02:31:08",
+        "filename": "SHOFIYAHBOELAN_E7264996.jpg",
+        "size_bytes": 50335,
+        "size_kb": 49.16,
+        "source_type": "saudivisabio_email",
+        "subject": "Enrollment confirmation",
+        "from_email": "Mofa <MofaBioApp@mofa.gov.sa>",
+        "to_email": "boynikma@gmail.com",
+        "source_account_email": "boynikma@gmail.com",
+        "source_account_label": "Email ke-2",
+        "email_date": "26 Nov 2026, 09:31:12 WIB",
+        "body_excerpt": "Application Submitted Successfully \nApplication Submitted Successfully \n\nDear SHOFIYAHBOELAN، \n\nThank you for enrolling your biometric information for your passport \nnumber: E7264996 . \n\non 2026-11-26 02:31:08 as part of your visa application process to the \nKingdom of Saudi Arabia. and Your Enrollment Id is : 42182717 .\nFor any questions on submission of your biometric data or the status of \nyour visa application, please visit www.mofa.gov.sa \n\n*This is an automated message, please do not reply",
+        "processed_at": "2026-11-26 09:31:51",
+        "gdrive_uploaded": true,
+        "gdrive_file_id": "1HNIU7chLXfFlczn-ngenT6HvRxEyV0tB",
+        "gdrive_url": "https://drive.google.com/file/d/1HNIU7chLXfFlczn-ngenT6HvRxEyV0tB/view?usp=drivesdk",
+        "gdrive_target_email": "muchammad.ali.sanjaya@gmail.com",
+        "gdrive_error": "",
+        "all_message_ids": [
+            "1a215b15f0dc1916"
+        ],
+        "seven_docs": {
+            "available_count": 1,
+            "total_slots": 7,
+            "docs": {
+                "paspor": {
+                    "exists": false,
+                    "num": 1,
+                    "key": "paspor",
+                    "short": "Paspor",
+                    "label": "1. Scan Halaman Pertama Paspor",
+                    "filename": "",
+                    "rel_url": "",
+                    "size_kb": 0
+                },
+                "endorsement": {
+                    "exists": false,
+                    "num": 2,
+                    "key": "endorsement",
+                    "short": "Endorsement",
+                    "label": "2. Scan/Upload Halaman Endorsement",
+                    "filename": "",
+                    "rel_url": "",
+                    "size_kb": 0
+                },
+                "vaksin": {
+                    "exists": false,
+                    "num": 3,
+                    "key": "vaksin",
+                    "short": "Vaksin",
+                    "label": "3. Scan/Upload Keterangan Vaksin Meningitis *",
+                    "filename": "",
+                    "rel_url": "",
+                    "size_kb": 0
+                },
+                "kitas": {
+                    "exists": false,
+                    "num": 4,
+                    "key": "kitas",
+                    "short": "KITAS",
+                    "label": "4. Scan/Upload Keterangan KITAS",
+                    "filename": "",
+                    "rel_url": "",
+                    "size_kb": 0
+                },
+                "pendukung": {
+                    "exists": false,
+                    "num": 5,
+                    "key": "pendukung",
+                    "short": "Pendukung",
+                    "label": "5. Scan/Upload Dokumen Pendukung",
+                    "filename": "",
+                    "rel_url": "",
+                    "size_kb": 0
+                },
+                "biovisa": {
+                    "exists": true,
+                    "num": 6,
+                    "key": "biovisa",
+                    "short": "Biovisa",
+                    "label": "6. Scan/Upload Biovisa (jpeg)",
+                    "filename": "SHOFIYAHBOELAN_E7264996.jpg",
+                    "rel_url": "storage/biovisa/SHOFIYAHBOELAN_E7264996.jpg",
+                    "size_kb": 49.16
+                },
+                "foto": {
+                    "exists": false,
+                    "num": 7,
+                    "key": "foto",
+                    "short": "Foto",
+                    "label": "7. Scan/Upload Foto Terbaru",
+                    "filename": "",
+                    "rel_url": "",
+                    "size_kb": 0
+                }
+            }
+        }
+    },
+    {
         "id": "bv_bd207f14e1",
         "message_id": "1a03c1ccc961dc83",
         "nama": "PURNOMOARIFIN",
