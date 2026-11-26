@@ -1,7 +1,7 @@
 {
     "ok": true,
-    "version_ts": 1795685413,
-    "updated_at": "2026-11-26 16:30:13",
+    "version_ts": 1795687954,
+    "updated_at": "2026-11-26 17:12:34",
     "settings": {
         "source_email": "phujtmkopasuruan@gmail.com",
         "target_gdrive_email": "muchammad.ali.sanjaya@gmail.com",
@@ -60,7 +60,7 @@
         "strict_50kb_padding": true,
         "filename_pattern": "{NAMA}_{PASPOR}",
         "uppercase_filename": true,
-        "last_sync_at": "2026-11-26 16:29:44",
+        "last_sync_at": "2026-11-26 17:12:26",
         "last_sync_status": "Sinkronisasi berhasil (Tidak ada email baru)"
     },
     "records": [
@@ -2570,7 +2570,7 @@
                         "label": "2. Scan/Upload Halaman Endorsement",
                         "filename": "MULYONO_X7414899.jpg",
                         "rel_url": "storage/dokumen/endorsement/MULYONO_X7414899.jpg",
-                        "size_kb": 49
+                        "size_kb": 48.91
                     },
                     "vaksin": {
                         "exists": false,
