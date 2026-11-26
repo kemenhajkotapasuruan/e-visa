@@ -1,7 +1,7 @@
 {
     "ok": true,
-    "version_ts": 1795663020,
-    "updated_at": "2026-11-26 10:17:00",
+    "version_ts": 1795663638,
+    "updated_at": "2026-11-26 10:27:18",
     "settings": {
         "source_email": "phujtmkopasuruan@gmail.com",
         "target_gdrive_email": "muchammad.ali.sanjaya@gmail.com",
@@ -60,10 +60,105 @@
         "strict_50kb_padding": true,
         "filename_pattern": "{NAMA}_{PASPOR}",
         "uppercase_filename": true,
-        "last_sync_at": "2026-11-26 09:50:17",
+        "last_sync_at": "2026-11-26 10:18:11",
         "last_sync_status": "Sinkronisasi berhasil (Tidak ada email baru)"
     },
     "records": [
+        {
+            "id": "bv_1795663627043_q4lt",
+            "message_id": "1a215dd0ca99ac1f_Y2047891",
+            "nama": "YUNIMINARSIH",
+            "paspor": "Y2047891",
+            "enrollment_id": "42183194",
+            "enrollment_time": "2026-11-26 03:18:51",
+            "filename": "YUNIMINARSIH_Y2047891.jpg",
+            "size_bytes": 49919,
+            "size_kb": 48.75,
+            "source_type": "saudivisabio_email",
+            "subject": "Enrollment confirmation",
+            "from_email": "Mofa <MofaBioApp@mofa.gov.sa>",
+            "to_email": "phujtmkopasuruan@gmail.com",
+            "source_account_email": "phujtmkopasuruan@gmail.com",
+            "source_account_label": "Email Utama PHU Pasuruan",
+            "processed_at": "2026-11-26 03:27:07",
+            "gdrive_uploaded": false,
+            "seven_docs": {
+                "available_count": 1,
+                "total_slots": 7,
+                "docs": {
+                    "paspor": {
+                        "exists": false,
+                        "num": 1,
+                        "key": "paspor",
+                        "short": "Paspor",
+                        "label": "1. Scan Halaman Pertama Paspor",
+                        "filename": "",
+                        "rel_url": "",
+                        "size_kb": 0
+                    },
+                    "endorsement": {
+                        "exists": false,
+                        "num": 2,
+                        "key": "endorsement",
+                        "short": "Endorsement",
+                        "label": "2. Scan/Upload Halaman Endorsement",
+                        "filename": "",
+                        "rel_url": "",
+                        "size_kb": 0
+                    },
+                    "vaksin": {
+                        "exists": false,
+                        "num": 3,
+                        "key": "vaksin",
+                        "short": "Vaksin",
+                        "label": "3. Scan/Upload Keterangan Vaksin Meningitis *",
+                        "filename": "",
+                        "rel_url": "",
+                        "size_kb": 0
+                    },
+                    "kitas": {
+                        "exists": false,
+                        "num": 4,
+                        "key": "kitas",
+                        "short": "KITAS",
+                        "label": "4. Scan/Upload Keterangan KITAS",
+                        "filename": "",
+                        "rel_url": "",
+                        "size_kb": 0
+                    },
+                    "pendukung": {
+                        "exists": false,
+                        "num": 5,
+                        "key": "pendukung",
+                        "short": "Pendukung",
+                        "label": "5. Scan/Upload Dokumen Pendukung",
+                        "filename": "",
+                        "rel_url": "",
+                        "size_kb": 0
+                    },
+                    "biovisa": {
+                        "exists": true,
+                        "num": 6,
+                        "key": "biovisa",
+                        "short": "Biovisa",
+                        "label": "6. Scan/Upload Biovisa (jpeg)",
+                        "filename": "YUNIMINARSIH_Y2047891.jpg",
+                        "rel_url": "storage/biovisa/YUNIMINARSIH_Y2047891.jpg",
+                        "size_kb": 48.75
+                    },
+                    "foto": {
+                        "exists": false,
+                        "num": 7,
+                        "key": "foto",
+                        "short": "Foto",
+                        "label": "7. Scan/Upload Foto Terbaru",
+                        "filename": "",
+                        "rel_url": "",
+                        "size_kb": 0
+                    }
+                }
+            }
+        },
         {
             "id": "bv_1795663010496_0gqg",
             "message_id": "1a215ce7acfda325_Y1983266",
@@ -157,7 +252,11 @@
                         "size_kb": 0
                     }
                 }
-            }
+            },
+            "all_message_ids": [
+                "1a215ce7acfda325_Y1983266",
+                "1a215ce7acfda325"
+            ]
         },
         {
             "id": "bv_e98d584620",
