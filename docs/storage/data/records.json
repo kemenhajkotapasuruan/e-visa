@@ -1,5 +1,109 @@
 [
     {
+        "id": "bv_27ea868c6b",
+        "message_id": "1a217785519280d9",
+        "nama": "KEROTARIMIN",
+        "paspor": "Y1983269",
+        "enrollment_id": "42196283",
+        "enrollment_time": "2026-11-26 02:54:48",
+        "filename": "KEROTARIMIN_Y1983269.jpg",
+        "size_bytes": 50191,
+        "size_kb": 49.01,
+        "source_type": "saudivisabio_email",
+        "subject": "Enrollment confirmation",
+        "from_email": "Mofa <MofaBioApp@mofa.gov.sa>",
+        "to_email": "boynikma@gmail.com",
+        "source_account_email": "boynikma@gmail.com",
+        "source_account_label": "Email ke-2",
+        "email_date": "26 Nov 2026, 17:48:09 WIB",
+        "body_excerpt": "Application Submitted Successfully \nApplication Submitted Successfully \n\nDear KEROTARIMIN، \n\nThank you for enrolling your biometric information for your passport \nnumber: Y1983269 . \n\non 2026-11-26 02:54:48 as part of your visa application process to the \nKingdom of Saudi Arabia. and Your Enrollment Id is : 42196283 .\nFor any questions on submission of your biometric data or the status of \nyour visa application, please visit www.mofa.gov.sa \n\n*This is an automated message, please do not reply to",
+        "processed_at": "2026-11-26 17:48:23",
+        "gdrive_uploaded": true,
+        "gdrive_file_id": "1qdxf7NGIZQZk_qB7kdQtIa0r59rnVe86",
+        "gdrive_url": "https://drive.google.com/file/d/1qdxf7NGIZQZk_qB7kdQtIa0r59rnVe86/view?usp=drivesdk",
+        "gdrive_target_email": "muchammad.ali.sanjaya@gmail.com",
+        "gdrive_error": "",
+        "all_message_ids": [
+            "1a217785519280d9"
+        ],
+        "seven_docs": {
+            "available_count": 1,
+            "total_slots": 7,
+            "docs": {
+                "paspor": {
+                    "exists": false,
+                    "num": 1,
+                    "key": "paspor",
+                    "short": "Paspor",
+                    "label": "1. Scan Halaman Pertama Paspor",
+                    "filename": "",
+                    "rel_url": "",
+                    "size_kb": 0
+                },
+                "endorsement": {
+                    "exists": false,
+                    "num": 2,
+                    "key": "endorsement",
+                    "short": "Endorsement",
+                    "label": "2. Scan/Upload Halaman Endorsement",
+                    "filename": "",
+                    "rel_url": "",
+                    "size_kb": 0
+                },
+                "vaksin": {
+                    "exists": false,
+                    "num": 3,
+                    "key": "vaksin",
+                    "short": "Vaksin",
+                    "label": "3. Scan/Upload Keterangan Vaksin Meningitis *",
+                    "filename": "",
+                    "rel_url": "",
+                    "size_kb": 0
+                },
+                "kitas": {
+                    "exists": false,
+                    "num": 4,
+                    "key": "kitas",
+                    "short": "KITAS",
+                    "label": "4. Scan/Upload Keterangan KITAS",
+                    "filename": "",
+                    "rel_url": "",
+                    "size_kb": 0
+                },
+                "pendukung": {
+                    "exists": false,
+                    "num": 5,
+                    "key": "pendukung",
+                    "short": "Pendukung",
+                    "label": "5. Scan/Upload Dokumen Pendukung",
+                    "filename": "",
+                    "rel_url": "",
+                    "size_kb": 0
+                },
+                "biovisa": {
+                    "exists": true,
+                    "num": 6,
+                    "key": "biovisa",
+                    "short": "Biovisa",
+                    "label": "6. Scan/Upload Biovisa (jpeg)",
+                    "filename": "KEROTARIMIN_Y1983269.jpg",
+                    "rel_url": "storage/biovisa/KEROTARIMIN_Y1983269.jpg",
+                    "size_kb": 49.01
+                },
+                "foto": {
+                    "exists": false,
+                    "num": 7,
+                    "key": "foto",
+                    "short": "Foto",
+                    "label": "7. Scan/Upload Foto Terbaru",
+                    "filename": "",
+                    "rel_url": "",
+                    "size_kb": 0
+                }
+            }
+        }
+    },
+    {
         "id": "bv_1795667346812_huxk",
         "message_id": "1a21618695c1d879_E9784344",
         "nama": "SUGITOBIIN",
@@ -16,7 +120,7 @@
         "source_account_email": "phujtmkopasuruan@gmail.com",
         "source_account_label": "Email Utama PHU Pasuruan",
         "processed_at": "2026-11-26 04:29:06",
-        "gdrive_uploaded": false,
+        "gdrive_uploaded": true,
         "seven_docs": {
             "available_count": 4,
             "total_slots": 7,
@@ -96,7 +200,10 @@
         "all_message_ids": [
             "1a21618695c1d879_E9784344",
             "1a21618695c1d879"
-        ]
+        ],
+        "gdrive_file_id": "1vFlsFcAvPnhWvAY00J3Qjv80CK2twFxa",
+        "gdrive_url": "https://drive.google.com/file/d/1vFlsFcAvPnhWvAY00J3Qjv80CK2twFxa/view?usp=drivesdk",
+        "gdrive_error": ""
     },
     {
         "id": "bv_cb8adf487f",
@@ -219,7 +326,7 @@
         "source_account_email": "boynikma@gmail.com",
         "source_account_label": "Email ke-2",
         "processed_at": "2026-11-26 04:03:05",
-        "gdrive_uploaded": false,
+        "gdrive_uploaded": true,
         "seven_docs": {
             "available_count": 4,
             "total_slots": 7,
@@ -299,7 +406,10 @@
         "all_message_ids": [
             "1a215fba492fc8be_X9936388",
             "1a215fba492fc8be"
-        ]
+        ],
+        "gdrive_file_id": "1SKZ9STXBFSu_7DP18Juqcr5o8cNLlubM",
+        "gdrive_url": "https://drive.google.com/file/d/1SKZ9STXBFSu_7DP18Juqcr5o8cNLlubM/view?usp=drivesdk",
+        "gdrive_error": ""
     },
     {
         "id": "bv_3093d3e930",
@@ -422,7 +532,7 @@
         "source_account_email": "phujtmkopasuruan@gmail.com",
         "source_account_label": "Email Utama PHU Pasuruan",
         "processed_at": "2026-11-26 03:48:40",
-        "gdrive_uploaded": false,
+        "gdrive_uploaded": true,
         "seven_docs": {
             "available_count": 3,
             "total_slots": 7,
@@ -502,7 +612,10 @@
         "all_message_ids": [
             "1a215f537b88f118_Y2046363",
             "1a215f537b88f118"
-        ]
+        ],
+        "gdrive_file_id": "1q_DagY462ah2qW5XkTxu0rYQ9zaDt8JY",
+        "gdrive_url": "https://drive.google.com/file/d/1q_DagY462ah2qW5XkTxu0rYQ9zaDt8JY/view?usp=drivesdk",
+        "gdrive_error": ""
     },
     {
         "id": "bv_1795664923380_k639",
@@ -521,7 +634,7 @@
         "source_account_email": "boynikma@gmail.com",
         "source_account_label": "Email ke-2",
         "processed_at": "2026-11-26 03:48:43",
-        "gdrive_uploaded": false,
+        "gdrive_uploaded": true,
         "seven_docs": {
             "available_count": 3,
             "total_slots": 7,
@@ -601,7 +714,10 @@
         "all_message_ids": [
             "1a215f75e285f10e_X9936404",
             "1a215f75e285f10e"
-        ]
+        ],
+        "gdrive_file_id": "1_gjNP1ExwoUo0UoChAOujbuzFVC0aHdz",
+        "gdrive_url": "https://drive.google.com/file/d/1_gjNP1ExwoUo0UoChAOujbuzFVC0aHdz/view?usp=drivesdk",
+        "gdrive_error": ""
     },
     {
         "id": "bv_1795664651973_mu92",
@@ -620,7 +736,7 @@
         "source_account_email": "phujtmkopasuruan@gmail.com",
         "source_account_label": "Email Utama PHU Pasuruan",
         "processed_at": "2026-11-26 03:44:11",
-        "gdrive_uploaded": false,
+        "gdrive_uploaded": true,
         "seven_docs": {
             "available_count": 3,
             "total_slots": 7,
@@ -700,7 +816,10 @@
         "all_message_ids": [
             "1a215ec68e1e6336_Y1983256",
             "1a215ec68e1e6336"
-        ]
+        ],
+        "gdrive_file_id": "1EMK2CxaUgu4T04j9NjYMllD64DHN4QZF",
+        "gdrive_url": "https://drive.google.com/file/d/1EMK2CxaUgu4T04j9NjYMllD64DHN4QZF/view?usp=drivesdk",
+        "gdrive_error": ""
     },
     {
         "id": "bv_f881c2e69e",
@@ -823,7 +942,7 @@
         "source_account_email": "phujtmkopasuruan@gmail.com",
         "source_account_label": "Email Utama PHU Pasuruan",
         "processed_at": "2026-11-26 03:27:07",
-        "gdrive_uploaded": false,
+        "gdrive_uploaded": true,
         "seven_docs": {
             "available_count": 1,
             "total_slots": 7,
@@ -903,7 +1022,10 @@
         "all_message_ids": [
             "1a215dd0ca99ac1f_Y2047891",
             "1a215dd0ca99ac1f"
-        ]
+        ],
+        "gdrive_file_id": "1OoCc7bnW4HOiK46K-IISeBVPe1gRB2Vm",
+        "gdrive_url": "https://drive.google.com/file/d/1OoCc7bnW4HOiK46K-IISeBVPe1gRB2Vm/view?usp=drivesdk",
+        "gdrive_error": ""
     },
     {
         "id": "bv_1795663010496_0gqg",
@@ -922,7 +1044,7 @@
         "source_account_email": "boynikma@gmail.com",
         "source_account_label": "Email ke-2",
         "processed_at": "2026-11-26 03:16:50",
-        "gdrive_uploaded": false,
+        "gdrive_uploaded": true,
         "seven_docs": {
             "available_count": 1,
             "total_slots": 7,
@@ -1002,7 +1124,10 @@
         "all_message_ids": [
             "1a215ce7acfda325_Y1983266",
             "1a215ce7acfda325"
-        ]
+        ],
+        "gdrive_file_id": "1PiogOO5WYKckvB_UiL6tN3VtcyvItpPR",
+        "gdrive_url": "https://drive.google.com/file/d/1PiogOO5WYKckvB_UiL6tN3VtcyvItpPR/view?usp=drivesdk",
+        "gdrive_error": ""
     },
     {
         "id": "bv_e98d584620",

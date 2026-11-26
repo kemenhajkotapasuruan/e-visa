@@ -1,5 +1,26 @@
 [
     {
+        "id": "log_6b080e7c51861",
+        "time": "2026-11-26 17:48:28",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> KEROTARIMIN_Y1983269.jpg (49.01 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b080e7c4b871",
+        "time": "2026-11-26 17:48:28",
+        "type": "success",
+        "message": "File KEROTARIMIN_Y1983269.jpg (49.01 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
+        "id": "log_6b080dc945531",
+        "time": "2026-11-26 17:45:29",
+        "type": "success",
+        "message": "Sinkronisasi 7 Folder Google Drive selesai: 0 file dokumen baru diunduh ke server.",
+        "context": []
+    },
+    {
         "id": "log_6b07b59e0b3ca",
         "time": "2026-11-26 11:29:18",
         "type": "success",
@@ -1026,27 +1047,6 @@
         "time": "2026-11-25 10:36:08",
         "type": "error",
         "message": "[phujtmkopasuruan@gmail.com] Login IMAP Gmail gagal. Pastikan menggunakan 16-digit Gmail App Password untuk phujtmkopasuruan@gmail.com.",
-        "context": []
-    },
-    {
-        "id": "log_6b065768ae3a7",
-        "time": "2026-11-25 10:35:04",
-        "type": "info",
-        "message": "Pengaturan sistem & integrasi berhasil disimpan.",
-        "context": []
-    },
-    {
-        "id": "log_6b06573d7c1f4",
-        "time": "2026-11-25 10:34:21",
-        "type": "success",
-        "message": "Tes Koneksi Berhasil: [phujtmkopasuruan@gmail.com] Mode IMAP siap digunakan. | Terhubung ke Google Drive (muchammad.ali.sanjaya@gmail.com)! Folder 'Biovisa_Jamaah_PHU_Pasuruan' siap menerima file JPG.",
-        "context": []
-    },
-    {
-        "id": "log_6b06573264b53",
-        "time": "2026-11-25 10:34:19",
-        "type": "info",
-        "message": "Pengaturan sistem & integrasi berhasil disimpan.",
         "context": []
     }
 ]
