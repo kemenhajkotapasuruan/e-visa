@@ -1,41 +1,42 @@
 /**
- * style.css - Standar Desain Portal Pemerintah SPBE (PHU Kemenag / Kemenhaj Kota Pasuruan)
+ * style.css - Standar Desain Portal Kementerian Haji dan Umrah RI (PHU Kota Pasuruan)
+ * - Palet Warna Sesuai Standar Dashboard Kementerian Haji dan Umrah RI:
+ *   Pure White (#FFFFFF), Soft Gray Canvas (#F3F5F6), Warm Olive-Bronze (#71510B s/d #876D33)
  * - Font Standar Internasional: Inter & Plus Jakarta Sans
- * - Palet Warna Harmonis & Menyatu (Soft Institutional Slate-Navy, Warm Champagne Gold, & Soft Surface)
- * - Ringan, Cepat (Zero Heavy Assets), Ramah Pengguna, & Responsif
+ * - Ringan, Cepat, Ramah Pengguna, & Responsif
  */
 
 :root {
     --pure-white: #FFFFFF;
-    --off-white: #F3F6F9;
-    --surface-subtle: #F8FAFC;
-    --rich-gold: #C8A253;
-    --ui-gold: #B68F40;
-    --gold-light: #FBF9F4;
-    --gold-soft: #F3ECE0;
-    --gold-border: rgba(200, 162, 83, 0.35);
-    --pure-black: #1E293B;
-    --charcoal: #1E3545;
-    --charcoal-elevated: #274458;
-    --gov-teal: #176869;
-    --text-main: #1E293B;
-    --text-secondary: #52637A;
-    --text-muted: #7C8BA1;
-    --border-color: #DFE6EE;
-    --border-strong: #CBD5E1;
+    --off-white: #F3F5F6;
+    --surface-subtle: #FAF8F4;
+    --rich-gold: #71510B;
+    --ui-gold: #876D33;
+    --gold-light: #FAF7F0;
+    --gold-soft: #F3EDE0;
+    --gold-border: rgba(113, 81, 11, 0.25);
+    --pure-black: #1F2937;
+    --charcoal: #71510B;
+    --charcoal-elevated: #5C4209;
+    --gov-teal: #71510B;
+    --text-main: #1F2937;
+    --text-secondary: #5A6573;
+    --text-muted: #8892A0;
+    --border-color: #E5E7EB;
+    --border-strong: #D1D5DB;
     --success: #166534;
     --success-bg: #E6F4EA;
-    --warning: #9A5B13;
+    --warning: #854D0E;
     --warning-bg: #FEF5E7;
     --danger: #B91C1C;
     --danger-bg: #FCE8E8;
-    --sidebar-width: 268px;
+    --sidebar-width: 265px;
     --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 14px;
+    --radius-md: 10px;
+    --radius-lg: 12px;
     --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
     --shadow-md: 0 6px 18px rgba(15, 23, 42, 0.06);
-    --shadow-gold: 0 2px 8px rgba(182, 143, 64, 0.18);
+    --shadow-gold: 0 2px 6px rgba(113, 81, 11, 0.18);
     --font-sans: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
 }
@@ -72,20 +73,20 @@ h1, h2, h3, h4, h5, h6,
 code {
     font-family: var(--font-mono);
     font-size: 0.92em;
-    background: var(--surface-subtle);
+    background: var(--gold-light);
     padding: 2px 6px;
     border-radius: 5px;
-    border: 1px solid var(--border-color);
-    color: var(--charcoal);
+    border: 1px solid var(--gold-border);
+    color: var(--rich-gold);
 }
 
-/* 1. Top Government Bar (.top-gov-bar) */
+/* 1. Top Government Bar (.top-gov-bar) - Harmonious Warm Ivory & Olive-Bronze */
 .top-gov-bar {
-    background-color: #162836;
-    color: #E2E8F0;
+    background-color: #FAF8F3;
+    color: #4B5563;
     font-size: 11.5px;
     padding: 6px 24px;
-    border-bottom: 1px solid rgba(200, 162, 83, 0.35);
+    border-bottom: 1px solid #EAE4D3;
     position: relative;
     z-index: 100;
 }
@@ -110,23 +111,23 @@ code {
     align-items: center;
     gap: 12px;
     font-size: 11.5px;
-    color: #CBD5E1;
+    color: #5A6573;
 }
 
-.gold-highlight {
-    color: #E2C278;
+.gold-highlight,
+#live-clock-wib {
+    color: #71510B;
     font-weight: 600;
 }
 
-/* 2. Main Navbar (.main-navbar) */
+/* 2. Main Navbar (.main-navbar) - Clean Pure White with Circular #71510B Toggle */
 .main-navbar {
     background-color: var(--pure-white);
     border-bottom: 1px solid var(--border-color);
-    padding: 11px 24px;
+    padding: 12px 24px;
     position: sticky;
     top: 0;
     z-index: 90;
-    box-shadow: var(--shadow-sm);
 }
 
 .navbar-inner {
@@ -145,30 +146,29 @@ code {
 
 .sidebar-toggle-btn {
     display: inline-flex;
-    background: var(--surface-subtle);
-    color: var(--charcoal);
-    border: 1px solid var(--border-strong);
-    border-radius: 8px;
-    width: 36px;
-    height: 36px;
+    background: #71510B;
+    color: #FFFFFF;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.18s ease;
+    transition: background-color 0.18s ease, transform 0.18s ease;
     flex-shrink: 0;
+    box-shadow: 0 2px 5px rgba(113, 81, 11, 0.25);
 }
 
 .sidebar-toggle-btn:hover {
-    background: var(--gold-soft);
-    border-color: var(--rich-gold);
-    color: var(--charcoal);
+    background: #5C4209;
 }
 
 .sidebar-toggle-btn svg {
-    width: 17px;
-    height: 17px;
+    width: 15px;
+    height: 15px;
     stroke: currentColor;
-    stroke-width: 2;
+    stroke-width: 2.4;
     fill: none;
     transition: transform 0.25s ease;
 }
@@ -186,9 +186,9 @@ body.sidebar-collapsed .sidebar-toggle-btn svg {
 }
 
 .portal-pill-btn {
-    background-color: var(--surface-subtle);
+    background-color: var(--gold-light);
     color: var(--text-secondary);
-    border: 1px solid var(--border-color);
+    border: 1px solid #E6DEC8;
     padding: 5px 12px;
     border-radius: 999px;
     font-size: 12px;
@@ -202,23 +202,22 @@ body.sidebar-collapsed .sidebar-toggle-btn svg {
 
 .portal-pill-btn:hover {
     border-color: var(--rich-gold);
-    background-color: var(--gold-light);
+    background-color: var(--gold-soft);
 }
 
 .portal-pill-btn strong {
-    color: var(--text-main);
+    color: var(--rich-gold);
     font-weight: 600;
 }
 
-/* 3. Compact Executive Hero Banner (.hero-portal) */
+/* 3. Hero Banner (.hero-portal) - Exact Kemenhaj RI Olive-Bronze Gradient (#71510B -> #7C5F1F -> #876D33) */
 .hero-portal {
-    background: linear-gradient(135deg, #1E3545 0%, #244858 100%);
+    background: linear-gradient(90deg, #71510B 0%, #7C5F1F 52%, #876D33 100%);
     color: var(--pure-white);
-    padding: 18px 22px;
-    border-left: 4px solid var(--rich-gold);
+    padding: 20px 24px;
     border-radius: var(--radius-md);
-    margin-bottom: 16px;
-    box-shadow: var(--shadow-sm);
+    margin-bottom: 18px;
+    box-shadow: 0 2px 10px rgba(113, 81, 11, 0.12);
 }
 
 .hero-inner {
@@ -241,16 +240,16 @@ body.sidebar-collapsed .sidebar-toggle-btn svg {
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.6px;
-    color: #E2C278;
+    color: #F3E5C3;
     margin-bottom: 4px;
 }
 
 .hero-portal h1 {
     color: var(--pure-white);
-    font-size: 17.5px;
+    font-size: 18.5px;
     font-weight: 700;
     line-height: 1.3;
-    margin-bottom: 4px;
+    margin-bottom: 5px;
 }
 
 .portal-title-divider {
@@ -258,16 +257,16 @@ body.sidebar-collapsed .sidebar-toggle-btn svg {
 }
 
 .hero-portal p {
-    color: #CBD5E1;
-    font-size: 12.5px;
-    line-height: 1.45;
+    color: #F4ECE0;
+    font-size: 12.8px;
+    line-height: 1.48;
     max-width: 740px;
 }
 
 .hero-portal p code {
-    background: rgba(255, 255, 255, 0.12);
-    color: #F3ECE0;
-    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.16);
+    color: #FFFFFF;
+    border-color: rgba(255, 255, 255, 0.28);
 }
 
 .hero-actions {
@@ -275,6 +274,43 @@ body.sidebar-collapsed .sidebar-toggle-btn svg {
     flex-wrap: wrap;
     gap: 8px;
     align-items: center;
+}
+
+/* Hero Banner Buttons */
+.hero-portal .btn-gold,
+.hero-portal .portal-action-btn {
+    background-color: #FFFFFF;
+    color: #71510B;
+    border-color: #FFFFFF;
+    font-weight: 700;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.hero-portal .btn-gold:hover:not(:disabled),
+.hero-portal .portal-action-btn:hover:not(:disabled) {
+    background-color: #FAF6EC;
+    color: #5C4209;
+}
+
+.hero-portal .btn-charcoal {
+    background-color: rgba(74, 52, 6, 0.48);
+    color: #FFFFFF;
+    border-color: rgba(255, 255, 255, 0.32);
+}
+
+.hero-portal .btn-charcoal:hover:not(:disabled) {
+    background-color: rgba(74, 52, 6, 0.72);
+}
+
+.hero-portal .btn-outline {
+    background-color: rgba(255, 255, 255, 0.14);
+    color: #FFFFFF;
+    border-color: rgba(255, 255, 255, 0.35);
+}
+
+.hero-portal .btn-outline:hover:not(:disabled) {
+    background-color: rgba(255, 255, 255, 0.25);
+    border-color: #FFFFFF;
 }
 
 /* 4. Buttons (.btn, .btn-gold, .btn-charcoal, .btn-outline) */
@@ -304,27 +340,28 @@ body.sidebar-collapsed .sidebar-toggle-btn svg {
 
 .btn-gold,
 .portal-action-btn {
-    background-color: var(--rich-gold);
-    color: #162430;
-    border-color: var(--ui-gold);
+    background-color: #71510B;
+    color: #FFFFFF;
+    border-color: #71510B;
     box-shadow: var(--shadow-gold);
-    font-weight: 700;
+    font-weight: 600;
 }
 
 .btn-gold:hover:not(:disabled),
 .portal-action-btn:hover:not(:disabled) {
-    background-color: #D4B063;
-    border-color: var(--rich-gold);
+    background-color: #5C4209;
+    border-color: #5C4209;
 }
 
 .btn-charcoal {
-    background-color: var(--charcoal);
+    background-color: #876D33;
     color: var(--pure-white);
-    border-color: rgba(255, 255, 255, 0.15);
+    border-color: #7C5F1F;
 }
 
 .btn-charcoal:hover:not(:disabled) {
-    background-color: var(--charcoal-elevated);
+    background-color: #71510B;
+    border-color: #71510B;
 }
 
 .btn-outline {
@@ -336,6 +373,7 @@ body.sidebar-collapsed .sidebar-toggle-btn svg {
 .btn-outline:hover:not(:disabled) {
     background-color: var(--gold-light);
     border-color: var(--rich-gold);
+    color: var(--rich-gold);
 }
 
 .btn-sm {
@@ -373,6 +411,6 @@ body.sidebar-collapsed .sidebar-toggle-btn svg {
 }
 
 .main-footer .gold-text {
-    color: var(--charcoal);
+    color: var(--rich-gold);
     font-weight: 600;
 }

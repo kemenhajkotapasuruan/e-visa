@@ -187,8 +187,8 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                     <div class="radar-header">
                         <span id="sync-dot" class="pulse-dot"></span>
                         <div>
-                            <div style="font-size: 11.8px; font-weight: 700; color: #E2C278;" id="sync-countdown-text">Auto-Sync Aktif</div>
-                            <div style="font-size: 10.5px; color: #94A3B8;">Subjek: Enrollment confirmation</div>
+                            <div style="font-size: 11.8px; font-weight: 700; color: var(--rich-gold);" id="sync-countdown-text">Auto-Sync Aktif</div>
+                            <div style="font-size: 10.5px; color: var(--text-secondary);">Subjek: Enrollment confirmation</div>
                         </div>
                     </div>
 
@@ -228,14 +228,12 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                     <div class="navbar-left">
                         <button class="sidebar-toggle-btn" onclick="toggleSidebarVisibility()" title="Sembunyikan / Tampilkan Sidebar Navigasi">
                             <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                <line x1="9" y1="3" x2="9" y2="21"></line>
-                                <polyline points="14 9 11 12 14 15"></polyline>
+                                <polyline points="15 18 9 12 15 6"></polyline>
                             </svg>
                         </button>
                         <div>
-                            <div class="portal-title-main" style="font-size: 16px;">PORTAL OTOMATISASI BIOVISA JAMAAH HAJI</div>
-                            <div style="font-size: 12px; color: var(--text-secondary);" id="last-sync-info">
+                            <div class="portal-title-main" style="font-size: 16.5px;">PORTAL OTOMATISASI BIOVISA JAMAAH HAJI</div>
+                            <div style="font-size: 12px; color: #71510B; font-weight: 500;" id="last-sync-info">
                                 Siap memantau email subjek "Enrollment confirmation" secara real-time
                             </div>
                         </div>
