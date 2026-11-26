@@ -1,5 +1,19 @@
 [
     {
+        "id": "log_6b07ac66edfd0",
+        "time": "2026-11-26 10:49:58",
+        "type": "success",
+        "message": "Email Enrollment Confirmation diproses -> MOHALIMUDIN_Y2046365.jpg (49 KB)",
+        "context": []
+    },
+    {
+        "id": "log_6b07ac66e77be",
+        "time": "2026-11-26 10:49:58",
+        "type": "success",
+        "message": "File MOHALIMUDIN_Y2046365.jpg (49 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
+        "context": []
+    },
+    {
         "id": "log_6b07a88a04dca",
         "time": "2026-11-26 10:33:30",
         "type": "success",
@@ -1033,20 +1047,6 @@
         "time": "2026-11-25 10:32:02",
         "type": "info",
         "message": "Pengaturan sistem & integrasi berhasil disimpan.",
-        "context": []
-    },
-    {
-        "id": "log_6b0649c280ca5",
-        "time": "2026-11-25 09:36:50",
-        "type": "success",
-        "message": "Email Enrollment Confirmation diproses -> DJONIPRAWOTO_Y2212595.jpg (49.11 KB)",
-        "context": []
-    },
-    {
-        "id": "log_6b0649c27be6e",
-        "time": "2026-11-25 09:36:50",
-        "type": "success",
-        "message": "File DJONIPRAWOTO_Y2212595.jpg (49.11 KB) berhasil diunggah ke GDrive muchammad.ali.sanjaya@gmail.com.",
         "context": []
     }
 ]
