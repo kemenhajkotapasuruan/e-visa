@@ -126,28 +126,28 @@
             "1a2161a3528a6a42"
         ],
         "seven_docs": {
-            "available_count": 1,
+            "available_count": 4,
             "total_slots": 7,
             "docs": {
                 "paspor": {
-                    "exists": false,
+                    "exists": true,
                     "num": 1,
                     "key": "paspor",
                     "short": "Paspor",
                     "label": "1. Scan Halaman Pertama Paspor",
-                    "filename": "",
-                    "rel_url": "",
-                    "size_kb": 0
+                    "filename": "MULAZAMAHABD MUNTOLIB_E9784343.jpg",
+                    "rel_url": "storage/dokumen/paspor/MULAZAMAHABD%20MUNTOLIB_E9784343.jpg",
+                    "size_kb": 48.85
                 },
                 "endorsement": {
-                    "exists": false,
+                    "exists": true,
                     "num": 2,
                     "key": "endorsement",
                     "short": "Endorsement",
                     "label": "2. Scan/Upload Halaman Endorsement",
-                    "filename": "",
-                    "rel_url": "",
-                    "size_kb": 0
+                    "filename": "MULAZAMAHABD MUNTOLIB_E9784343.jpg",
+                    "rel_url": "storage/dokumen/endorsement/MULAZAMAHABD%20MUNTOLIB_E9784343.jpg",
+                    "size_kb": 48.29
                 },
                 "vaksin": {
                     "exists": false,
@@ -190,14 +190,14 @@
                     "size_kb": 49.18
                 },
                 "foto": {
-                    "exists": false,
+                    "exists": true,
                     "num": 7,
                     "key": "foto",
                     "short": "Foto",
                     "label": "7. Scan/Upload Foto Terbaru",
-                    "filename": "",
-                    "rel_url": "",
-                    "size_kb": 0
+                    "filename": "MULAZAMAHABD MUNTOLIB_E9784343.jpg",
+                    "rel_url": "storage/dokumen/foto/MULAZAMAHABD%20MUNTOLIB_E9784343.jpg",
+                    "size_kb": 48.63
                 }
             }
         }
