@@ -11,6 +11,9 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SILAHUT E-VISA &bull; Sistem Otomatisasi BioVisa Jamaah Haji | PHU Kemenag Pasuruan</title>
     <link rel="icon" type="image/svg+xml" href="assets/logo-silahut.svg">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="admin.css">
 </head>
@@ -50,36 +53,133 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                     </div>
                 </a>
 
-                <div class="sidebar-section-label">Navigasi Utama</div>
+                <div class="sidebar-section-label">Menu &amp; Submenu Layanan</div>
                 <nav class="sidebar-nav">
-                    <button class="sidebar-link active" id="nav-tab-records" onclick="switchTab('tab-records', this)">
-                        <span class="sidebar-link-left">
-                            <span class="nav-bullet"></span>
-                            <span>Data Biovisa Jamaah</span>
-                        </span>
-                        <span class="sidebar-badge" id="nav-badge-total">0</span>
-                    </button>
+                    <!-- MENU 1: LAYANAN DOKUMEN PEMVISAAN -->
+                    <div class="sidebar-menu-group open" id="menu-grp-layanan">
+                        <button type="button" class="sidebar-parent-btn" onclick="toggleSidebarGroup('menu-grp-layanan')">
+                            <span class="sidebar-parent-left">
+                                <span class="parent-indicator"></span>
+                                <span>Dokumen Pemvisaan</span>
+                            </span>
+                            <span class="submenu-chevron">▾</span>
+                        </button>
+                        <div class="sidebar-submenu">
+                            <button type="button" class="sidebar-sublink active" id="nav-tab-records" onclick="openRecordsSubmenu('table', 'all', false, this)">
+                                <span class="sidebar-link-left">
+                                    <span class="nav-bullet"></span>
+                                    <span>Daftar Biovisa Jamaah</span>
+                                </span>
+                                <span class="sidebar-badge" id="nav-badge-total">0</span>
+                            </button>
+                            <button type="button" class="sidebar-sublink" id="nav-sub-7docs" onclick="openRecordsSubmenu('table', 'all', true, this)">
+                                <span class="sidebar-link-left">
+                                    <span class="nav-bullet"></span>
+                                    <span>Upload &amp; Scan 7 Dokumen</span>
+                                </span>
+                            </button>
+                            <button type="button" class="sidebar-sublink" id="nav-sub-gallery" onclick="openRecordsSubmenu('grid', 'all', false, this)">
+                                <span class="sidebar-link-left">
+                                    <span class="nav-bullet"></span>
+                                    <span>Galeri Visual Biovisa</span>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
 
-                    <button class="sidebar-link" id="nav-tab-siskohat" onclick="switchTab('tab-siskohat', this)">
-                        <span class="sidebar-link-left">
-                            <span class="nav-bullet"></span>
-                            <span>Auto-Upload Siskohat</span>
-                        </span>
-                    </button>
+                    <!-- MENU 2: INTEGRASI SISKOHAT GEN.2 -->
+                    <div class="sidebar-menu-group open" id="menu-grp-siskohat">
+                        <button type="button" class="sidebar-parent-btn" onclick="toggleSidebarGroup('menu-grp-siskohat')">
+                            <span class="sidebar-parent-left">
+                                <span class="parent-indicator"></span>
+                                <span>Integrasi Siskohat Gen.2</span>
+                            </span>
+                            <span class="submenu-chevron">▾</span>
+                        </button>
+                        <div class="sidebar-submenu">
+                            <button type="button" class="sidebar-sublink" id="nav-tab-siskohat" onclick="switchTab('tab-siskohat', this)">
+                                <span class="sidebar-link-left">
+                                    <span class="nav-bullet"></span>
+                                    <span>Panduan &amp; Ekstensi Chrome</span>
+                                </span>
+                            </button>
+                            <button type="button" class="sidebar-sublink" id="nav-sub-siskohat-pend" onclick="openRecordsSubmenu('table', 'siskohat_pending', false, this)">
+                                <span class="sidebar-link-left">
+                                    <span class="nav-bullet"></span>
+                                    <span>Antrean Belum Siskohat</span>
+                                </span>
+                                <span class="sidebar-badge" id="nav-badge-siskohat-pend">0</span>
+                            </button>
+                            <a href="api.php?action=download_siskohat_ext" class="sidebar-sublink">
+                                <span class="sidebar-link-left">
+                                    <span class="nav-bullet"></span>
+                                    <span>Unduh Ekstensi (.ZIP)</span>
+                                </span>
+                            </a>
+                        </div>
+                    </div>
 
-                    <button class="sidebar-link" id="nav-tab-setup" onclick="switchTab('tab-setup', this)">
-                        <span class="sidebar-link-left">
-                            <span class="nav-bullet"></span>
-                            <span>Konfigurasi Integrasi</span>
-                        </span>
-                    </button>
+                    <!-- MENU 3: PENGATURAN & INTEGRASI -->
+                    <div class="sidebar-menu-group open" id="menu-grp-setup">
+                        <button type="button" class="sidebar-parent-btn" onclick="toggleSidebarGroup('menu-grp-setup')">
+                            <span class="sidebar-parent-left">
+                                <span class="parent-indicator"></span>
+                                <span>Pengaturan &amp; Integrasi</span>
+                            </span>
+                            <span class="submenu-chevron">▾</span>
+                        </button>
+                        <div class="sidebar-submenu">
+                            <button type="button" class="sidebar-sublink" id="nav-tab-setup" onclick="switchTab('tab-setup', this)">
+                                <span class="sidebar-link-left">
+                                    <span class="nav-bullet"></span>
+                                    <span>Akun Email &amp; Google Drive</span>
+                                </span>
+                            </button>
+                            <button type="button" class="sidebar-sublink" id="nav-tab-gas" onclick="switchTab('tab-gas-scripts', this)">
+                                <span class="sidebar-link-left">
+                                    <span class="nav-bullet"></span>
+                                    <span>Kode Google Apps Script</span>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
 
-                    <button class="sidebar-link" id="nav-tab-logs" onclick="switchTab('tab-logs', this)">
-                        <span class="sidebar-link-left">
-                            <span class="nav-bullet"></span>
-                            <span>Log Aktivitas Sistem</span>
-                        </span>
-                    </button>
+                    <!-- MENU 4: LAPORAN & AUDIT SISTEM -->
+                    <div class="sidebar-menu-group open" id="menu-grp-laporan">
+                        <button type="button" class="sidebar-parent-btn" onclick="toggleSidebarGroup('menu-grp-laporan')">
+                            <span class="sidebar-parent-left">
+                                <span class="parent-indicator"></span>
+                                <span>Laporan &amp; Audit Sistem</span>
+                            </span>
+                            <span class="submenu-chevron">▾</span>
+                        </button>
+                        <div class="sidebar-submenu">
+                            <button type="button" class="sidebar-sublink" id="nav-tab-logs" onclick="switchTab('tab-logs', this)">
+                                <span class="sidebar-link-left">
+                                    <span class="nav-bullet"></span>
+                                    <span>Log Aktivitas Sistem</span>
+                                </span>
+                            </button>
+                            <a href="api.php?action=export_csv" class="sidebar-sublink">
+                                <span class="sidebar-link-left">
+                                    <span class="nav-bullet"></span>
+                                    <span>Ekspor Rekap Excel (.CSV)</span>
+                                </span>
+                            </a>
+                            <a href="api.php?action=download_zip" class="sidebar-sublink">
+                                <span class="sidebar-link-left">
+                                    <span class="nav-bullet"></span>
+                                    <span>Unduh Arsip (.ZIP)</span>
+                                </span>
+                            </a>
+                            <button type="button" class="sidebar-sublink" onclick="printOfficialReport()">
+                                <span class="sidebar-link-left">
+                                    <span class="nav-bullet"></span>
+                                    <span>Cetak Laporan Resmi</span>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
                 </nav>
 
                 <div class="sidebar-section-label">Kontrol Otomatisasi</div>
@@ -87,7 +187,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                     <div class="radar-header">
                         <span id="sync-dot" class="pulse-dot"></span>
                         <div>
-                            <div style="font-size: 12px; font-weight: 700; color: var(--rich-gold);" id="sync-countdown-text">Auto-Sync Aktif</div>
+                            <div style="font-size: 11.8px; font-weight: 700; color: #E2C278;" id="sync-countdown-text">Auto-Sync Aktif</div>
                             <div style="font-size: 10.5px; color: #94A3B8;">Subjek: Enrollment confirmation</div>
                         </div>
                     </div>
@@ -115,28 +215,6 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                             <span class="gov-slider"></span>
                         </span>
                     </label>
-                </div>
-
-                <div class="sidebar-section-label">Laporan &amp; Arsip</div>
-                <div class="sidebar-nav" style="margin-bottom: 24px;">
-                    <a href="api.php?action=export_csv" class="sidebar-link" style="text-decoration:none;">
-                        <span class="sidebar-link-left">
-                            <span class="nav-bullet"></span>
-                            <span>Ekspor Rekap Excel (CSV)</span>
-                        </span>
-                    </a>
-                    <a href="api.php?action=download_zip" class="sidebar-link" style="text-decoration:none;">
-                        <span class="sidebar-link-left">
-                            <span class="nav-bullet"></span>
-                            <span>Unduh Arsip Dokumen (ZIP)</span>
-                        </span>
-                    </a>
-                    <button class="sidebar-link" onclick="printOfficialReport()">
-                        <span class="sidebar-link-left">
-                            <span class="nav-bullet"></span>
-                            <span>Cetak Laporan Resmi</span>
-                        </span>
-                    </button>
                 </div>
             </div>
         </aside>
@@ -469,23 +547,22 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                             <table class="table-custom">
                                 <thead>
                                     <tr>
-                                        <th class="no-print" style="width: 38px; text-align:center;">
+                                        <th class="no-print" style="width: 36px; text-align:center;">
                                             <input type="checkbox" id="check-all-records" onchange="toggleSelectAllRecords(this.checked)">
                                         </th>
-                                        <th style="width: 46px;">No</th>
-                                        <th class="no-print" style="width: 78px;">Preview</th>
-                                        <th>Nama File &amp; Asal Sumber Email</th>
-                                        <th>Nama Jamaah &amp; No. Paspor</th>
-                                        <th>MOFA Enrollment ID</th>
-                                        <th>Ukuran JPG</th>
-                                        <th>Status Google Drive</th>
-                                        <th>Waktu Enrollment</th>
+                                        <th style="width: 42px;">No</th>
+                                        <th class="no-print" style="width: 62px;">Preview</th>
+                                        <th>Jamaah &amp; No. Paspor</th>
+                                        <th>File Biovisa &amp; Sumber Email</th>
+                                        <th>Kelengkapan 7 Dokumen</th>
+                                        <th>Status Sinkronisasi</th>
+                                        <th>Waktu Biovisa</th>
                                         <th class="no-print" style="text-align: right;">Aksi</th>
                                     </tr>
                                 </thead>
                                 <tbody id="records-tbody">
                                     <tr>
-                                        <td colspan="10" class="empty-state">Memuat data Biovisa...</td>
+                                        <td colspan="9" class="empty-state">Memuat data Biovisa...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -593,14 +670,18 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                             </div>
                         </div>
                     </div>
+                </section>
 
-                    <!-- KODE GOOGLE APPS SCRIPT SIAP COPY-PASTE -->
+                <!-- ================================================================
+                     TAB 4B: KODE GOOGLE APPS SCRIPT (SUBMENU TERPISAH AGAR RAPI)
+                     ================================================================ -->
+                <section id="tab-gas-scripts" class="tab-pane">
                     <div class="form-grid">
                         <div class="admin-card feature-card">
                             <div class="panel-header">
                                 <div>
-                                    <h2>☁️ Script 1: Simpan Otomatis ke Google Drive</h2>
-                                    <p style="font-size: 12px; color: var(--text-secondary); font-weight: 700;">Pasang di akun: muchammad.ali.sanjaya@gmail.com</p>
+                                    <h2 class="news-title">☁️ Script 1: Simpan Otomatis ke Google Drive</h2>
+                                    <p style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">Pasang di akun: muchammad.ali.sanjaya@gmail.com</p>
                                 </div>
                                 <button class="btn btn-gold btn-sm" onclick="copyScriptCode('code-gas-gdrive')">
                                     📋 Salin Script GDrive
@@ -617,8 +698,8 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                         <div class="admin-card feature-card">
                             <div class="panel-header">
                                 <div>
-                                    <h2>📩 Script 2: Pembaca Email "Enrollment confirmation"</h2>
-                                    <p style="font-size: 12px; color: var(--text-secondary); font-weight: 700;">Pasang di akun: phujtmkopasuruan@gmail.com</p>
+                                    <h2 class="news-title">📩 Script 2: Pembaca Email "Enrollment confirmation"</h2>
+                                    <p style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">Pasang di akun: phujtmkopasuruan@gmail.com</p>
                                 </div>
                                 <button class="btn btn-charcoal btn-sm" onclick="copyScriptCode('code-gas-gmail')">
                                     📋 Salin Script Gmail
@@ -627,7 +708,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                             <ol class="step-list">
                                 <li>Buka <a href="https://script.google.com" target="_blank" style="color:var(--charcoal); font-weight:700;">script.google.com</a> dengan akun <strong>phujtmkopasuruan@gmail.com</strong>.</li>
                                 <li>Tempel (Paste) script di bawah ini, lalu klik <strong>Deploy &rarr; New deployment</strong> (jenis <strong>Web app</strong>, akses <strong>Anyone / Siapa saja</strong>).</li>
-                                <li>Salin <strong>Web App URL</strong> ke kolom <em>URL Web App Pembaca Gmail</em> di atas.</li>
+                                <li>Salin <strong>Web App URL</strong> ke kolom <em>URL Web App Pembaca Gmail</em> di submenu Akun Email &amp; Google Drive.</li>
                             </ol>
                             <pre class="code-box" id="code-gas-gmail"><?= htmlspecialchars($gasGmailCode) ?></pre>
                         </div>
@@ -1025,12 +1106,37 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             }
         } catch (e) {}
 
+        function toggleSidebarGroup(grpId) {
+            const grp = document.getElementById(grpId);
+            if (grp) {
+                grp.classList.toggle('open');
+            }
+        }
+
         function switchTab(tabId, btnEl) {
             document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
-            document.querySelectorAll('.sidebar-link').forEach(b => b.classList.remove('active'));
-            document.getElementById(tabId).classList.add('active');
+            document.querySelectorAll('.sidebar-link, .sidebar-sublink').forEach(b => b.classList.remove('active'));
+            const pane = document.getElementById(tabId);
+            if (pane) pane.classList.add('active');
             if (btnEl) btnEl.classList.add('active');
             toggleMobileSidebar(false);
+        }
+
+        function openRecordsSubmenu(viewMode, filterType, show7DocsPanel, btnEl) {
+            switchTab('tab-records', btnEl);
+            setViewMode(viewMode || 'table');
+            const filterBtns = document.querySelectorAll('.filter-pill');
+            let targetPill = filterBtns[0];
+            if (filterType === 'siskohat_pending' && filterBtns[3]) targetPill = filterBtns[3];
+            setRecordFilter(filterType || 'all', targetPill);
+
+            const box7 = document.getElementById('seven-docs-manager-box');
+            if (box7) {
+                box7.style.display = show7DocsPanel ? 'block' : 'none';
+                if (show7DocsPanel) {
+                    setTimeout(() => box7.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+                }
+            }
         }
 
         function printOfficialReport() {
@@ -1063,6 +1169,8 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
 
             document.getElementById('stat-total').textContent = total;
             document.getElementById('nav-badge-total').textContent = total;
+            const navSiskPend = document.getElementById('nav-badge-siskohat-pend');
+            if (navSiskPend) navSiskPend.textContent = siskohatPending;
 
             document.getElementById('stat-50kb').textContent = `${valid50} / ${total}`;
             document.getElementById('stat-avg-kb').textContent = `Rata-rata ${s.avg_size_kb ?? 0} KB`;
@@ -1492,8 +1600,8 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
 
                 const srcInfo = getRecordSourceEmailInfo(r);
                 const srcLabelBadge = srcInfo.label
-                    ? `<div><span class="source-email-badge" onclick="copyTextToClipboard('${escapeHtml(srcInfo.email)}', 'Asal Email')" title="Klik untuk salin alamat email sumber">Asal: <strong>${escapeHtml(srcInfo.label)}</strong> (${escapeHtml(srcInfo.email)})</span></div>`
-                    : `<div><span class="source-email-badge" onclick="copyTextToClipboard('${escapeHtml(srcInfo.email)}', 'Asal Email')" title="Klik untuk salin alamat email sumber">Asal Email: <strong>${escapeHtml(srcInfo.email)}</strong></span></div>`;
+                    ? `<div><span class="source-email-badge" onclick="copyTextToClipboard('${escapeHtml(srcInfo.email)}', 'Asal Email')" title="Klik untuk salin alamat email sumber">${escapeHtml(srcInfo.label)} &bull; <strong>${escapeHtml(srcInfo.email)}</strong></span></div>`
+                    : `<div><span class="source-email-badge" onclick="copyTextToClipboard('${escapeHtml(srcInfo.email)}', 'Asal Email')" title="Klik untuk salin alamat email sumber">Sumber: <strong>${escapeHtml(srcInfo.email)}</strong></span></div>`;
 
                 const sevenBadgesHtml = renderSevenDocsInlineBadges(r);
 
@@ -1502,37 +1610,37 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                         <td class="no-print" style="text-align:center;">
                             <input type="checkbox" ${isChecked} onchange="toggleSelectRecord('${escapeHtml(r.id)}', this.checked)">
                         </td>
-                        <td style="font-weight:700; color:var(--text-secondary);">${rowNum}</td>
+                        <td style="font-weight:600; color:var(--text-secondary);">${rowNum}</td>
                         <td class="no-print">
                             <div class="thumb-box" onclick="openPreviewModal('${escapeHtml(r.id)}')" title="Klik untuk memperbesar & kelola 7 dokumen">
-                                <img src="${imgUrl}" alt="${escapeHtml(r.filename)}" loading="lazy">
+                                <img src="${imgUrl}" alt="${escapeHtml(r.filename)}" loading="lazy" decoding="async">
                             </div>
                         </td>
                         <td>
-                            <span class="filename-chip" onclick="copyTextToClipboard('${escapeHtml(r.filename)}', 'Nama file')" title="Klik untuk salin nama file">
-                                📄 ${escapeHtml(r.filename)}
-                            </span>
+                            <div style="font-weight:700; color:var(--text-main); font-size:13px;">${escapeHtml(r.nama)}</div>
+                            <div style="font-size:11.8px; color:var(--text-secondary); margin-top:2px;">
+                                Paspor: <strong class="copy-pill" style="color:var(--charcoal);" onclick="copyTextToClipboard('${escapeHtml(r.paspor)}', 'Nomor Paspor')" title="Klik untuk salin Nomor Paspor">${escapeHtml(r.paspor)}</strong>
+                                &bull; ID: <span class="copy-pill" onclick="copyTextToClipboard('${escapeHtml(r.enrollment_id || '')}', 'Enrollment ID')" title="Klik untuk salin MOFA Enrollment ID">${escapeHtml(r.enrollment_id || '-')}</span>
+                            </div>
+                        </td>
+                        <td>
+                            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                <span class="filename-chip" onclick="copyTextToClipboard('${escapeHtml(r.filename)}', 'Nama file')" title="${escapeHtml(r.filename)}">
+                                    ${escapeHtml(r.filename)}
+                                </span>
+                                ${sizeBadge}
+                            </div>
                             ${srcLabelBadge}
-                            ${sevenBadgesHtml}
                         </td>
-                        <td>
-                            <div style="font-weight:800; color:var(--pure-black);">${escapeHtml(r.nama)}</div>
-                            <div style="font-family:Consolas,monospace; font-size:12.5px; color:var(--charcoal); font-weight:700;">
-                                Paspor: <span class="copy-pill" style="color:#856404;" onclick="copyTextToClipboard('${escapeHtml(r.paspor)}', 'Nomor Paspor')" title="Klik untuk salin Nomor Paspor">${escapeHtml(r.paspor)} 📋</span>
-                            </div>
-                        </td>
-                        <td>
-                            <code class="copy-pill" style="font-weight:800;" onclick="copyTextToClipboard('${escapeHtml(r.enrollment_id || '')}', 'Enrollment ID')" title="Klik untuk salin Enrollment ID">${escapeHtml(r.enrollment_id || '-')} 📋</code>
-                        </td>
-                        <td>${sizeBadge}</td>
+                        <td>${sevenBadgesHtml}</td>
                         <td>${gdriveHtml}${siskohatHtml}</td>
-                        <td style="font-size:12px; color:var(--text-secondary);">${escapeHtml(r.enrollment_time || r.processed_at || '')}</td>
+                        <td style="font-size:11.5px; color:var(--text-secondary); white-space:nowrap;">${escapeHtml(r.enrollment_time || r.processed_at || '')}</td>
                         <td class="no-print" style="text-align:right; white-space:nowrap;">
                             <button class="btn btn-outline btn-sm" onclick="openPreviewModal('${escapeHtml(r.id)}')">
-                                ✏️ Detail
+                                Kelola 7 File
                             </button>
                             <a href="${dlUrl}" download="${escapeHtml(r.filename)}" class="btn btn-gold btn-sm">
-                                ⬇️ Unduh
+                                Unduh
                             </a>
                         </td>
                     </tr>
@@ -2040,15 +2148,20 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
         function renderSevenDocsInlineBadges(rec) {
             const map = getRecSevenDocsMap(rec);
             let availCount = 0;
-            const chips = SEVEN_DOC_DEFS.map(d => {
+            const dots = SEVEN_DOC_DEFS.map(d => {
                 const info = map[d.key];
                 if (info && info.exists) {
                     availCount++;
-                    return `<span class="doc7-chip doc7-ready" onclick="openPreviewModal('${escapeHtml(rec.id)}')" title="✓ ${escapeHtml(d.label)}: ${escapeHtml(info.filename)} (${escapeHtml(info.size_kb)} KB) — Siap Auto-Upload ke Siskohat">✓ ${escapeHtml(d.short)}</span>`;
+                    return `<span class="doc7-dot ready" title="✓ ${escapeHtml(d.label)}: ${escapeHtml(info.filename)} (${escapeHtml(info.size_kb)} KB)">${d.num}</span>`;
                 }
-                return `<span class="doc7-chip doc7-blocked" onclick="openPreviewModal('${escapeHtml(rec.id)}')" title="⊘ ${escapeHtml(d.label)}: Tidak ada file (Diblokir & lanjut ke dokumen berikutnya)">⊘ ${escapeHtml(d.short)}</span>`;
+                return `<span class="doc7-dot blocked" title="⊘ ${escapeHtml(d.label)}: Belum ada file (Otomatis diblokir & lanjut ke dokumen berikutnya)">${d.num}</span>`;
             }).join('');
-            return `<div class="doc7-chip-row" title="Kelengkapan 7 Dokumen Pemvisaan Siskohat (${availCount}/7 Tersedia)">${chips}</div>`;
+            return `
+                <div class="doc7-compact-cell" onclick="openPreviewModal('${escapeHtml(rec.id)}')" title="Klik untuk mengelola 7 Dokumen Pemvisaan Siskohat">
+                    <span class="doc7-summary-pill">${availCount} / 7 Dokumen Siap</span>
+                    <div class="doc7-dots-bar">${dots}</div>
+                </div>
+            `;
         }
 
         function renderModalSevenDocsGrid(rec) {

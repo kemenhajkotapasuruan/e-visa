@@ -1,39 +1,43 @@
 /**
- * style.css - Tema Resmi Portal Pemerintah PHU Kemenag Pasuruan (Auto-BioVisa)
- * Palet Warna Standar Produksi:
- * 1. Putih (Pure White)          : #FFFFFF / rgb(255, 255, 255)
- * 2. Abu-abu Terang (Off-White)  : #F8FAFC / rgb(248, 250, 252)
- * 3. Emas (Metallic / Rich Gold) : #D4AF37 / rgb(212, 175, 55) & Varian UI #C5A059 / rgb(197, 160, 89)
- * 4. Hitam / Charcoal Gelap      : #000000 / rgb(0, 0, 0) & Varian UI #111827 / rgb(17, 24, 39)
+ * style.css - Standar Desain Portal Pemerintah SPBE (PHU Kemenag / Kemenhaj Kota Pasuruan)
+ * - Font Standar Internasional: Inter & Plus Jakarta Sans
+ * - Palet Warna Harmonis & Menyatu (Soft Institutional Slate-Navy, Warm Champagne Gold, & Soft Surface)
+ * - Ringan, Cepat (Zero Heavy Assets), Ramah Pengguna, & Responsif
  */
 
 :root {
     --pure-white: #FFFFFF;
-    --off-white: #F8FAFC;
-    --rich-gold: #D4AF37;
-    --ui-gold: #C5A059;
-    --gold-light: #FDFBF3;
-    --gold-soft: #FAF3DD;
-    --gold-border: rgba(212, 175, 55, 0.42);
-    --pure-black: #000000;
-    --charcoal: #111827;
-    --charcoal-elevated: #1E293B;
-    --text-main: #111827;
-    --text-secondary: #475569;
-    --border-color: #E2E8F0;
-    --success: #15803D;
-    --success-bg: #DCFCE7;
-    --warning: #B45309;
-    --warning-bg: #FEF3C7;
+    --off-white: #F3F6F9;
+    --surface-subtle: #F8FAFC;
+    --rich-gold: #C8A253;
+    --ui-gold: #B68F40;
+    --gold-light: #FBF9F4;
+    --gold-soft: #F3ECE0;
+    --gold-border: rgba(200, 162, 83, 0.35);
+    --pure-black: #1E293B;
+    --charcoal: #1E3545;
+    --charcoal-elevated: #274458;
+    --gov-teal: #176869;
+    --text-main: #1E293B;
+    --text-secondary: #52637A;
+    --text-muted: #7C8BA1;
+    --border-color: #DFE6EE;
+    --border-strong: #CBD5E1;
+    --success: #166534;
+    --success-bg: #E6F4EA;
+    --warning: #9A5B13;
+    --warning-bg: #FEF5E7;
     --danger: #B91C1C;
-    --danger-bg: #FEE2E2;
-    --sidebar-width: 272px;
+    --danger-bg: #FCE8E8;
+    --sidebar-width: 268px;
     --radius-sm: 8px;
     --radius-md: 12px;
-    --radius-lg: 16px;
-    --shadow-sm: 0 1px 3px rgba(17, 24, 39, 0.05);
-    --shadow-md: 0 4px 16px rgba(17, 24, 39, 0.07);
-    --shadow-gold: 0 4px 14px rgba(212, 175, 55, 0.25);
+    --radius-lg: 14px;
+    --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.04), 0 1px 2px rgba(15, 23, 42, 0.02);
+    --shadow-md: 0 6px 18px rgba(15, 23, 42, 0.06);
+    --shadow-gold: 0 2px 8px rgba(182, 143, 64, 0.18);
+    --font-sans: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-mono: 'JetBrains Mono', 'Cascadia Code', Consolas, 'Courier New', monospace;
 }
 
 * {
@@ -43,33 +47,45 @@
 }
 
 html {
-    scroll-behavior: smooth;
+    font-size: 14px;
+    -webkit-text-size-adjust: 100%;
 }
 
 body {
-    font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
-    background-color: var(--pure-white);
+    font-family: var(--font-sans);
+    background-color: var(--off-white);
     color: var(--text-main);
-    line-height: 1.55;
+    line-height: 1.5;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
 }
 
 h1, h2, h3, h4, h5, h6,
 .portal-title-main,
 .news-title {
-    color: var(--charcoal);
-    font-weight: 800;
+    color: var(--text-main);
+    font-weight: 700;
     letter-spacing: -0.015em;
+}
+
+code {
+    font-family: var(--font-mono);
+    font-size: 0.92em;
+    background: var(--surface-subtle);
+    padding: 2px 6px;
+    border-radius: 5px;
+    border: 1px solid var(--border-color);
+    color: var(--charcoal);
 }
 
 /* 1. Top Government Bar (.top-gov-bar) */
 .top-gov-bar {
-    background-color: var(--pure-black);
-    color: var(--pure-white);
-    font-size: 12px;
-    padding: 7px 24px;
-    border-bottom: 1.5px solid var(--rich-gold);
+    background-color: #162836;
+    color: #E2E8F0;
+    font-size: 11.5px;
+    padding: 6px 24px;
+    border-bottom: 1px solid rgba(200, 162, 83, 0.35);
     position: relative;
     z-index: 100;
 }
@@ -79,34 +95,34 @@ h1, h2, h3, h4, h5, h6,
     flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 }
 
 .gov-badge-left {
     display: flex;
     align-items: center;
-    gap: 10px;
-    font-weight: 600;
+    gap: 8px;
+    font-weight: 500;
 }
 
 .gov-badge-right {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
     font-size: 11.5px;
-    color: #E2E8F0;
+    color: #CBD5E1;
 }
 
 .gold-highlight {
-    color: var(--rich-gold);
-    font-weight: 700;
+    color: #E2C278;
+    font-weight: 600;
 }
 
 /* 2. Main Navbar (.main-navbar) */
 .main-navbar {
     background-color: var(--pure-white);
-    border-bottom: 2px solid var(--rich-gold);
-    padding: 12px 24px;
+    border-bottom: 1px solid var(--border-color);
+    padding: 11px 24px;
     position: sticky;
     top: 0;
     z-index: 90;
@@ -117,44 +133,44 @@ h1, h2, h3, h4, h5, h6,
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 16px;
+    gap: 14px;
     flex-wrap: wrap;
 }
 
 .navbar-left {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
 }
 
 .sidebar-toggle-btn {
     display: inline-flex;
-    background: var(--charcoal);
-    color: var(--rich-gold);
-    border: 1.5px solid var(--rich-gold);
+    background: var(--surface-subtle);
+    color: var(--charcoal);
+    border: 1px solid var(--border-strong);
     border-radius: 8px;
-    width: 38px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: all 0.18s ease;
     flex-shrink: 0;
 }
 
 .sidebar-toggle-btn:hover {
-    background: var(--pure-black);
-    box-shadow: 0 2px 10px rgba(212, 175, 55, 0.3);
-    transform: translateY(-1px);
+    background: var(--gold-soft);
+    border-color: var(--rich-gold);
+    color: var(--charcoal);
 }
 
 .sidebar-toggle-btn svg {
-    width: 18px;
-    height: 18px;
-    stroke: var(--rich-gold);
+    width: 17px;
+    height: 17px;
+    stroke: currentColor;
     stroke-width: 2;
     fill: none;
-    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    transition: transform 0.25s ease;
 }
 
 body.sidebar-collapsed .sidebar-toggle-btn svg {
@@ -165,56 +181,44 @@ body.sidebar-collapsed .sidebar-toggle-btn svg {
 .account-pills {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
 }
 
 .portal-pill-btn {
-    background-color: var(--pure-white);
-    color: var(--charcoal);
-    border: 1.5px solid var(--ui-gold);
-    padding: 6px 14px;
+    background-color: var(--surface-subtle);
+    color: var(--text-secondary);
+    border: 1px solid var(--border-color);
+    padding: 5px 12px;
     border-radius: 999px;
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 500;
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    box-shadow: var(--shadow-sm);
-    transition: all 0.2s ease;
+    gap: 6px;
+    transition: all 0.18s ease;
     text-decoration: none;
 }
 
 .portal-pill-btn:hover {
     border-color: var(--rich-gold);
     background-color: var(--gold-light);
-    transform: translateY(-1px);
-}
-
-.portal-pill-btn .gold-icon {
-    color: var(--rich-gold);
-    font-size: 13px;
 }
 
 .portal-pill-btn strong {
-    color: var(--pure-black);
-    font-weight: 800;
+    color: var(--text-main);
+    font-weight: 600;
 }
 
-/* 3. Hero Portal Banner (.hero-portal / .bg-emerald) */
-.hero-portal,
-.bg-emerald {
-    background-color: var(--charcoal);
-    background-image: url('assets/hero-bg.svg');
-    background-repeat: repeat;
+/* 3. Compact Executive Hero Banner (.hero-portal) */
+.hero-portal {
+    background: linear-gradient(135deg, #1E3545 0%, #244858 100%);
     color: var(--pure-white);
-    padding: 24px 28px;
-    border-bottom: 3px solid var(--rich-gold);
+    padding: 18px 22px;
+    border-left: 4px solid var(--rich-gold);
     border-radius: var(--radius-md);
-    margin-bottom: 20px;
-    box-shadow: var(--shadow-md);
-    position: relative;
-    overflow: hidden;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
 }
 
 .hero-inner {
@@ -222,155 +226,141 @@ body.sidebar-collapsed .sidebar-toggle-btn svg {
     flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
-    gap: 20px;
+    gap: 16px;
 }
 
 .hero-copy {
-    flex: 1 1 460px;
+    flex: 1 1 420px;
 }
 
 .hero-eyebrow {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
-    font-weight: 800;
+    font-size: 10.5px;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--rich-gold);
-    background: rgba(212, 175, 55, 0.14);
-    border: 1px solid rgba(212, 175, 55, 0.4);
-    padding: 3px 10px;
-    border-radius: 999px;
-    margin-bottom: 8px;
+    letter-spacing: 0.6px;
+    color: #E2C278;
+    margin-bottom: 4px;
 }
 
 .hero-portal h1 {
     color: var(--pure-white);
-    font-size: 22px;
-    font-weight: 800;
-    line-height: 1.25;
+    font-size: 17.5px;
+    font-weight: 700;
+    line-height: 1.3;
+    margin-bottom: 4px;
 }
 
 .portal-title-divider {
-    width: 84px;
-    height: 3.5px;
-    background: linear-gradient(90deg, var(--rich-gold), var(--ui-gold));
-    margin: 10px 0 12px;
-    border-radius: 2px;
+    display: none;
 }
 
 .hero-portal p {
-    color: #E2E8F0;
-    font-size: 13px;
-    max-width: 720px;
+    color: #CBD5E1;
+    font-size: 12.5px;
+    line-height: 1.45;
+    max-width: 740px;
+}
+
+.hero-portal p code {
+    background: rgba(255, 255, 255, 0.12);
+    color: #F3ECE0;
+    border-color: rgba(255, 255, 255, 0.18);
 }
 
 .hero-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 8px;
     align-items: center;
 }
 
-/* 4. Announcement Ticker (.announcement-ticker / .bg-light) */
-.announcement-ticker,
-.bg-light {
-    background-color: var(--off-white);
-    border: 1px solid var(--border-color);
-    border-left: 4px solid var(--rich-gold);
-    border-radius: var(--radius-sm);
-    padding: 10px 16px;
-    margin-bottom: 20px;
-}
-
-/* 5. Buttons (.btn-gold, .portal-action-btn, .btn-charcoal, .btn-outline) */
+/* 4. Buttons (.btn, .btn-gold, .btn-charcoal, .btn-outline) */
 .btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 9px 16px;
+    gap: 6px;
+    padding: 8px 14px;
     border-radius: var(--radius-sm);
-    font-size: 13px;
-    font-weight: 700;
+    font-family: var(--font-sans);
+    font-size: 12.5px;
+    font-weight: 600;
     border: 1px solid transparent;
     cursor: pointer;
-    transition: all 0.18s ease;
+    transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
     text-decoration: none;
     white-space: nowrap;
     user-select: none;
+    line-height: 1.2;
 }
 
 .btn:disabled {
     opacity: 0.55;
     cursor: not-allowed;
-    transform: none !important;
 }
 
 .btn-gold,
 .portal-action-btn {
-    background: linear-gradient(135deg, var(--rich-gold) 0%, var(--ui-gold) 100%);
-    color: var(--pure-black);
-    border: 1px solid var(--rich-gold);
+    background-color: var(--rich-gold);
+    color: #162430;
+    border-color: var(--ui-gold);
     box-shadow: var(--shadow-gold);
+    font-weight: 700;
 }
 
 .btn-gold:hover:not(:disabled),
 .portal-action-btn:hover:not(:disabled) {
-    background: linear-gradient(135deg, #E2BE42 0%, #B89146 100%);
-    transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(212, 175, 55, 0.38);
+    background-color: #D4B063;
+    border-color: var(--rich-gold);
 }
 
 .btn-charcoal {
     background-color: var(--charcoal);
     color: var(--pure-white);
-    border: 1px solid var(--rich-gold);
+    border-color: rgba(255, 255, 255, 0.15);
 }
 
 .btn-charcoal:hover:not(:disabled) {
-    background-color: var(--pure-black);
-    color: var(--rich-gold);
-    transform: translateY(-1px);
+    background-color: var(--charcoal-elevated);
 }
 
 .btn-outline {
     background-color: var(--pure-white);
-    color: var(--charcoal);
-    border: 1.5px solid var(--ui-gold);
+    color: var(--text-main);
+    border: 1px solid var(--border-strong);
 }
 
 .btn-outline:hover:not(:disabled) {
-    background-color: var(--gold-soft);
+    background-color: var(--gold-light);
     border-color: var(--rich-gold);
 }
 
 .btn-sm {
-    padding: 5px 11px;
-    font-size: 12px;
+    padding: 5px 10px;
+    font-size: 11.5px;
     border-radius: 6px;
 }
 
-/* 6. Feature & Service Cards (.feature-card, .service-item-card) */
+/* 5. Feature & Service Cards */
 .feature-card,
 .service-item-card {
     background-color: var(--pure-white);
     border: 1px solid var(--border-color);
-    border-top: 3.5px solid var(--rich-gold);
     border-radius: var(--radius-md);
-    padding: 20px;
+    padding: 18px 20px;
     box-shadow: var(--shadow-sm);
-    transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-/* 7. Main Footer (.main-footer) */
+/* 6. Main Footer */
 .main-footer {
-    background-color: var(--charcoal);
-    color: var(--pure-white);
-    border-top: 3px solid var(--rich-gold);
-    padding: 16px 28px;
-    font-size: 12.5px;
+    background-color: var(--pure-white);
+    color: var(--text-secondary);
+    border-top: 1px solid var(--border-color);
+    padding: 13px 24px;
+    font-size: 12px;
     margin-top: auto;
 }
 
@@ -379,30 +369,10 @@ body.sidebar-collapsed .sidebar-toggle-btn svg {
     flex-wrap: wrap;
     justify-content: space-between;
     align-items: center;
-    gap: 12px;
+    gap: 10px;
 }
 
 .main-footer .gold-text {
-    color: var(--rich-gold);
-    font-weight: 700;
-}
-
-/* Floating Quick Sync Button */
-.floating-sync-btn {
-    position: fixed;
-    bottom: 24px;
-    left: 24px;
-    z-index: 95;
-    background: var(--charcoal);
-    color: var(--rich-gold);
-    border: 2px solid var(--rich-gold);
-    border-radius: 999px;
-    padding: 10px 18px;
-    font-size: 12.5px;
-    font-weight: 800;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
-    cursor: pointer;
-    display: none;
-    align-items: center;
-    gap: 8px;
+    color: var(--charcoal);
+    font-weight: 600;
 }

@@ -1,7 +1,7 @@
 {
     "ok": true,
-    "version_ts": 1795668689,
-    "updated_at": "2026-11-26 11:51:29",
+    "version_ts": 1795671047,
+    "updated_at": "2026-11-26 12:30:47",
     "settings": {
         "source_email": "phujtmkopasuruan@gmail.com",
         "target_gdrive_email": "muchammad.ali.sanjaya@gmail.com",
@@ -60,8 +60,8 @@
         "strict_50kb_padding": true,
         "filename_pattern": "{NAMA}_{PASPOR}",
         "uppercase_filename": true,
-        "last_sync_at": "2026-11-26 11:29:43",
-        "last_sync_status": "Berhasil memproses 1 Biovisa baru"
+        "last_sync_at": "2026-11-26 12:30:28",
+        "last_sync_status": "Sinkronisasi berhasil (Tidak ada email baru)"
     },
     "records": [
         {
@@ -157,7 +157,11 @@
                         "size_kb": 0
                     }
                 }
-            }
+            },
+            "all_message_ids": [
+                "1a21618695c1d879_E9784344",
+                "1a21618695c1d879"
+            ]
         },
         {
             "id": "bv_cb8adf487f",
