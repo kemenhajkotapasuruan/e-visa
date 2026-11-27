@@ -1036,6 +1036,37 @@ $clientEngineJs = <<<JS
                 const fn = u.searchParams.get('file') || '';
                 const cat = u.searchParams.get('cat') || 'biovisa';
                 if (fn) {
+                    img.dataset.ghFile = fn;
+                    img.dataset.ghCat = cat;
+                    if (!img.dataset.ghFallbackBound) {
+                        img.dataset.ghFallbackBound = '1';
+                        img.addEventListener('error', async function() {
+                            const fName = img.dataset.ghFile || '';
+                            const cKey = (img.dataset.ghCat || 'biovisa').toLowerCase();
+                            if (!fName || img.dataset.ghRenderedFallback === fName) return;
+                            img.dataset.ghRenderedFallback = fName;
+                            const rec = (ghRecords || []).find(r => r && (r.filename === fName || (r.paspor && fName.includes(r.paspor))));
+                            if (cKey === 'biovisa' && rec) {
+                                try {
+                                    const rendered = await renderBiovisaCanvas50KB({
+                                        nama: rec.nama,
+                                        paspor: rec.paspor,
+                                        enrollment_id: rec.enrollment_id,
+                                        enrollment_time: rec.enrollment_time
+                                    });
+                                    if (rendered && rendered.dataUrl) {
+                                        ghImages[fName] = rendered.dataUrl;
+                                        img.src = rendered.dataUrl;
+                                        return;
+                                    }
+                                } catch (e) {}
+                            }
+                            if (rec && typeof window.__fetchGDriveDocDataUrl === 'function') {
+                                const gUrl = await window.__fetchGDriveDocDataUrl(rec.id, cKey);
+                                if (gUrl) img.src = gUrl;
+                            }
+                        });
+                    }
                     img.src = window.__resolveBiovisaImgUrl(fn, false, cat);
                 }
             } catch (e) {}
