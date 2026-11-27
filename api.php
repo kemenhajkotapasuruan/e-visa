@@ -54,13 +54,20 @@ if (in_array($action, $webhookActions, true)) {
         Auth::bootstrapTenantBySlug($lembagaSlug);
     }
 } elseif (in_array($action, $tokenActions, true)) {
-    if (!Auth::verifyApiToken(Auth::extractBearerOrHeaderToken())) {
+    $hasValidSession = Auth::isLoggedIn();
+    $hasValidToken   = Auth::verifyApiToken(Auth::extractBearerOrHeaderToken());
+    if (!$hasValidSession && !$hasValidToken) {
         header('Content-Type: application/json; charset=utf-8');
         http_response_code(401);
-        echo json_encode(['ok' => false, 'error' => 'API token tidak valid.'], JSON_UNESCAPED_UNICODE);
+        echo json_encode(['ok' => false, 'error' => 'Sesi atau API token tidak valid.'], JSON_UNESCAPED_UNICODE);
         exit;
     }
-    if ($lembagaSlug !== '') {
+    if ($hasValidSession) {
+        Auth::bootstrapTenantContext();
+        if ($lembagaSlug !== '' && Auth::isSuperAdmin()) {
+            Auth::setActiveLembagaSlug($lembagaSlug);
+        }
+    } elseif ($lembagaSlug !== '') {
         Auth::bootstrapTenantBySlug($lembagaSlug);
     }
 } elseif ($action !== '') {
@@ -99,14 +106,27 @@ if ($action === 'download_siskohat_ext') {
     $scriptDir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? '/e-visa/api.php')), '/');
     $detectedApiUrl = "{$scheme}://{$host}{$scriptDir}/api.php";
 
+    $activeSlug = Auth::tenantSlug();
+    $apiToken   = (string)(Auth::getSecrets()['api_token'] ?? '');
+
     foreach (glob($extDir . DIRECTORY_SEPARATOR . '*') as $file) {
         if (is_file($file)) {
             $bname = basename($file);
             if ($bname === 'background.js') {
                 $bgContent = file_get_contents($file);
                 $bgContent = str_replace(
-                    "const DEFAULT_API_BASE = 'http://localhost/e-visa/api.php';",
-                    "const DEFAULT_API_BASE = '{$detectedApiUrl}';",
+                    [
+                        "const DEFAULT_API_BASE = 'http://localhost/e-visa/api.php';",
+                        "const DEFAULT_LOCAL_API = 'http://localhost/e-visa/api.php';",
+                        "const DEFAULT_API_TOKEN = '';",
+                        "const DEFAULT_LEMBAGA_SLUG = '';"
+                    ],
+                    [
+                        "const DEFAULT_API_BASE = '{$detectedApiUrl}';",
+                        "const DEFAULT_LOCAL_API = '{$detectedApiUrl}';",
+                        "const DEFAULT_API_TOKEN = '{$apiToken}';",
+                        "const DEFAULT_LEMBAGA_SLUG = '{$activeSlug}';"
+                    ],
                     $bgContent
                 );
                 $zip->addFromString($bname, $bgContent);
@@ -1321,12 +1341,15 @@ switch ($action) {
         break;
 
     case 'siskohat_queue':
-        $records = getRecords();
+        $isSuper = Auth::isSuperAdmin();
+        $activeSlug = Auth::tenantSlug();
+        $records = $isSuper ? getAllTenantsRecords() : getRecords();
         $queue = [];
         foreach ($records as $r) {
+            $rSlug = (string)($r['lembaga_slug'] ?? $activeSlug);
             $fn = $r['filename'] ?? '';
-            $fp = getBiovisaDir() . DIRECTORY_SEPARATOR . $fn;
-            $sevenDocs = getJamaahSevenDocsStatus($r);
+            $fp = STORAGE_DIR . DIRECTORY_SEPARATOR . 'lembaga' . DIRECTORY_SEPARATOR . $rSlug . DIRECTORY_SEPARATOR . 'biovisa' . DIRECTORY_SEPARATOR . $fn;
+            $sevenDocs = getJamaahSevenDocsStatus($r, $rSlug);
             if ($sevenDocs['available_count'] === 0 && ($fn === '' || !file_exists($fp))) {
                 continue;
             }
@@ -1336,6 +1359,9 @@ switch ($action) {
                 'paspor' => $r['paspor'] ?? '',
                 'enrollment_id' => $r['enrollment_id'] ?? '',
                 'filename' => $fn,
+                'lembaga_slug' => $rSlug,
+                'source_account_email' => $r['source_account_email'] ?? ($r['to_email'] ?? ''),
+                'source_account_label' => $r['source_account_label'] ?? '',
                 'size_kb' => $r['size_kb'] ?? (file_exists($fp) ? round(filesize($fp) / 1024, 2) : 0),
                 'siskohat_uploaded' => !empty($r['siskohat_uploaded']),
                 'siskohat_uploaded_at' => $r['siskohat_uploaded_at'] ?? '',
@@ -1345,6 +1371,7 @@ switch ($action) {
         }
         jsonResponse([
             'ok' => true,
+            'lembaga_slug' => $activeSlug,
             'count' => count($queue),
             'doc_categories' => array_values(getSiskohatDocCategories()),
             'records' => $queue
@@ -1358,7 +1385,9 @@ switch ($action) {
         $nama = strtoupper(trim((string)($_GET['nama'] ?? '')));
         $requestedCat = strtolower(trim((string)($_GET['cat'] ?? '')));
 
-        $records = getRecords();
+        $isSuper = Auth::isSuperAdmin();
+        $activeSlug = Auth::tenantSlug();
+        $records = $isSuper ? getAllTenantsRecords() : getRecords();
         $matched = null;
         foreach ($records as $r) {
             if ($id !== '' && ($r['id'] ?? '') === $id) {
@@ -1379,6 +1408,7 @@ switch ($action) {
             jsonResponse(['ok' => false, 'error' => 'Data jamaah tidak ditemukan di server E-Visa.'], 404);
         }
 
+        $matchedSlug = (string)($matched['lembaga_slug'] ?? $activeSlug);
         $cats = getSiskohatDocCategories();
         $recPaspor = (string)($matched['paspor'] ?? '');
         $recNama   = (string)($matched['nama'] ?? '');
@@ -1391,7 +1421,7 @@ switch ($action) {
             if ($requestedCat !== '' && $requestedCat !== 'all' && $requestedCat !== $catKey) {
                 continue;
             }
-            $found = findJamaahDocFile($catKey, $recPaspor, $recNama, $catKey === 'biovisa' ? $bvFile : '');
+            $found = findJamaahDocFile($catKey, $recPaspor, $recNama, $catKey === 'biovisa' ? $bvFile : '', $matchedSlug);
             if ($found && is_file($found['path'])) {
                 $bytes = file_get_contents($found['path']);
                 $availableCount++;

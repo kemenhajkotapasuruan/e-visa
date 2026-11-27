@@ -876,13 +876,11 @@ function pullMissingSevenDocsFromGDrive(?array $settings = null): int {
  * serta salin file JPG baru ke docs/storage/ agar seluruh komputer lain yang membuka GitHub Pages
  * selalu mendapatkan daftar Akun Email Pembaca & Data Biovisa yang 100% sama dengan Komputer Server.
  */
-function writeCloudSyncBundle(bool $forceWrite = false): array {
-    if (!$forceWrite) {
-        $secFile = STORAGE_DIR . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'auth' . DIRECTORY_SEPARATOR . 'secrets.json';
-        $sec = loadJsonFile($secFile, []);
-        if (!empty($sec['block_public_cloud_sync'])) {
-            return ['ok' => true, 'records' => getRecords(), 'skipped' => 'private_mode'];
-        }
+function writeCloudSyncBundle(): array {
+    $secFile = STORAGE_DIR . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'auth' . DIRECTORY_SEPARATOR . 'secrets.json';
+    $sec = loadJsonFile($secFile, []);
+    if (!empty($sec['block_public_cloud_sync'])) {
+        return ['ok' => true, 'records' => getRecords(), 'skipped' => 'private_mode'];
     }
     $safeSettings = getPublicCloudSettings();
     $records = getRecords();
@@ -914,6 +912,12 @@ function writeCloudSyncBundle(bool $forceWrite = false): array {
     $docsBiovisaDir = BASE_DIR . DIRECTORY_SEPARATOR . 'docs' . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'biovisa';
     if (!is_dir($docsBiovisaDir)) {
         @mkdir($docsBiovisaDir, 0777, true);
+    }
+    // Bersihkan file JAMAAH_*.jpg lama di docs/storage/biovisa/ dan docs/storage/dokumen/
+    foreach (glob($docsBiovisaDir . DIRECTORY_SEPARATOR . 'JAMAAH_*.jpg') ?: [] as $oldDocJpg) {
+        if (!is_file(getBiovisaDir() . DIRECTORY_SEPARATOR . basename($oldDocJpg))) {
+            @unlink($oldDocJpg);
+        }
     }
     foreach (glob(getBiovisaDir() . DIRECTORY_SEPARATOR . '*.jpg') ?: [] as $jpgFile) {
         $dest = $docsBiovisaDir . DIRECTORY_SEPARATOR . basename($jpgFile);
@@ -977,7 +981,7 @@ function triggerBackgroundGitHubPush(string $commitMsg = 'Auto-sync Biovisa & Em
         . "\"{$phpExe}\" build_github_pages.php >nul 2>&1\r\n"
         . "\"{$gitExe}\" add -A >nul 2>&1\r\n"
         . "\"{$gitExe}\" commit -m \"{$safeMsg}\" >nul 2>&1\r\n"
-        . "\"{$gitExe}\" push -u origin main >nul 2>&1\r\n";
+        . "\"{$gitExe}\" push -u --force origin main >nul 2>&1\r\n";
     @file_put_contents($batPath, $batContent);
 
     if (function_exists('popen')) {

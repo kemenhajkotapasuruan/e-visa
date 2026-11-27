@@ -7,15 +7,19 @@
 
 const GITHUB_PAGES_BASE = 'https://kemenhajkotapasuruan.github.io/e-visa';
 const DEFAULT_LOCAL_API = 'http://localhost/e-visa/api.php';
+const DEFAULT_API_TOKEN = '';
+const DEFAULT_LEMBAGA_SLUG = '';
 
 async function getStoredConfig() {
   return new Promise(resolve => {
     chrome.storage.local.get(
-      ['evisa_source_mode', 'evisa_api_url', 'gh_cloud_records', 'gh_cloud_images', 'gh_siskohat_done_ids'],
+      ['evisa_source_mode', 'evisa_api_url', 'evisa_api_token', 'evisa_lembaga_slug', 'gh_cloud_records', 'gh_cloud_images', 'gh_siskohat_done_ids'],
       res => {
         resolve({
           sourceMode: res.evisa_source_mode || 'auto_github', // 'auto_github' | 'github_only' | 'local_only'
           apiUrl: res.evisa_api_url || DEFAULT_LOCAL_API,
+          apiToken: res.evisa_api_token || DEFAULT_API_TOKEN,
+          lembagaSlug: res.evisa_lembaga_slug || DEFAULT_LEMBAGA_SLUG,
           cloudRecords: Array.isArray(res.gh_cloud_records) ? res.gh_cloud_records : [],
           cloudImages: res.gh_cloud_images || {},
           doneIds: res.gh_siskohat_done_ids || {}
@@ -202,10 +206,24 @@ async function fetchBiovisaFileFromGitHubPages(id, paspor, nama) {
  * Coba ambil dari Laragon Lokal jika tersedia
  */
 async function tryFetchLocalApi(urlWithParams, options = {}, timeoutMs = 1800) {
+  const cfg = await getStoredConfig();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(urlWithParams, { ...options, signal: controller.signal });
+    let finalUrl = urlWithParams;
+    if (cfg.lembagaSlug && !finalUrl.includes('lembaga=')) {
+      finalUrl += (finalUrl.includes('?') ? '&' : '?') + 'lembaga=' + encodeURIComponent(cfg.lembagaSlug);
+    }
+    const headers = Object.assign({}, options.headers || {});
+    if (cfg.apiToken) {
+      headers['X-Evisa-Token'] = cfg.apiToken;
+    }
+    const res = await fetch(finalUrl, {
+      ...options,
+      headers,
+      credentials: 'include',
+      signal: controller.signal
+    });
     clearTimeout(timer);
     if (!res.ok) return null;
     return await res.json();
