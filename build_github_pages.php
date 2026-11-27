@@ -41,6 +41,30 @@ if (!empty($safeSettings['source_accounts'])) {
 }
 $initialSettingsJson = json_encode($safeSettings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
+// Siapkan snapshot data terpisah untuk masing-masing instansi (phu-pasuruan, kemenhaj-pasuruankab, dll.)
+$initialTenantsMap = [];
+foreach (listTenantStorageSlugs() as $tSlug) {
+    tenantBindPaths($tSlug);
+    $tSet = getPublicCloudSettings();
+    $tRecs = getRecords();
+    foreach ($tRecs as &$tr) {
+        $tr['lembaga_slug'] = $tSlug;
+        $tr['lembaga_nama'] = getLembagaNameBySlug($tSlug);
+        $tr['seven_docs'] = getJamaahSevenDocsStatus($tr, $tSlug);
+    }
+    unset($tr);
+    $initialTenantsMap[$tSlug] = [
+        'slug' => $tSlug,
+        'nama' => getLembagaNameBySlug($tSlug),
+        'settings' => $tSet,
+        'records' => array_values($tRecs),
+        'jamaah' => getJamaahMaster(),
+        'logs' => loadJsonFile(getLogsFile(), [])
+    ];
+}
+tenantBindPaths('phu-pasuruan');
+$initialTenantsJson = json_encode($initialTenantsMap, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
 $clientEngineJs = <<<JS
 <script>
 /**
@@ -54,18 +78,112 @@ $clientEngineJs = <<<JS
     const INITIAL_RECORDS  = $initialRecords;
     const INITIAL_JAMAAH   = $initialJamaah;
     const INITIAL_LOGS     = $initialLogs;
+    const INITIAL_TENANTS  = $initialTenantsJson;
 
     const ASSET_ICON = "$b64LogoIcon";
     const ASSET_TEXT = "$b64LogoText";
     const ASSET_SUCC = "$b64Success";
 
-    let ghSettings = JSON.parse(localStorage.getItem('gh_evisa_settings') || 'null') || INITIAL_SETTINGS;
-    let ghRecords  = JSON.parse(localStorage.getItem('gh_evisa_records') || 'null') || INITIAL_RECORDS;
-    let ghJamaah   = JSON.parse(localStorage.getItem('gh_evisa_jamaah') || 'null') || INITIAL_JAMAAH;
-    let ghLogs     = JSON.parse(localStorage.getItem('gh_evisa_logs') || 'null') || INITIAL_LOGS;
+    function resolveCloudUserSlug(userObj) {
+        if (!userObj || typeof userObj !== 'object') return 'phu-pasuruan';
+        if (userObj.slug && INITIAL_TENANTS[userObj.slug]) return userObj.slug;
+        const uname = String(userObj.username || '').trim().toLowerCase();
+        if (uname === 'kd1322' || uname.includes('kab')) return 'kemenhaj-pasuruankab';
+        return 'phu-pasuruan';
+    }
+
+    const bootUser = JSON.parse(localStorage.getItem('gh_evisa_active_user') || 'null');
+    let activeTenantSlug = resolveCloudUserSlug(bootUser);
+
+    function getTenantSeed(slug) {
+        if (INITIAL_TENANTS && INITIAL_TENANTS[slug]) {
+            return JSON.parse(JSON.stringify(INITIAL_TENANTS[slug]));
+        }
+        if (slug === 'phu-pasuruan') {
+            return {
+                slug: 'phu-pasuruan',
+                nama: 'Kantor Kemenhaj Kota Pasuruan',
+                settings: JSON.parse(JSON.stringify(INITIAL_SETTINGS)),
+                records: JSON.parse(JSON.stringify(INITIAL_RECORDS)),
+                jamaah: JSON.parse(JSON.stringify(INITIAL_JAMAAH)),
+                logs: JSON.parse(JSON.stringify(INITIAL_LOGS))
+            };
+        }
+        return {
+            slug: slug,
+            nama: slug === 'kemenhaj-pasuruankab' ? 'Kementerian Haji dan Umrah Kabupaten Pasuruan' : slug,
+            settings: {
+                source_email: slug === 'kemenhaj-pasuruankab' ? 'phujtmkabpasuruan@gmail.com' : '',
+                target_gdrive_email: slug === 'kemenhaj-pasuruankab' ? 'phujtmkabpasuruan@gmail.com' : '',
+                email_subject_filter: 'Enrollment confirmation',
+                connection_mode: 'gas',
+                gas_gmail_webapp_url: '',
+                source_accounts: slug === 'kemenhaj-pasuruankab' ? [{
+                    id: 'acc_primary',
+                    label: 'Email Utama Instansi',
+                    email: 'phujtmkabpasuruan@gmail.com',
+                    mode: 'gas',
+                    gas_url: '',
+                    imap_password: '',
+                    enabled: true
+                }] : [],
+                gas_gdrive_webapp_url: '',
+                gdrive_folder_name: slug === 'kemenhaj-pasuruankab' ? 'Dokumen_Paspor_Kab_Pasuruan_2026' : '',
+                auto_sync_enabled: true,
+                auto_sync_interval_sec: 30,
+                auto_download_browser: true,
+                auto_upload_gdrive: true,
+                process_mode: 'both',
+                target_min_kb: 42,
+                target_max_kb: 49.5,
+                strict_50kb_padding: true,
+                filename_pattern: '{NAMA}_{PASPOR}',
+                uppercase_filename: true,
+                last_sync_at: null,
+                last_sync_status: 'Siap memantau email subjek "Enrollment confirmation"'
+            },
+            records: [],
+            jamaah: [],
+            logs: []
+        };
+    }
+
+    let ghSettings = {};
+    let ghRecords  = [];
+    let ghJamaah   = [];
+    let ghLogs     = [];
     let ghImages   = JSON.parse(localStorage.getItem('gh_evisa_images') || '{}');
     let cachedImgs = {};
     let lastCloudSyncPoll = 0;
+
+    function loadTenantState(slug) {
+        activeTenantSlug = slug || 'phu-pasuruan';
+        const seed = getTenantSeed(activeTenantSlug);
+        const isDefaultKota = (activeTenantSlug === 'phu-pasuruan');
+        const rawSet = localStorage.getItem('gh_evisa_settings__' + activeTenantSlug)
+            || (isDefaultKota ? localStorage.getItem('gh_evisa_settings') : null);
+        const rawRec = localStorage.getItem('gh_evisa_records__' + activeTenantSlug)
+            || (isDefaultKota ? localStorage.getItem('gh_evisa_records') : null);
+        const rawJam = localStorage.getItem('gh_evisa_jamaah__' + activeTenantSlug)
+            || (isDefaultKota ? localStorage.getItem('gh_evisa_jamaah') : null);
+        const rawLog = localStorage.getItem('gh_evisa_logs__' + activeTenantSlug)
+            || (isDefaultKota ? localStorage.getItem('gh_evisa_logs') : null);
+
+        ghSettings = (rawSet ? JSON.parse(rawSet) : null) || seed.settings;
+        ghRecords  = (rawRec ? JSON.parse(rawRec) : null) || seed.records;
+        ghJamaah   = (rawJam ? JSON.parse(rawJam) : null) || seed.jamaah;
+        ghLogs     = (rawLog ? JSON.parse(rawLog) : null) || seed.logs;
+
+        if (!isDefaultKota) {
+            if (ghSettings && String(ghSettings.source_email || '').toLowerCase() === 'phujtmkopasuruan@gmail.com') {
+                ghSettings = seed.settings;
+            }
+            // Pastikan record Kota Pasuruan tidak pernah terbawa ke instansi lain (seperti KD1322 / Kabupaten Pasuruan)
+            ghRecords = (Array.isArray(ghRecords) ? ghRecords : []).filter(r => r && r.lembaga_slug === activeTenantSlug);
+        }
+    }
+
+    loadTenantState(activeTenantSlug);
 
     const DOC_CAT_META = {
         paspor:      { num: 1, key: 'paspor',      short: 'Paspor',      label: '1. Scan Halaman Pertama Paspor',               subfolder: '1_Paspor',      max_kb: 49.5 },
@@ -332,16 +450,25 @@ $clientEngineJs = <<<JS
         return changed;
     }
 
-    // Pastikan INITIAL_SETTINGS (4 Email) & INITIAL_RECORDS (63 Jamaah) langsung tergabung dengan aman!
-    mergeSettingsFromBundle(INITIAL_SETTINGS, true);
-    mergeRecordsFromBundle(INITIAL_RECORDS);
+    // Pastikan hanya instansi phu-pasuruan yang menggabungkan INITIAL_SETTINGS & INITIAL_RECORDS Kota Pasuruan
+    if (activeTenantSlug === 'phu-pasuruan') {
+        mergeSettingsFromBundle(INITIAL_SETTINGS, true);
+        mergeRecordsFromBundle(INITIAL_RECORDS);
+    }
     ghRecords.forEach(r => ensureRecordSevenDocs(r));
 
     function saveGhState() {
-        try { localStorage.setItem('gh_evisa_settings', JSON.stringify(ghSettings)); } catch (e) {}
-        try { localStorage.setItem('gh_evisa_records', JSON.stringify(ghRecords)); } catch (e) {}
-        try { localStorage.setItem('gh_evisa_jamaah', JSON.stringify(ghJamaah)); } catch (e) {}
-        try { localStorage.setItem('gh_evisa_logs', JSON.stringify(ghLogs.slice(0, 100))); } catch (e) {}
+        const sKey = activeTenantSlug || 'phu-pasuruan';
+        try { localStorage.setItem('gh_evisa_settings__' + sKey, JSON.stringify(ghSettings)); } catch (e) {}
+        try { localStorage.setItem('gh_evisa_records__' + sKey, JSON.stringify(ghRecords)); } catch (e) {}
+        try { localStorage.setItem('gh_evisa_jamaah__' + sKey, JSON.stringify(ghJamaah)); } catch (e) {}
+        try { localStorage.setItem('gh_evisa_logs__' + sKey, JSON.stringify(ghLogs.slice(0, 100))); } catch (e) {}
+        if (sKey === 'phu-pasuruan') {
+            try { localStorage.setItem('gh_evisa_settings', JSON.stringify(ghSettings)); } catch (e) {}
+            try { localStorage.setItem('gh_evisa_records', JSON.stringify(ghRecords)); } catch (e) {}
+            try { localStorage.setItem('gh_evisa_jamaah', JSON.stringify(ghJamaah)); } catch (e) {}
+            try { localStorage.setItem('gh_evisa_logs', JSON.stringify(ghLogs.slice(0, 100))); } catch (e) {}
+        }
         try { localStorage.setItem('gh_evisa_images', JSON.stringify(ghImages)); } catch (e) {}
     }
 
@@ -355,8 +482,8 @@ $clientEngineJs = <<<JS
     async function syncMultiComputerCloudState(isWriteAction = false, replaceAccounts = false) {
         let anyUpdated = false;
 
-        // 1. Tarik cloud_sync_bundle.json terbaru langsung dari server GitHub Pages (tanpa cache browser)
-        if (!isWriteAction) {
+        // 1. Tarik cloud_sync_bundle.json terbaru langsung dari server GitHub Pages HANYA jika instansi aktif adalah phu-pasuruan
+        if (!isWriteAction && activeTenantSlug === 'phu-pasuruan') {
             try {
                 const bRes = await origFetch('storage/data/cloud_sync_bundle.json?_t=' + Date.now(), { cache: 'no-store' });
                 if (bRes.ok) {
@@ -379,10 +506,11 @@ $clientEngineJs = <<<JS
             });
             const ctrl = new AbortController();
             const timer = setTimeout(() => ctrl.abort(), 3200);
-            const locRes = await origFetch('http://localhost/e-visa/api.php?action=mirror_cloud_to_local', {
+            const locRes = await origFetch('http://localhost/e-visa/api.php?action=mirror_cloud_to_local&lembaga=' + encodeURIComponent(activeTenantSlug), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    lembaga: activeTenantSlug,
                     settings: ghSettings,
                     records: ghRecords,
                     images: imagesToMirror,
@@ -392,7 +520,7 @@ $clientEngineJs = <<<JS
                 signal: ctrl.signal
             });
             clearTimeout(timer);
-            if (locRes.ok) {
+            if (locRes.ok && activeTenantSlug === 'phu-pasuruan') {
                 const locData = await locRes.json();
                 if (locData && locData.ok && locData.bundle) {
                     if (mergeSettingsFromBundle(locData.bundle.settings, true)) anyUpdated = true;
@@ -803,21 +931,34 @@ $clientEngineJs = <<<JS
                     return;
                 }
                 const roleLabel = key === 'superadmin' ? 'super_admin' : 'admin';
+                const slug = (key === 'kd1322' || key.includes('kab')) ? 'kemenhaj-pasuruankab' : 'phu-pasuruan';
                 const displayName = key === 'superadmin'
                     ? 'Super Administrator'
-                    : (key === 'kd1322' ? 'Admin Kantor Kemenhaj kabupaten Pasuruan' : 'Admin Kantor Kemenhaj Pasuruan');
-                const instansiName = key === 'kd1322'
+                    : (slug === 'kemenhaj-pasuruankab' ? 'Admin Kantor Kemenhaj kabupaten Pasuruan' : 'Admin Kantor Kemenhaj Pasuruan');
+                const instansiName = slug === 'kemenhaj-pasuruankab'
                     ? 'Kementerian Haji dan Umrah Kabupaten Pasuruan'
                     : 'Kantor Kemenhaj Kota Pasuruan';
 
-                const sessObj = { username: uIn, role: roleLabel, nama: displayName, instansi: instansiName };
+                const sessObj = { username: uIn, role: roleLabel, slug: slug, nama: displayName, instansi: instansiName };
                 localStorage.setItem('gh_evisa_active_user', JSON.stringify(sessObj));
                 sessionStorage.removeItem('gh_evisa_logged_out');
+                loadTenantState(slug);
+                if (slug === 'phu-pasuruan') {
+                    mergeSettingsFromBundle(INITIAL_SETTINGS, true);
+                    mergeRecordsFromBundle(INITIAL_RECORDS);
+                }
+                ghRecords.forEach(r => ensureRecordSevenDocs(r));
+                if (typeof window.uiState === 'object' && window.uiState) {
+                    window.uiState.accountsInitialized = false;
+                }
                 applyCloudUserHeader(sessObj);
                 overlay.style.display = 'none';
                 document.body.style.overflow = '';
+                if (typeof window.loadAppStatus === 'function') {
+                    await window.loadAppStatus();
+                }
                 if (typeof showToast === 'function') {
-                    showToast('Berhasil masuk sebagai ' + displayName);
+                    showToast('Berhasil masuk sebagai ' + displayName + ' (' + instansiName + ')');
                 }
             });
         }
@@ -837,9 +978,11 @@ $clientEngineJs = <<<JS
         const rEl = document.getElementById('pill-user-role');
         const nEl = document.getElementById('pill-user-name');
         const iEl = document.getElementById('pill-instansi-name');
+        const topGovEl = document.getElementById('top-gov-instansi-label');
         if (rEl) rEl.textContent = (userObj.role || 'admin') + ':';
         if (nEl) nEl.textContent = userObj.nama || userObj.username || 'Admin';
         if (iEl && userObj.instansi) iEl.textContent = userObj.instansi;
+        if (topGovEl && userObj.instansi) topGovEl.textContent = userObj.instansi;
     }
 
     // Intercept links & images pointing to api.php?action=download_file or logout.php
@@ -971,10 +1114,15 @@ $clientEngineJs = <<<JS
                 };
             });
 
+            const activeSeed = getTenantSeed(activeTenantSlug);
             return makeJsonRes({
                 ok: true,
                 settings: ghSettings,
                 records: ghRecords,
+                active_lembaga: {
+                    slug: activeTenantSlug,
+                    nama: activeSeed.nama
+                },
                 jamaah: jamaahWithStatus,
                 logs: ghLogs,
                 stats: {
@@ -1046,6 +1194,7 @@ $clientEngineJs = <<<JS
                                 to_email: (em.to || acc.email || 'phujtmkopasuruan@gmail.com').replace(/[<>]/g, ''),
                                 source_account_email: acc.email || '',
                                 source_account_label: acc.label || '',
+                                lembaga_slug: activeTenantSlug,
                                 processed_at: new Date().toISOString().slice(0, 19).replace('T', ' '),
                                 gdrive_uploaded: false
                             };
@@ -1092,6 +1241,7 @@ $clientEngineJs = <<<JS
                 size_bytes: rendered.size_bytes,
                 size_kb: rendered.size_kb,
                 source_type: 'saudivisabio_email',
+                lembaga_slug: activeTenantSlug,
                 to_email: ghSettings.source_email || 'phujtmkopasuruan@gmail.com',
                 processed_at: eTime,
                 gdrive_uploaded: false
@@ -1122,6 +1272,7 @@ $clientEngineJs = <<<JS
                 size_bytes: rendered.size_bytes,
                 size_kb: rendered.size_kb,
                 source_type: 'saudivisabio_email',
+                lembaga_slug: activeTenantSlug,
                 to_email: ghSettings.source_email || 'phujtmkopasuruan@gmail.com',
                 processed_at: eTime,
                 gdrive_uploaded: false

@@ -32,7 +32,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             <div class="gov-badge-left">
                 <span class="gold-highlight">✦ KEMENTERIAN HAJI DAN UMRAH REPUBLIK INDONESIA</span>
                 <span>&bull;</span>
-                <span>Kantor Kemenhaj Kota Pasuruan</span>
+                <span id="top-gov-instansi-label"><?= htmlspecialchars($activeLembaga['nama'] ?? 'Kantor Kemenhaj Kota Pasuruan') ?></span>
             </div>
             <div class="gov-badge-right">
                 <span>Standar Siskohat: <strong class="gold-highlight">JPG &le; 50 KB (Nama_Nomor paspor.jpg)</strong></span>
@@ -308,7 +308,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                             <h1>Otomatisasi Konversi Biovisa Jamaah ke JPG &le; 50 KB &amp; Google Drive</h1>
                             <div class="portal-title-divider"></div>
                             <p>
-                                Setiap email <strong>Enrollment confirmation</strong> yang masuk ke <strong><?= htmlspecialchars($settings['source_email']) ?></strong> otomatis diekstrak sesuai template asli <strong>SaudiVisaBio</strong> menjadi file <code>Nama_Nomor paspor.jpg</code> (&le; 50 KB), diunduh otomatis, dan disimpan ke Google Drive <strong><?= htmlspecialchars($settings['target_gdrive_email']) ?></strong>.
+                                Setiap email <strong>Enrollment confirmation</strong> yang masuk ke <strong id="hero-source-email"><?= htmlspecialchars($settings['source_email']) ?></strong> otomatis diekstrak sesuai template asli <strong>SaudiVisaBio</strong> menjadi file <code>Nama_Nomor paspor.jpg</code> (&le; 50 KB), diunduh otomatis, dan disimpan ke Google Drive <strong id="hero-gdrive-email"><?= htmlspecialchars($settings['target_gdrive_email']) ?></strong>.
                             </p>
                         </div>
 
@@ -383,7 +383,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                         <div class="progress-track">
                             <div class="progress-fill" id="progress-gdrive" style="width: 0%;"></div>
                         </div>
-                        <span class="stat-sub">Tujuan: <strong>muchammad.ali.sanjaya@gmail.com</strong></span>
+                        <span class="stat-sub">Tujuan: <strong id="gdrive-card-email"><?= htmlspecialchars($settings['target_gdrive_email'] ?: '-') ?></strong></span>
                     </div>
 
                     <div class="admin-stat-card">
@@ -1365,16 +1365,30 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                 heroBatchBtn.style.display = 'none';
             }
 
-            const activeAccounts = (set.source_accounts || []).filter(a => a.enabled !== false);
+            const activeAccounts = (set.source_accounts || []).filter(a => a.enabled !== false && a.email);
+            const fallbackSourceEmail = set.source_email || (activeAccounts[0] && activeAccounts[0].email) || '-';
             if (activeAccounts.length > 1) {
                 document.getElementById('header-source-email').textContent = `${activeAccounts[0].email} (+${activeAccounts.length - 1} Email)`;
                 document.getElementById('header-source-email').parentElement.title = 'Email Sumber Aktif: ' + activeAccounts.map(a => a.email).join(', ');
             } else if (activeAccounts.length === 1) {
                 document.getElementById('header-source-email').textContent = activeAccounts[0].email;
             } else {
-                document.getElementById('header-source-email').textContent = set.source_email || 'phujtmkopasuruan@gmail.com';
+                document.getElementById('header-source-email').textContent = fallbackSourceEmail;
             }
-            document.getElementById('header-gdrive-email').textContent = set.target_gdrive_email || 'muchammad.ali.sanjaya@gmail.com';
+            const targetGdriveEmail = set.target_gdrive_email || '-';
+            document.getElementById('header-gdrive-email').textContent = targetGdriveEmail;
+            const heroSrcEl = document.getElementById('hero-source-email');
+            if (heroSrcEl) heroSrcEl.textContent = fallbackSourceEmail;
+            const heroGdEl = document.getElementById('hero-gdrive-email');
+            if (heroGdEl) heroGdEl.textContent = targetGdriveEmail;
+            const cardGdEl = document.getElementById('gdrive-card-email');
+            if (cardGdEl) cardGdEl.textContent = targetGdriveEmail;
+            if (appState.active_lembaga && appState.active_lembaga.nama) {
+                const pillInst = document.getElementById('pill-instansi-name');
+                if (pillInst) pillInst.textContent = appState.active_lembaga.nama;
+                const topGovInst = document.getElementById('top-gov-instansi-label');
+                if (topGovInst) topGovInst.textContent = appState.active_lembaga.nama;
+            }
 
             const lastInfo = set.last_sync_at
                 ? (`Terakhir sinkron: ${set.last_sync_at} — ${set.last_sync_status || ''}`)
