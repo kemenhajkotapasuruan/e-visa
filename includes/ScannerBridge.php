@@ -203,42 +203,61 @@ try {
     \$imgFile = \$null
     \$usedScannerName = ''
 
+    function Try-ConnectAndTransferWia(\$dmObj, \$preferId) {
+        \$candidates = @()
+        foreach (\$d in \$dmObj.DeviceInfos) {
+            \$dId = [string]\$d.DeviceID
+            \$dName = ''
+            try { \$dName = [string]\$d.Properties('Name').Value } catch {}
+            if (\$preferId -ne '' -and (\$dId -eq \$preferId -or \$dName -eq \$preferId -or (\$dName -ne '' -and \$preferId -like "*\$dName*"))) {
+                \$candidates = ,\$d + \$candidates
+            } else {
+                \$candidates += \$d
+            }
+        }
+        foreach (\$cand in \$candidates) {
+            try {
+                \$dev = \$cand.Connect()
+                if (\$null -ne \$dev -and \$dev.Items.Count -ge 1) {
+                    \$it = \$dev.Items.Item(1)
+                    Set-WiaPhotoScanProperties -item \$it
+                    \$img = \$it.Transfer(\$wiaFormatJPEG)
+                    if (\$null -ne \$img) {
+                        \$sName = 'Scanner Aktif'
+                        try { \$sName = [string]\$cand.Properties('Name').Value } catch {}
+                        return @{ img = \$img; name = \$sName }
+                    }
+                }
+            } catch {}
+        }
+        return \$null
+    }
+
     if (\$useDialog) {
-        # Dialog WIA: bias MaximizeQuality = profil foto (bukan minimize/full halaman)
-        \$dlg = New-Object -ComObject WIA.CommonDialog
-        \$imgFile = \$dlg.ShowAcquireImage(1, \$colorType, \$wiaBias, \$wiaFormatJPEG, \$false, \$true, \$false)
-        \$usedScannerName = 'Dialog Driver Scanner Windows (Mode Foto)'
+        try {
+            # Dialog WIA: bias MaximizeQuality = profil foto (bukan minimize/full halaman)
+            \$dlg = New-Object -ComObject WIA.CommonDialog
+            \$imgFile = \$dlg.ShowAcquireImage(1, \$colorType, \$wiaBias, \$wiaFormatJPEG, \$false, \$true, \$false)
+            \$usedScannerName = 'Dialog Driver Scanner Windows (Mode Foto)'
+        } catch {
+            # Jika dialog gagal (misal terhalang session/background atau memilih device WSD offline), otomatis scan langsung dari USB WIA yang aktif
+            \$dm = New-Object -ComObject WIA.DeviceManager
+            \$resWia = Try-ConnectAndTransferWia \$dm \$targetId
+            if (\$null -ne \$resWia) {
+                \$imgFile = \$resWia.img
+                \$usedScannerName = \$resWia.name
+            } else {
+                throw
+            }
+        }
     } else {
         \$dm = New-Object -ComObject WIA.DeviceManager
-        \$targetInfo = \$null
-
-        foreach (\$d in \$dm.DeviceInfos) {
-            if (\$targetId -ne '' -and [string]\$d.DeviceID -eq \$targetId) {
-                \$targetInfo = \$d
-                break
-            }
-        }
-        if (\$null -eq \$targetInfo) {
-            foreach (\$d in \$dm.DeviceInfos) {
-                if (\$d.Type -eq 1) {
-                    \$targetInfo = \$d
-                    break
-                }
-            }
-        }
-        if (\$null -eq \$targetInfo -and \$dm.DeviceInfos.Count -gt 0) {
-            \$targetInfo = \$dm.DeviceInfos.Item(1)
-        }
-
-        if (\$null -ne \$targetInfo) {
-            try { \$usedScannerName = [string]\$targetInfo.Properties('Name').Value } catch { \$usedScannerName = 'Scanner Aktif' }
-            \$device = \$targetInfo.Connect()
-            \$item = \$device.Items.Item(1)
-            Set-WiaPhotoScanProperties -item \$item
-
-            \$imgFile = \$item.Transfer(\$wiaFormatJPEG)
+        \$resWia = Try-ConnectAndTransferWia \$dm \$targetId
+        if (\$null -ne \$resWia) {
+            \$imgFile = \$resWia.img
+            \$usedScannerName = \$resWia.name
         } else {
-            # Fallback ke CommonDialog jika DeviceInfos kosong tapi driver TWAIN/WIA tersedia lewat dialog
+            # Fallback ke CommonDialog jika DeviceInfos langsung belum berhasil
             \$dlg = New-Object -ComObject WIA.CommonDialog
             \$imgFile = \$dlg.ShowAcquireImage(1, \$colorType, \$wiaBias, \$wiaFormatJPEG, \$false, \$true, \$false)
             \$usedScannerName = 'Driver Scanner Windows (Mode Foto)'

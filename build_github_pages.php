@@ -1508,36 +1508,38 @@ $clientEngineJs = <<<JS
             try {
                 let locData = await new Promise(resolve => {
                     const reqId = 'scan_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+                    let ackReceived = false;
                     const timer = setTimeout(() => {
                         window.removeEventListener('message', onMsg);
                         resolve(null);
-                    }, 45000);
+                    }, 60000);
                     function onMsg(ev) {
-                        if (ev && ev.data && ev.data.type === 'SILAHUT_EXT_SCANNER_RES' && ev.data.reqId === reqId) {
+                        if (!ev || !ev.data || ev.data.reqId !== reqId) return;
+                        if (ev.data.type === 'SILAHUT_EXT_SCANNER_ACK') {
+                            ackReceived = true;
+                            return;
+                        }
+                        if (ev.data.type === 'SILAHUT_EXT_SCANNER_RES') {
                             clearTimeout(timer);
                             window.removeEventListener('message', onMsg);
                             resolve(ev.data.data || null);
                         }
                     }
                     window.addEventListener('message', onMsg);
-                    setTimeout(() => {
-                        // Jika dalam 1.5 detik ekstensi belum merespons ack, fallback ke fetch langsung
-                    }, 1500);
                     window.postMessage({ type: 'SILAHUT_EXT_SCANNER_REQ', reqId, scannerAction: 'scan_jamaah_doc', payload: bodyData }, '*');
                     setTimeout(() => {
-                        if (!window.__silahutExtBridgeActive) {
+                        if (!ackReceived) {
                             clearTimeout(timer);
                             window.removeEventListener('message', onMsg);
                             resolve(null);
                         }
-                    }, 1200);
+                    }, 800);
                 });
 
                 if (!locData) {
                     const locRes = await origFetch('http://localhost/e-visa/api.php?action=scan_jamaah_doc', {
                         method: 'POST',
-                        credentials: 'include',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
                         body: JSON.stringify(bodyData)
                     });
                     locData = await locRes.json();

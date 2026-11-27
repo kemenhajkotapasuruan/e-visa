@@ -15,8 +15,15 @@ require_once __DIR__ . '/includes/GmailImapClient.php';
 require_once __DIR__ . '/includes/GDriveSync.php';
 require_once __DIR__ . '/includes/ScannerBridge.php';
 
-// Izinkan akses CORS untuk Ekstensi Chrome Siskohat Gen.2
-header('Access-Control-Allow-Origin: *');
+// Izinkan akses CORS untuk Ekstensi Chrome Siskohat Gen.2 & Jembatan Cloud GitHub Pages
+$reqOrigin = trim((string)($_SERVER['HTTP_ORIGIN'] ?? ''));
+if ($reqOrigin !== '') {
+    header('Access-Control-Allow-Origin: ' . $reqOrigin);
+    header('Access-Control-Allow-Credentials: true');
+    header('Vary: Origin');
+} else {
+    header('Access-Control-Allow-Origin: *');
+}
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type, Accept, X-Evisa-Token, Authorization, X-Webhook-Token');
 header('Access-Control-Allow-Private-Network: true');
@@ -39,6 +46,8 @@ $tokenActions = [
     'siskohat_get_all_docs',
     'mark_siskohat',
     'siskohat_dom_debug',
+    'list_scanners',
+    'scan_jamaah_doc',
 ];
 $webhookActions = ['webhook_incoming'];
 

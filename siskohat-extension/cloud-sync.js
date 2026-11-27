@@ -37,18 +37,12 @@
     } catch (e) {}
   }
 
-  // Tandai bahwa jembatan ekstensi aktif di halaman GitHub Pages
-  try {
-    const s = document.createElement('script');
-    s.textContent = 'window.__silahutExtBridgeActive = true;';
-    (document.head || document.documentElement).appendChild(s);
-    s.remove();
-  } catch (e) {}
-
   // Jembatan komunikasi Hardware Scanner WIA/TWAIN (GitHub Pages HTTPS <-> Ekstensi <-> Laragon Localhost)
   window.addEventListener('message', ev => {
     if (!ev || !ev.data || ev.data.type !== 'SILAHUT_EXT_SCANNER_REQ') return;
     const { reqId, scannerAction, payload } = ev.data;
+    // Kirim ACK instan (< 5ms) agar halaman GitHub Pages tahu jembatan ekstensi aktif dan menunggu proses fisik scan selesai
+    window.postMessage({ type: 'SILAHUT_EXT_SCANNER_ACK', reqId: reqId }, '*');
     chrome.runtime.sendMessage(
       {
         type: 'LOCAL_SCANNER_BRIDGE',
