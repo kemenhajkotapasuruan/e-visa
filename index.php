@@ -267,35 +267,32 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                     </div>
 
                     <div class="account-pills">
-                        <?php if (($authUser['role'] ?? '') === Auth::ROLE_SUPER): ?>
-                        <div class="portal-pill-btn" title="Super Admin: akses &amp; agregasi seluruh instansi">
+                        <div class="portal-pill-btn" id="pill-super-role" style="<?= (($authUser['role'] ?? '') === Auth::ROLE_SUPER) ? '' : 'display:none;' ?>" title="Super Admin: akses &amp; agregasi seluruh instansi">
                             <span style="color:var(--text-secondary);">Peran:</span>
                             <strong>Super Admin (Semua Instansi)</strong>
                         </div>
-                        <div class="portal-pill-btn" title="Jumlah instansi terdaftar pada aplikasi">
+                        <div class="portal-pill-btn" id="pill-super-instansi" style="<?= (($authUser['role'] ?? '') === Auth::ROLE_SUPER) ? '' : 'display:none;' ?>" title="Jumlah instansi terdaftar pada aplikasi">
                             <span style="color:var(--text-secondary);">Instansi:</span>
-                            <strong><?= count(Auth::getLembagaList()) ?> terdaftar</strong>
+                            <strong id="pill-super-instansi-count"><?= count(Auth::getLembagaList()) ?> terdaftar</strong>
                         </div>
-                        <?php else: ?>
-                        <div class="portal-pill-btn" title="Instansi aktif (data terpisah per instansi)">
+                        <div class="portal-pill-btn" id="pill-admin-instansi" style="<?= (($authUser['role'] ?? '') === Auth::ROLE_SUPER) ? 'display:none;' : '' ?>" title="Instansi aktif (data terpisah per instansi)">
                             <span style="color:var(--text-secondary);">Instansi:</span>
-                            <strong><?= htmlspecialchars($activeLembaga['nama'] ?? Auth::tenantSlug()) ?></strong>
+                            <strong id="pill-instansi-name"><?= htmlspecialchars($activeLembaga['nama'] ?? Auth::tenantSlug()) ?></strong>
                         </div>
-                        <div class="portal-pill-btn" title="Akun Gmail Penerima Email MOFA">
+                        <div class="portal-pill-btn" id="pill-admin-source" style="<?= (($authUser['role'] ?? '') === Auth::ROLE_SUPER) ? 'display:none;' : '' ?>" title="Akun Gmail Penerima Email MOFA">
                             <span style="color:var(--text-secondary);">Email Sumber:</span>
                             <strong id="header-source-email"><?= htmlspecialchars($settings['source_email']) ?></strong>
                         </div>
-                        <div class="portal-pill-btn" title="Akun Google Drive Penyimpanan Otomatis">
+                        <div class="portal-pill-btn" id="pill-admin-gdrive" style="<?= (($authUser['role'] ?? '') === Auth::ROLE_SUPER) ? 'display:none;' : '' ?>" title="Akun Google Drive Penyimpanan Otomatis">
                             <span style="color:var(--text-secondary);">Google Drive:</span>
                             <strong id="header-gdrive-email"><?= htmlspecialchars($settings['target_gdrive_email']) ?></strong>
                         </div>
-                        <?php endif; ?>
                         <div class="portal-pill-btn" title="Pengguna yang sedang login">
-                            <span style="color:var(--text-secondary);"><?= htmlspecialchars($authUser['role'] ?? 'admin') ?>:</span>
-                            <strong><?= htmlspecialchars($authUser['nama'] ?? $authUser['username'] ?? '') ?></strong>
+                            <span style="color:var(--text-secondary);" id="pill-user-role"><?= htmlspecialchars($authUser['role'] ?? 'admin') ?>:</span>
+                            <strong id="pill-user-name"><?= htmlspecialchars($authUser['nama'] ?? $authUser['username'] ?? '') ?></strong>
                         </div>
                         <button type="button" class="portal-pill-btn" style="border:none;cursor:pointer;font-family:inherit;" onclick="openPasswordModal()">Ubah Password</button>
-                        <a class="portal-pill-btn" href="logout.php" style="text-decoration:none;">Keluar</a>
+                        <a class="portal-pill-btn" id="btn-logout-portal" href="logout.php" style="text-decoration:none;">Keluar</a>
                     </div>
                 </div>
             </header>

@@ -758,9 +758,101 @@ $clientEngineJs = <<<JS
         return '';
     };
 
-    // Intercept links & images pointing to api.php?action=download_file
+    // Intercept tombol Keluar (logout.php) agar di GitHub Pages TIDAK men-download file logout.php,
+    // melainkan menampilkan layar Login SILAHUT E-VISA (identik dengan login.php di lokal).
+    function showCloudLoginOverlay(prefillUser = '') {
+        let overlay = document.getElementById('gh-cloud-login-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.id = 'gh-cloud-login-overlay';
+            overlay.style.cssText = 'position:fixed;inset:0;z-index:99999;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc;padding:16px;';
+            overlay.innerHTML = `
+                <div class="admin-card" style="max-width:420px;width:100%;padding:28px 26px;box-shadow:0 10px 30px rgba(0,0,0,0.08);">
+                    <div style="text-align:center;margin-bottom:18px;">
+                        <img src="assets/logo-silahut.svg" alt="Logo" style="height:56px;">
+                        <h1 style="font-size:18px;margin:12px 0 4px;">SILAHUT E-VISA</h1>
+                        <p style="font-size:13px;color:var(--text-secondary);">Masuk untuk mengakses data Biovisa jamaah (terlindungi).</p>
+                    </div>
+                    <div id="gh-login-error" style="display:none;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;padding:10px 12px;border-radius:8px;margin-bottom:12px;font-size:13px;"></div>
+                    <form id="gh-cloud-login-form" autocomplete="off">
+                        <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;">Username</label>
+                        <input class="form-control" type="text" id="gh-login-username" required style="margin-bottom:14px;" placeholder="Masukkan username">
+                        <label style="display:block;font-size:13px;font-weight:700;margin-bottom:6px;">Password</label>
+                        <input class="form-control" type="password" id="gh-login-password" required style="margin-bottom:18px;" placeholder="Masukkan password">
+                        <button type="submit" class="btn btn-gold" style="width:100%;">Masuk</button>
+                    </form>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+
+            overlay.querySelector('#gh-cloud-login-form').addEventListener('submit', async function(ev) {
+                ev.preventDefault();
+                const uIn = String(document.getElementById('gh-login-username').value || '').trim();
+                const pIn = String(document.getElementById('gh-login-password').value || '');
+                const errBox = document.getElementById('gh-login-error');
+                if (!uIn || !pIn) {
+                    errBox.textContent = 'Username dan password wajib diisi.';
+                    errBox.style.display = 'block';
+                    return;
+                }
+                const savedPwMap = JSON.parse(localStorage.getItem('gh_evisa_pw_map') || '{}');
+                const key = uIn.toLowerCase();
+                if (savedPwMap[key] && savedPwMap[key] !== pIn) {
+                    errBox.textContent = 'Username atau password salah.';
+                    errBox.style.display = 'block';
+                    return;
+                }
+                const roleLabel = key === 'superadmin' ? 'super_admin' : 'admin';
+                const displayName = key === 'superadmin'
+                    ? 'Super Administrator'
+                    : (key === 'kd1322' ? 'Admin Kantor Kemenhaj kabupaten Pasuruan' : 'Admin Kantor Kemenhaj Pasuruan');
+                const instansiName = key === 'kd1322'
+                    ? 'Kementerian Haji dan Umrah Kabupaten Pasuruan'
+                    : 'Kantor Kemenhaj Kota Pasuruan';
+
+                const sessObj = { username: uIn, role: roleLabel, nama: displayName, instansi: instansiName };
+                localStorage.setItem('gh_evisa_active_user', JSON.stringify(sessObj));
+                sessionStorage.removeItem('gh_evisa_logged_out');
+                applyCloudUserHeader(sessObj);
+                overlay.style.display = 'none';
+                document.body.style.overflow = '';
+                if (typeof showToast === 'function') {
+                    showToast('Berhasil masuk sebagai ' + displayName);
+                }
+            });
+        }
+        const errBox = document.getElementById('gh-login-error');
+        if (errBox) errBox.style.display = 'none';
+        const uField = document.getElementById('gh-login-username');
+        const pField = document.getElementById('gh-login-password');
+        if (uField) uField.value = prefillUser || '';
+        if (pField) pField.value = '';
+        overlay.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+        setTimeout(() => { if (uField) uField.focus(); }, 60);
+    }
+
+    function applyCloudUserHeader(userObj) {
+        if (!userObj) return;
+        const rEl = document.getElementById('pill-user-role');
+        const nEl = document.getElementById('pill-user-name');
+        const iEl = document.getElementById('pill-instansi-name');
+        if (rEl) rEl.textContent = (userObj.role || 'admin') + ':';
+        if (nEl) nEl.textContent = userObj.nama || userObj.username || 'Admin';
+        if (iEl && userObj.instansi) iEl.textContent = userObj.instansi;
+    }
+
+    // Intercept links & images pointing to api.php?action=download_file or logout.php
     const origSetAttr = Element.prototype.setAttribute;
     document.addEventListener('click', function(e) {
+        const logoutLink = e.target.closest('a[href*="logout.php"], #btn-logout-portal');
+        if (logoutLink) {
+            e.preventDefault();
+            e.stopPropagation();
+            sessionStorage.setItem('gh_evisa_logged_out', '1');
+            showCloudLoginOverlay('');
+            return;
+        }
         const a = e.target.closest('a[href*="api.php"]');
         if (!a) return;
         const href = a.getAttribute('href') || '';
@@ -818,6 +910,16 @@ $clientEngineJs = <<<JS
     });
     window.addEventListener('DOMContentLoaded', () => {
         imgObs.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['src', 'href'] });
+        document.querySelectorAll('a[href*="logout.php"], #btn-logout-portal').forEach(a => {
+            a.setAttribute('href', '#logout');
+        });
+        const savedUser = JSON.parse(localStorage.getItem('gh_evisa_active_user') || 'null');
+        if (savedUser) {
+            applyCloudUserHeader(savedUser);
+        }
+        if (sessionStorage.getItem('gh_evisa_logged_out') === '1') {
+            showCloudLoginOverlay('');
+        }
     });
 
     const origFetch = window.fetch.bind(window);
@@ -1455,6 +1557,23 @@ $clientEngineJs = <<<JS
             });
             saveGhState();
             return makeJsonRes({ ok: true, message: `Berhasil menyimpan \${added} data Jamaah.` });
+        }
+
+        if (action === 'change_my_password') {
+            const cur = String(bodyData.current_password || '');
+            const neu = String(bodyData.new_password || '');
+            if (neu.length < 8) {
+                return makeJsonRes({ ok: false, error: 'Password baru minimal 8 karakter.' });
+            }
+            const activeUser = JSON.parse(localStorage.getItem('gh_evisa_active_user') || 'null') || { username: 'admin' };
+            const uKey = String(activeUser.username || 'admin').toLowerCase();
+            const pwMap = JSON.parse(localStorage.getItem('gh_evisa_pw_map') || '{}');
+            if (pwMap[uKey] && pwMap[uKey] !== cur) {
+                return makeJsonRes({ ok: false, error: 'Password lama salah.' });
+            }
+            pwMap[uKey] = neu;
+            localStorage.setItem('gh_evisa_pw_map', JSON.stringify(pwMap));
+            return makeJsonRes({ ok: true, message: 'Password berhasil diperbarui.' });
         }
 
         if (action === 'test_connection') {
