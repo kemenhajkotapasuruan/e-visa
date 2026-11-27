@@ -1,5 +1,10 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/includes/Auth.php';
+Auth::init();
+Auth::requireLogin();
+$authUser = Auth::user();
+$activeLembaga = Auth::getLembagaBySlug(Auth::tenantSlug());
 $settings = getSettings();
 $gasGdriveCode = @file_get_contents(__DIR__ . '/gas/1_GDrive_muchammad_ali_sanjaya.gs') ?: '';
 $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs') ?: '';
@@ -9,13 +14,15 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SILAHUT E-VISA &bull; Sistem Otomatisasi BioVisa Jamaah Haji | PHU Kemenag Pasuruan</title>
+    <title>SILAHUT E-VISA &bull; Sistem Otomatisasi BioVisa Jamaah Haji | Kantor Kemenhaj Kota Pasuruan</title>
     <link rel="icon" type="image/svg+xml" href="assets/logo-silahut.svg">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" media="print" onload="this.media='all'">
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="admin.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css" crossorigin="anonymous" referrerpolicy="no-referrer">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body class="admin-body">
 
@@ -25,7 +32,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             <div class="gov-badge-left">
                 <span class="gold-highlight">✦ KEMENTERIAN HAJI DAN UMRAH REPUBLIK INDONESIA</span>
                 <span>&bull;</span>
-                <span>Penyelenggaraan Haji dan Umrah Kota Pasuruan</span>
+                <span>Kantor Kemenhaj Kota Pasuruan</span>
             </div>
             <div class="gov-badge-right">
                 <span>Standar Siskohat: <strong class="gold-highlight">JPG &le; 50 KB (Nama_Nomor paspor.jpg)</strong></span>
@@ -45,7 +52,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
         <aside class="admin-sidebar" id="admin-sidebar">
             <div class="sidebar-inner-wrap">
                 <a href="index.php" class="sidebar-brand">
-                    <img src="assets/logo-silahut.svg" alt="Logo PHU Kemenag">
+                    <img src="assets/logo-silahut.svg" alt="Logo Kantor Kemenhaj Kota Pasuruan">
                     <div class="sidebar-brand-text">
                         <div class="brand-tag">KEMENHAJ KOTA PASURUAN</div>
                         <div class="brand-name">SILAHUT E-VISA</div>
@@ -180,6 +187,26 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                             </button>
                         </div>
                     </div>
+
+                    <?php if (($authUser['role'] ?? '') === Auth::ROLE_SUPER): ?>
+                    <div class="sidebar-menu-group" id="menu-grp-keamanan">
+                        <button type="button" class="sidebar-parent-btn" onclick="toggleSidebarGroup('menu-grp-keamanan')">
+                            <span class="sidebar-parent-left">
+                                <span class="parent-indicator"></span>
+                                <span>Keamanan &amp; Lembaga</span>
+                            </span>
+                            <span class="submenu-chevron">&#9662;</span>
+                        </button>
+                        <div class="sidebar-submenu">
+                            <button type="button" class="sidebar-sublink" id="nav-tab-security" onclick="switchTab('tab-security', this)">
+                                <span class="sidebar-link-left">
+                                    <span class="nav-bullet"></span>
+                                    <span>Pengguna &amp; Lembaga</span>
+                                </span>
+                            </button>
+                        </div>
+                    </div>
+                    <?php endif; ?>
                 </nav>
 
                 <div class="sidebar-section-label">Kontrol Otomatisasi</div>
@@ -240,6 +267,20 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                     </div>
 
                     <div class="account-pills">
+                        <?php if (($authUser['role'] ?? '') === Auth::ROLE_SUPER): ?>
+                        <div class="portal-pill-btn" title="Super Admin: akses &amp; agregasi seluruh instansi">
+                            <span style="color:var(--text-secondary);">Peran:</span>
+                            <strong>Super Admin (Semua Instansi)</strong>
+                        </div>
+                        <div class="portal-pill-btn" title="Jumlah instansi terdaftar pada aplikasi">
+                            <span style="color:var(--text-secondary);">Instansi:</span>
+                            <strong><?= count(Auth::getLembagaList()) ?> terdaftar</strong>
+                        </div>
+                        <?php else: ?>
+                        <div class="portal-pill-btn" title="Instansi aktif (data terpisah per instansi)">
+                            <span style="color:var(--text-secondary);">Instansi:</span>
+                            <strong><?= htmlspecialchars($activeLembaga['nama'] ?? Auth::tenantSlug()) ?></strong>
+                        </div>
                         <div class="portal-pill-btn" title="Akun Gmail Penerima Email MOFA">
                             <span style="color:var(--text-secondary);">Email Sumber:</span>
                             <strong id="header-source-email"><?= htmlspecialchars($settings['source_email']) ?></strong>
@@ -248,6 +289,13 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                             <span style="color:var(--text-secondary);">Google Drive:</span>
                             <strong id="header-gdrive-email"><?= htmlspecialchars($settings['target_gdrive_email']) ?></strong>
                         </div>
+                        <?php endif; ?>
+                        <div class="portal-pill-btn" title="Pengguna yang sedang login">
+                            <span style="color:var(--text-secondary);"><?= htmlspecialchars($authUser['role'] ?? 'admin') ?>:</span>
+                            <strong><?= htmlspecialchars($authUser['nama'] ?? $authUser['username'] ?? '') ?></strong>
+                        </div>
+                        <button type="button" class="portal-pill-btn" style="border:none;cursor:pointer;font-family:inherit;" onclick="openPasswordModal()">Ubah Password</button>
+                        <a class="portal-pill-btn" href="logout.php" style="text-decoration:none;">Keluar</a>
                     </div>
                 </div>
             </header>
@@ -371,29 +419,24 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                             <p style="font-size:11.5px; font-weight:700; margin-top:4px;" id="print-period-label">Periode: Semua Tanggal</p>
                         </div>
 
-                        <div class="panel-header">
+                        <div class="panel-header panel-header-slim">
                             <div>
-                                <h2 class="news-title">Daftar Dokumen Biovisa Jamaah (Template Asli Email &bull; &le; 50 KB)</h2>
-                                <p style="font-size: 12.5px; color: var(--text-secondary);">
-                                    Filter jamaah berdasarkan tanggal perekaman Biovisa, status Google Drive, atau cari nama &amp; nomor paspor.
-                                </p>
+                                <h2 class="news-title">Daftar Biovisa Jamaah</h2>
+                                <p class="panel-subtitle" id="list-filter-summary">JPG &le; 50 KB &bull; cari atau saring daftar di bawah</p>
                             </div>
-                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                                <button class="btn btn-gold btn-sm" onclick="toggleSevenDocsManagerPanel()">
-                                    📂 Kelola &amp; Upload 7 Dokumen Siskohat
+                            <div class="panel-actions-compact">
+                                <button class="btn btn-gold btn-sm" onclick="toggleSevenDocsManagerPanel()" title="Kelola &amp; unggah 7 dokumen Siskohat">
+                                    📂 7 Dokumen
                                 </button>
-                                <button class="btn btn-charcoal btn-sm" id="btn-sync-gdrive-7docs" onclick="syncGDriveSevenDocs()">
-                                    ☁️ Tarik 7 Folder GDrive
-                                </button>
-                                <button class="btn btn-outline btn-sm" onclick="printOfficialReport()">
-                                    Cetak Laporan
-                                </button>
-                                <a class="btn btn-outline btn-sm" id="btn-export-csv-filtered" href="api.php?action=export_csv">
-                                    Ekspor CSV/Excel
-                                </a>
-                                <a class="btn btn-gold btn-sm" id="btn-download-zip-filtered" href="api.php?action=download_zip">
-                                    Unduh Arsip (.ZIP)
-                                </a>
+                                <details class="panel-more-menu">
+                                    <summary class="btn btn-outline btn-sm" title="Aksi laporan &amp; sinkron">Lainnya ▾</summary>
+                                    <div class="panel-more-menu-body">
+                                        <button type="button" class="panel-more-item" id="btn-sync-gdrive-7docs" onclick="syncGDriveSevenDocs()"> Tarik folder GDrive</button>
+                                        <button type="button" class="panel-more-item" onclick="printOfficialReport()"> Cetak laporan</button>
+                                        <a class="panel-more-item" id="btn-export-csv-filtered" href="api.php?action=export_csv">📊 Ekspor CSV</a>
+                                        <a class="panel-more-item" id="btn-download-zip-filtered" href="api.php?action=download_zip">📦 Unduh arsip ZIP</a>
+                                    </div>
+                                </details>
                             </div>
                         </div>
 
@@ -428,98 +471,79 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                                     💻 Dari Komputer (Upload)
                                 </button>
                                 <button type="button" class="btn btn-charcoal" onclick="openScannerModal('', document.getElementById('bulk-doc-category').value)">
-                                    🖨️ Dari Scanner (Driver Aktif)
+                                     Dari Scanner (Driver Aktif)
                                 </button>
                                 <button type="button" class="btn btn-outline" onclick="syncGDriveSevenDocs()">
-                                    ☁️ Sinkron 7 Folder GDrive
+                                     Sinkron 7 Folder GDrive
                                 </button>
                             </div>
                         </div>
 
-                        <!-- BARIS 1: FILTER TANGGAL BIOVISA (.date-filter-bar) -->
-                        <div class="date-filter-bar">
-                            <div class="date-filter-group">
-                                <span class="date-filter-label">Filter Tanggal:</span>
-
-                                <select id="date-basis-select" class="select-compact" onchange="onDateBasisChange()" title="Dasar Tanggal Filter">
-                                    <option value="enrollment">Tgl. Biovisa (MOFA)</option>
-                                    <option value="processed">Tgl. Diproses Sistem</option>
+                        <!-- Toolbar filter ringkas: pencarian + status + tampilan; opsi lanjutan dapat dilipat -->
+                        <div class="records-toolbar-compact">
+                            <div class="records-toolbar-main">
+                                <input type="text" id="search-records" class="search-input search-input-grow" placeholder="Cari nama, paspor, atau email…" oninput="onFilterOrSearchChange()" aria-label="Cari jamaah">
+                                <select id="filter-status-select" class="select-compact select-status" onchange="onStatusFilterSelectChange(this.value)" title="Saring menurut status">
+                                    <option value="all">Semua</option>
+                                    <option value="gdrive_ok">Sudah GDrive</option>
+                                    <option value="gdrive_pending">Belum GDrive</option>
+                                    <option value="siskohat_pending">Belum Siskohat</option>
                                 </select>
-
-                                <select id="quick-date-select" class="select-compact" onchange="onQuickDateSelectChange(this.value)" title="Pilih Cepat Tanggal Biovisa yang Tersedia">
-                                    <option value="">-- Semua Tanggal Tersedia --</option>
-                                </select>
-
-                                <span style="font-size:12px; color:var(--text-secondary); font-weight:600;">Rentang:</span>
-                                <input type="date" id="filter-date-from" class="date-input-compact" onchange="onCustomDateInput()" title="Dari Tanggal">
-                                <span style="font-size:12px; color:var(--text-secondary);">s/d</span>
-                                <input type="date" id="filter-date-to" class="date-input-compact" onchange="onCustomDateInput()" title="Sampai Tanggal">
-                            </div>
-
-                            <div class="date-filter-group">
-                                <button type="button" class="date-preset-btn active" id="preset-all" onclick="applyDatePreset('all', this)">Semua</button>
-                                <button type="button" class="date-preset-btn" id="preset-today" onclick="applyDatePreset('today', this)">Hari Ini</button>
-                                <button type="button" class="date-preset-btn" id="preset-yesterday" onclick="applyDatePreset('yesterday', this)">Kemarin</button>
-                                <button type="button" class="date-preset-btn" id="preset-7days" onclick="applyDatePreset('7days', this)">7 Hari Terakhir</button>
-                                <button type="button" class="date-preset-btn" id="preset-month" onclick="applyDatePreset('month', this)">Bulan Ini</button>
-                            </div>
-                        </div>
-
-                        <!-- BANNER RINGKASAN FILTER TANGGAL AKTIF -->
-                        <div class="date-active-banner" id="date-active-banner">
-                            <div>
-                                <strong id="date-active-summary-text">Filter Tanggal Aktif</strong>
-                            </div>
-                            <div style="display:flex; gap:8px; align-items:center;">
-                                <button type="button" class="btn btn-outline btn-sm" onclick="applyDatePreset('all', document.getElementById('preset-all'))">
-                                    Reset Filter Tanggal
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- BARIS 2: FILTER STATUS, SORT, SEARCH & VIEW MODE TOOLBAR -->
-                        <div class="explorer-toolbar">
-                            <div class="filter-pills">
-                                <button class="filter-pill active" onclick="setRecordFilter('all', this)">
-                                    Semua (<span id="count-filter-all">0</span>)
-                                </button>
-                                <button class="filter-pill" onclick="setRecordFilter('gdrive_ok', this)">
-                                    Sudah di GDrive (<span id="count-filter-ok">0</span>)
-                                </button>
-                                <button class="filter-pill" onclick="setRecordFilter('gdrive_pending', this)">
-                                    Belum GDrive (<span id="count-filter-pending">0</span>)
-                                </button>
-                                <button class="filter-pill" onclick="setRecordFilter('siskohat_pending', this)">
-                                    Belum Siskohat (<span id="count-filter-siskohat-pending">0</span>)
-                                </button>
-                            </div>
-
-                            <div class="toolbar-right">
-                                <input type="text" id="search-records" class="search-input" placeholder="🔍 Cari Nama Jamaah, No. Paspor, atau Email..." oninput="onFilterOrSearchChange()">
-
-                                <select id="filter-source-email" class="select-compact" onchange="onFilterOrSearchChange()" title="Filter Berdasarkan Asal Sumber Email">
-                                    <option value="">Semua Sumber Email</option>
-                                </select>
-
-                                <select id="sort-records" class="select-compact" onchange="onFilterOrSearchChange()" title="Urutkan Data">
-                                    <option value="newest">Urut: Terbaru Diproses</option>
-                                    <option value="nama_asc">Urut: Nama Jamaah (A-Z)</option>
-                                    <option value="paspor_asc">Urut: Nomor Paspor (A-Z)</option>
-                                    <option value="size_asc">Urut: Ukuran KB</option>
-                                </select>
-
-                                <select id="page-size-select" class="select-compact" onchange="onFilterOrSearchChange()" title="Jumlah Baris per Halaman">
-                                    <option value="25">25 / hal</option>
-                                    <option value="50">50 / hal</option>
-                                    <option value="100">100 / hal</option>
-                                    <option value="9999">Semua</option>
-                                </select>
-
-                                <div class="view-toggle-group" title="Pilih Mode Tampilan">
-                                    <button class="view-toggle-btn active" id="btn-view-table" onclick="setViewMode('table')">☰ Tabel</button>
-                                    <button class="view-toggle-btn" id="btn-view-grid" onclick="setViewMode('grid')">⊞ Galeri</button>
+                                <div class="view-toggle-group" title="Pilih mode tampilan">
+                                    <button class="view-toggle-btn active" id="btn-view-table" type="button" onclick="setViewMode('table')">Tabel</button>
+                                    <button class="view-toggle-btn" id="btn-view-grid" type="button" onclick="setViewMode('grid')">Galeri</button>
                                 </div>
                             </div>
+                            <details class="records-filter-details" id="records-filter-details">
+                                <summary>Filter tanggal &amp; opsi lainnya</summary>
+                                <div class="records-filter-details-body">
+                                    <div class="date-active-banner" id="date-active-banner">
+                                        <strong id="date-active-summary-text">Filter tanggal aktif</strong>
+                                        <button type="button" class="btn btn-outline btn-sm" onclick="applyDatePreset('all', document.getElementById('preset-all'))">Reset tanggal</button>
+                                    </div>
+                                    <div class="date-filter-group date-presets-row">
+                                        <button type="button" class="date-preset-btn active" id="preset-all" onclick="applyDatePreset('all', this)">Semua</button>
+                                        <button type="button" class="date-preset-btn" id="preset-today" onclick="applyDatePreset('today', this)">Hari ini</button>
+                                        <button type="button" class="date-preset-btn" id="preset-yesterday" onclick="applyDatePreset('yesterday', this)">Kemarin</button>
+                                        <button type="button" class="date-preset-btn" id="preset-7days" onclick="applyDatePreset('7days', this)">7 hari</button>
+                                        <button type="button" class="date-preset-btn" id="preset-month" onclick="applyDatePreset('month', this)">Bulan ini</button>
+                                    </div>
+                                    <div class="records-filter-grid">
+                                        <select id="date-basis-select" class="select-compact" onchange="onDateBasisChange()" title="Dasar tanggal">
+                                            <option value="enrollment">Tgl. Biovisa (MOFA)</option>
+                                            <option value="processed">Tgl. diproses sistem</option>
+                                        </select>
+                                        <select id="quick-date-select" class="select-compact" onchange="onQuickDateSelectChange(this.value)" title="Pilih tanggal yang tersedia">
+                                            <option value="">Semua tanggal tersedia</option>
+                                        </select>
+                                        <input type="date" id="filter-date-from" class="date-input-compact" onchange="onCustomDateInput()" title="Dari tanggal" aria-label="Dari tanggal">
+                                        <span class="date-range-sep">s/d</span>
+                                        <input type="date" id="filter-date-to" class="date-input-compact" onchange="onCustomDateInput()" title="Sampai tanggal" aria-label="Sampai tanggal">
+                                        <select id="filter-source-email" class="select-compact" onchange="onFilterOrSearchChange()" title="Asal email">
+                                            <option value="">Semua sumber email</option>
+                                        </select>
+                                        <select id="filter-lembaga" class="select-compact" onchange="onFilterOrSearchChange()" title="Filter instansi" style="display:none;">
+                                            <option value="">Semua instansi</option>
+                                        </select>
+                                        <select id="sort-records" class="select-compact" onchange="onFilterOrSearchChange()" title="Urutkan">
+                                            <option value="newest">Terbaru diproses</option>
+                                            <option value="nama_asc">Nama A–Z</option>
+                                            <option value="paspor_asc">Paspor A–Z</option>
+                                            <option value="size_asc">Ukuran file</option>
+                                        </select>
+                                        <select id="page-size-select" class="select-compact" onchange="onFilterOrSearchChange()" title="Baris per halaman">
+                                            <option value="25">25 / halaman</option>
+                                            <option value="50">50 / halaman</option>
+                                            <option value="100">100 / halaman</option>
+                                            <option value="9999">Tampilkan semua</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </details>
+                            <span id="count-filter-all" class="visually-hidden" aria-hidden="true">0</span>
+                            <span id="count-filter-ok" class="visually-hidden" aria-hidden="true">0</span>
+                            <span id="count-filter-pending" class="visually-hidden" aria-hidden="true">0</span>
+                            <span id="count-filter-siskohat-pending" class="visually-hidden" aria-hidden="true">0</span>
                         </div>
 
                         <!-- BULK ACTION BAR -->
@@ -529,10 +553,10 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                             </div>
                             <div style="display:flex; gap:8px; flex-wrap:wrap;">
                                 <button class="btn btn-charcoal btn-sm" onclick="bulkUploadSelectedToGDrive()">
-                                    ☁️ Upload Terpilih ke GDrive
+                                     Upload Terpilih ke GDrive
                                 </button>
                                 <button class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="bulkDeleteSelected()">
-                                    🗑️ Hapus Terpilih
+                                     Hapus Terpilih
                                 </button>
                                 <button class="btn btn-outline btn-sm" onclick="clearBulkSelection()">
                                     Batal
@@ -591,7 +615,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                             </div>
                             <div style="display:flex; gap:8px; flex-wrap:wrap;">
                                 <button class="btn btn-charcoal" id="btn-test-conn" onclick="testConnectionsNow()">
-                                    🔍 Tes &amp; Diagnosa Koneksi Gmail + GDrive
+                                     Tes &amp; Diagnosa Koneksi Gmail + GDrive
                                 </button>
                                 <button class="btn btn-gold" onclick="saveAppSettings()">
                                     💾 Simpan Semua Pengaturan
@@ -678,7 +702,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                         <div class="admin-card feature-card">
                             <div class="panel-header">
                                 <div>
-                                    <h2 class="news-title">☁️ Script 1: Simpan Otomatis ke Google Drive</h2>
+                                    <h2 class="news-title"> Script 1: Simpan Otomatis ke Google Drive</h2>
                                     <p style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">Pasang di akun: muchammad.ali.sanjaya@gmail.com</p>
                                 </div>
                                 <button class="btn btn-gold btn-sm" onclick="copyScriptCode('code-gas-gdrive')">
@@ -724,7 +748,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                                 <p style="font-size: 12.5px; color: var(--text-secondary);">Catatan real-time penarikan email MOFA, konversi JPG &le; 50KB, dan sinkronisasi Google Drive.</p>
                             </div>
                             <button class="btn btn-outline btn-sm" onclick="clearSyncLogs()">
-                                🗑️ Bersihkan Log
+                                 Bersihkan Log
                             </button>
                         </div>
                         <div class="table-wrap">
@@ -745,6 +769,99 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                         </div>
                     </div>
                 </section>
+
+                <?php if (($authUser['role'] ?? '') === Auth::ROLE_SUPER): ?>
+                <section id="tab-security" class="tab-pane">
+                    <div class="admin-card feature-card">
+                        <div class="panel-header panel-header-slim">
+                            <div>
+                                <h2 class="news-title">Keamanan, Pengguna, &amp; Multi-Instansi</h2>
+                                <p class="panel-subtitle">Setiap instansi punya folder data sendiri, email penerima, dan Google Drive terpisah. Data dashboard Super Admin adalah agregasi seluruh instansi.</p>
+                            </div>
+                            <button type="button" class="btn btn-gold btn-sm" onclick="loadSecurityAdminPanel()">Muat Ulang</button>
+                        </div>
+                        <div class="form-grid" style="gap:16px;">
+                            <div class="admin-card" style="margin:0;">
+                                <h3 class="news-title" style="font-size:15px;">Tambah / Edit Instansi</h3>
+                                <input type="hidden" id="lem-id" value="">
+                                <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">
+                                    <input id="lem-slug" class="form-control" placeholder="Slug (contoh: kotas-malang)">
+                                    <input id="lem-nama" class="form-control" placeholder="Nama instansi">
+                                    <input id="lem-source-email" class="form-control" placeholder="Email penerima MOFA">
+                                    <input id="lem-gdrive-email" class="form-control" placeholder="Email / akun Google Drive">
+                                    <input id="lem-gdrive-folder" class="form-control" placeholder="Nama folder GDrive">
+                                </div>
+                                <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
+                                    <button type="button" class="btn btn-gold btn-sm" onclick="saveLembagaForm()">Simpan Instansi</button>
+                                    <button type="button" class="btn btn-outline btn-sm" onclick="resetLembagaForm()">Bersihkan Form</button>
+                                    <span id="lem-form-title" style="font-size:12px;color:var(--text-secondary);">Tambah Instansi</span>
+                                </div>
+                            </div>
+                            <div class="admin-card" style="margin:0;">
+                                <h3 class="news-title" style="font-size:15px;">Tambah / Edit Pengguna</h3>
+                                <input type="hidden" id="usr-id" value="">
+                                <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;">
+                                    <input id="usr-username" class="form-control" placeholder="Username">
+                                    <input id="usr-nama" class="form-control" placeholder="Nama lengkap">
+                                    <input id="usr-password" class="form-control" type="password" placeholder="Password (kosongkan bila tidak diubah)">
+                                    <select id="usr-role" class="form-control">
+                                        <option value="admin">Admin Instansi</option>
+                                        <option value="super_admin">Super Admin</option>
+                                    </select>
+                                    <select id="usr-lembaga" class="form-control"></select>
+                                </div>
+                                <div style="display:flex; gap:8px; margin-top:10px; align-items:center;">
+                                    <button type="button" class="btn btn-gold btn-sm" onclick="saveUserForm()">Simpan Pengguna</button>
+                                    <button type="button" class="btn btn-outline btn-sm" onclick="resetUserForm()">Bersihkan Form</button>
+                                    <span id="usr-form-title" style="font-size:12px;color:var(--text-secondary);">Tambah Pengguna</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="admin-card" style="margin:14px 0 0;">
+                            <h3 class="news-title" style="font-size:15px;margin-bottom:10px;">Daftar Instansi Terdaftar</h3>
+                            <div class="table-wrap">
+                                <table class="table-custom">
+                                    <thead>
+                                        <tr>
+                                            <th>Instansi</th>
+                                            <th>Slug</th>
+                                            <th>Email Sumber</th>
+                                            <th>Google Drive</th>
+                                            <th style="width:110px;">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="security-lembaga-tbody">
+                                        <tr><td colspan="5" class="empty-state">Memuat...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div class="admin-card" style="margin:14px 0 0;">
+                            <h3 class="news-title" style="font-size:15px;margin-bottom:10px;">Daftar Pengguna</h3>
+                            <div class="table-wrap">
+                                <table class="table-custom">
+                                    <thead>
+                                        <tr>
+                                            <th>Username</th>
+                                            <th>Nama</th>
+                                            <th>Peran</th>
+                                            <th>Instansi</th>
+                                            <th style="width:210px;">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="security-users-tbody">
+                                        <tr><td colspan="5" class="empty-state">Memuat...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <div id="security-admin-status" style="font-size:12.5px;color:var(--text-secondary);margin-top:12px;"></div>
+                    </div>
+                </section>
+                <?php endif; ?>
 
                 <!-- ================================================================
                      TAB 6: AUTO-UPLOAD KE WEBSITE SISKOHAT GEN.2
@@ -847,16 +964,26 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                     <div style="font-size: 11.5px; color: var(--text-secondary);">Gunakan tombol panah kiri/kanan pada keyboard untuk berpindah antar-jamaah</div>
                 </div>
                 <div style="display:flex; gap:6px; align-items:center;">
-                    <button class="btn btn-outline btn-sm" onclick="navigateModalRecord(-1)" title="Jamaah Sebelumnya (←)">◀ Sebelumnya</button>
+                    <button class="btn btn-outline btn-sm" onclick="navigateModalRecord(-1)" title="Jamaah Sebelumnya ()">◀ Sebelumnya</button>
                     <button class="btn btn-outline btn-sm" onclick="navigateModalRecord(1)" title="Jamaah Berikutnya (→)">Berikutnya ▶</button>
                     <button class="btn btn-charcoal btn-sm" onclick="closeModal()">✕ Tutup</button>
                 </div>
             </div>
 
             <div class="form-grid" style="grid-template-columns: 1.2fr 1fr;">
-                <div style="background:var(--off-white); padding:12px; border-radius:10px; border:1px solid var(--border-color); text-align:center; display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:auto;">
-                    <img id="modal-img" src="" alt="Preview Biovisa" style="max-width:100%; max-height:490px; border-radius:8px; border:1px solid #cbd5e1; transition:transform 0.2s ease; cursor:zoom-in;" onclick="toggleImageZoom(this)">
-                    <div style="font-size:11px; color:var(--text-secondary); margin-top:6px;">🔍 Klik gambar untuk memperbesar (Zoom In/Out)</div>
+                <div id="modal-preview-img-panel" class="modal-preview-img-panel">
+                    <div id="modal-preview-doc-label" class="modal-preview-doc-label">Dokumen: Biovisa (maks 50 KB)</div>
+                    <div class="modal-img-crop-host">
+                        <img id="modal-img" src="" alt="Preview dokumen" crossorigin="anonymous">
+                    </div>
+                    <div id="modal-img-zoom-hint" class="modal-img-hint">Klik gambar untuk memperbesar (Zoom In/Out)</div>
+                    <div id="modal-crop-toolbar" class="modal-crop-toolbar">
+                        <button type="button" class="btn btn-outline btn-sm" id="btn-start-crop" onclick="startManualCrop()">✂ Crop Manual</button>
+                        <button type="button" class="btn btn-outline btn-sm" id="btn-auto-crop" onclick="applyAutoCropDoc()">✦ Auto-Crop Dokumen</button>
+                        <button type="button" class="btn btn-gold btn-sm" id="btn-apply-crop" style="display:none;" onclick="applyManualCrop()">Terapkan Crop &amp; Kompres</button>
+                        <button type="button" class="btn btn-charcoal btn-sm" id="btn-cancel-crop" style="display:none;" onclick="cancelManualCrop()">Batal</button>
+                    </div>
+                    <div id="modal-crop-hint" class="modal-img-hint crop-mode-only" hidden>Geser / ubah ukuran kotak crop, lalu klik Terapkan. File dikompres ulang sesuai batas kategori Siskohat.</div>
                 </div>
 
                 <div>
@@ -892,13 +1019,13 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                                 💾 Simpan Perubahan &amp; Buat Ulang JPG &le; 50KB
                             </button>
                             <a id="modal-download-btn" href="#" class="btn btn-charcoal" download>
-                                ⬇️ Download File JPG
+                                 Download File JPG
                             </a>
                             <a id="modal-gdrive-btn" href="#" target="_blank" class="btn btn-outline" style="display:none;">
-                                ☁️ Buka File di Google Drive ↗
+                                 Buka File di Google Drive ↗
                             </a>
                             <button type="button" class="btn btn-outline" style="color:var(--danger); border-color:var(--danger);" onclick="deleteCurrentRecord()">
-                                🗑️ Hapus Dokumen Ini
+                                 Hapus Dokumen Ini
                             </button>
                         </div>
                     </form>
@@ -909,8 +1036,8 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             <div style="margin-top:16px; padding-top:14px; border-top:2px solid var(--ui-gold);">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
                     <div>
-                        <strong style="font-size:14px; color:var(--pure-black);">✦ Kelengkapan 7 File Upload Siskohat (Pilih: 💻 Dari Komputer atau 🖨️ Dari Scanner)</strong>
-                        <div style="font-size:11.5px; color:var(--text-secondary);">Setiap file yang diunggah dari Komputer maupun dipindai langsung dari Driver Scanner otomatis dikompres menjadi <strong>JPG &le; 50 KB</strong>. File yang belum ada (⊘) otomatis diblokir &amp; dilewati ke file berikutnya.</div>
+                        <strong style="font-size:14px; color:var(--pure-black);">✦ Kelengkapan 7 File Upload Siskohat (Pilih: 💻 Dari Komputer atau  Dari Scanner)</strong>
+                        <div style="font-size:11.5px; color:var(--text-secondary);">Upload/scan otomatis dikompres per kategori: Paspor &le; 200 KB, dokumen 2–5 &le; 50 KB, Biovisa/Foto &le; 100 KB. Hasil scan dengan tepi gelap scanner otomatis di-crop. File kosong (⊘) dilewati.</div>
                     </div>
                 </div>
                 <div id="modal-seven-docs-grid" class="modal-seven-docs-grid"></div>
@@ -923,8 +1050,8 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
         <div class="modal-card" style="max-width: 680px;">
             <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border-color);">
                 <div>
-                    <h3 style="font-size: 16px;">🖨️ Scan Dokumen Langsung dari Driver Scanner Aktif</h3>
-                    <div style="font-size: 11.5px; color: var(--text-secondary);">Membaca driver scanner (WIA / TWAIN) yang aktif pada komputer ini &amp; otomatis mengompres hasil scan menjadi JPG &le; 50 KB</div>
+                    <h3 style="font-size: 16px;"> Scan Dokumen Langsung dari Driver Scanner Aktif</h3>
+                    <div id="scanner-size-hint" style="font-size: 11.5px; color: var(--text-secondary);">Membaca driver scanner (WIA / TWAIN) &amp; mengompres otomatis sesuai batas kategori dokumen.</div>
                 </div>
                 <button type="button" class="btn btn-charcoal btn-sm" onclick="closeScannerModal()">✕ Tutup</button>
             </div>
@@ -934,7 +1061,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                     <div>
                         <div style="font-size:11.5px; font-weight:800; color:var(--text-secondary);">STATUS DRIVER SCANNER KOMPUTER:</div>
                         <div id="scanner-driver-status-text" style="font-size:13px; font-weight:800; color:var(--pure-black); margin-top:2px;">
-                            ⏳ Memeriksa driver scanner yang aktif di komputer ini...
+                             Memeriksa driver scanner yang aktif di komputer ini...
                         </div>
                     </div>
                     <button type="button" class="btn btn-outline btn-sm" onclick="refreshActiveScannerDrivers()">
@@ -950,7 +1077,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
 
             <div class="form-group">
                 <label>2. Kategori Dokumen Pemvisaan Siskohat (1 s/d 7)</label>
-                <select id="scanner-target-category" class="form-control" style="font-weight:700;">
+                <select id="scanner-target-category" class="form-control" style="font-weight:700;" onchange="updateScannerSizeHint()">
                     <option value="paspor">1. Scan Halaman Pertama Paspor</option>
                     <option value="endorsement">2. Scan/Upload Halaman Endorsement</option>
                     <option value="vaksin">3. Scan/Upload Keterangan Vaksin Meningitis *</option>
@@ -964,7 +1091,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             <div class="form-group">
                 <label>3. Driver Scanner yang Aktif pada Komputer Ini</label>
                 <select id="scanner-device-select" class="form-control" style="font-weight:700;">
-                    <option value="">🖨️ Memuat daftar driver scanner aktif...</option>
+                    <option value=""> Memuat daftar driver scanner aktif...</option>
                 </select>
                 <div class="help-text">Otomatis membaca driver WIA / TWAIN / USB Scanner yang terpasang dan menyala di komputer ini.</div>
             </div>
@@ -973,7 +1100,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                 <div class="form-group">
                     <label>Mode Pemindaian Driver</label>
                     <select id="scanner-mode-select" class="form-control">
-                        <option value="direct">⚡ Langsung Scan Otomatis (1 Klik)</option>
+                        <option value="direct">⚡ Langsung Scan Otomatis — Mode Foto (objek saja)</option>
                         <option value="dialog">🪟 Buka Jendela Bawaan Driver Scanner</option>
                     </select>
                 </div>
@@ -996,13 +1123,43 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
 
             <div style="display:flex; gap:10px; align-items:center; margin-top:6px;">
                 <button type="button" class="btn btn-gold portal-action-btn" id="btn-start-hardware-scan" style="flex:1; padding:12px;" onclick="executeHardwareScanNow()">
-                    🖨️ Mulai Scan dari Driver Scanner (&le; 50 KB)
+                     Mulai Scan dari Driver Scanner
                 </button>
             </div>
         </div>
     </div>
 
     <div id="toast-container"></div>
+
+    <!-- MODAL UBAH PASSWORD -->
+    <div class="modal-backdrop" id="password-modal" onclick="if(event.target===this) closePasswordModal();">
+        <div class="modal-card password-modal-card" role="dialog" aria-labelledby="password-modal-title">
+            <div class="password-modal-header">
+                <div>
+                    <h3 id="password-modal-title" style="font-size:16px;margin:0;">Ubah Password</h3>
+                    <p style="font-size:11.5px;color:var(--text-secondary);margin:4px 0 0;">Gunakan password kuat minimal 8 karakter.</p>
+                </div>
+                <button type="button" class="btn btn-charcoal btn-sm" onclick="closePasswordModal()" aria-label="Tutup">✕ Tutup</button>
+            </div>
+            <div class="form-group">
+                <label for="pw-current">Password Lama</label>
+                <input type="password" id="pw-current" class="form-control" autocomplete="current-password">
+            </div>
+            <div class="form-group">
+                <label for="pw-new">Password Baru</label>
+                <input type="password" id="pw-new" class="form-control" autocomplete="new-password" placeholder="Minimal 8 karakter">
+            </div>
+            <div class="form-group">
+                <label for="pw-confirm">Konfirmasi Password Baru</label>
+                <input type="password" id="pw-confirm" class="form-control" autocomplete="new-password">
+            </div>
+            <div id="pw-message" class="password-modal-message" role="status"></div>
+            <div class="password-modal-actions">
+                <button type="button" class="btn btn-gold" style="flex:1;" onclick="submitChangePassword()">Simpan Password</button>
+                <button type="button" class="btn btn-outline" onclick="closePasswordModal()">Batal</button>
+            </div>
+        </div>
+    </div>
 
     <script>
         let appState = {
@@ -1020,6 +1177,10 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             pageSize: 25,
             selectedIds: new Set(),
             currentModalId: null,
+            currentModalLembagaSlug: '',
+            modalPreviewCategory: 'biovisa',
+            modalCropper: null,
+            modalCropActive: false,
             filteredList: []
         };
 
@@ -1118,15 +1279,17 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             if (pane) pane.classList.add('active');
             if (btnEl) btnEl.classList.add('active');
             toggleMobileSidebar(false);
+
+            // Muat data panel Keamanan saat tabnya dibuka
+            if (tabId === 'tab-security' && typeof loadSecurityAdminPanel === 'function') {
+                loadSecurityAdminPanel();
+            }
         }
 
         function openRecordsSubmenu(viewMode, filterType, show7DocsPanel, btnEl) {
             switchTab('tab-records', btnEl);
             setViewMode(viewMode || 'table');
-            const filterBtns = document.querySelectorAll('.filter-pill');
-            let targetPill = filterBtns[0];
-            if (filterType === 'siskohat_pending' && filterBtns[3]) targetPill = filterBtns[3];
-            setRecordFilter(filterType || 'all', targetPill);
+            setRecordFilter(filterType || 'all', null);
 
             const box7 = document.getElementById('seven-docs-manager-box');
             if (box7) {
@@ -1182,18 +1345,22 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             document.getElementById('stat-siskohat-pending').textContent = `Belum Siskohat: ${siskohatPending} Jamaah`;
             document.getElementById('progress-siskohat').style.width = total > 0 ? `${Math.round((siskohatDone / total) * 100)}%` : '0%';
 
-            // Update Filter Pill Counts
-            document.getElementById('count-filter-all').textContent = total;
-            document.getElementById('count-filter-ok').textContent = upGdrive;
-            document.getElementById('count-filter-pending').textContent = pendGdrive;
+            // Hitung untuk dropdown status filter
+            const countAll = document.getElementById('count-filter-all');
+            const countOk = document.getElementById('count-filter-ok');
+            const countPend = document.getElementById('count-filter-pending');
             const siskPendEl = document.getElementById('count-filter-siskohat-pending');
+            if (countAll) countAll.textContent = total;
+            if (countOk) countOk.textContent = upGdrive;
+            if (countPend) countPend.textContent = pendGdrive;
             if (siskPendEl) siskPendEl.textContent = siskohatPending;
+            refreshStatusFilterSelectLabels();
 
             const retryBtn = document.getElementById('btn-retry-all-gdrive');
             const heroBatchBtn = document.getElementById('btn-batch-gdrive');
             if (pendGdrive > 0) {
                 retryBtn.style.display = 'inline-flex';
-                retryBtn.textContent = `☁️ Upload (${pendGdrive})`;
+                retryBtn.textContent = ` Upload (${pendGdrive})`;
                 heroBatchBtn.style.display = 'inline-flex';
                 document.getElementById('hero-pending-count').textContent = pendGdrive;
             } else {
@@ -1224,6 +1391,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
 
             populateQuickDateDropdown();
             populateSourceEmailFilterDropdown();
+            populateLembagaFilterDropdown();
             renderRecordsExplorer();
             renderLogsTable();
         }
@@ -1241,6 +1409,9 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             }
 
             let label = String(rec.source_account_label || '').trim();
+            if (label === 'Email Utama PHU Pasuruan') {
+                label = 'Email Utama Kemenhaj Pasuruan';
+            }
             if (!label && appState.settings && Array.isArray(appState.settings.source_accounts)) {
                 const baseEmail = rawEmail.replace(/\+[^@]+@/, '@');
                 const matched = appState.settings.source_accounts.find(a => {
@@ -1279,6 +1450,36 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                 const lbl = labels[em] ? `${labels[em]} (${em})` : em;
                 const selected = em === curVal ? 'selected' : '';
                 html += `<option value="${escapeHtml(em)}" ${selected}>${escapeHtml(lbl)} — ${counts[em]} Jamaah</option>`;
+            });
+            sel.innerHTML = html;
+        }
+
+        function populateLembagaFilterDropdown() {
+            const sel = document.getElementById('filter-lembaga');
+            if (!sel) return;
+            if (!appState.is_super_admin) {
+                sel.style.display = 'none';
+                return;
+            }
+            sel.style.display = '';
+
+            const counts = {};
+            const names = {};
+            (appState.records || []).forEach(r => {
+                const slug = r.lembaga_slug || '';
+                if (!slug) return;
+                counts[slug] = (counts[slug] || 0) + 1;
+                if (r.lembaga_nama) names[slug] = r.lembaga_nama;
+            });
+
+            const slugs = Object.keys(counts).sort();
+            const curVal = sel.value;
+
+            let html = `<option value="">Semua Instansi (${slugs.length})</option>`;
+            slugs.forEach(slug => {
+                const label = names[slug] || slug;
+                const selected = slug === curVal ? 'selected' : '';
+                html += `<option value="${escapeHtml(slug)}" ${selected}>${escapeHtml(label)} — ${counts[slug]} Jamaah</option>`;
             });
             sel.innerHTML = html;
         }
@@ -1434,7 +1635,15 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             const banner = document.getElementById('date-active-banner');
             const summaryText = document.getElementById('date-active-summary-text');
             const printLabel = document.getElementById('print-period-label');
+            const listSummary = document.getElementById('list-filter-summary');
+            const filterDetails = document.getElementById('records-filter-details');
             const basisLabel = basis === 'processed' ? 'Tanggal Diproses' : 'Tanggal Biovisa MOFA';
+            const statusLabels = {
+                all: 'Semua status',
+                gdrive_ok: 'Sudah GDrive',
+                gdrive_pending: 'Belum GDrive',
+                siskohat_pending: 'Belum Siskohat'
+            };
 
             if (fromVal || toVal) {
                 let periodStr = '';
@@ -1443,12 +1652,27 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                 } else {
                     periodStr = `${fromVal ? formatDateIndo(fromVal) : 'Awal'} s/d ${toVal ? formatDateIndo(toVal) : 'Sekarang'}`;
                 }
-                banner.classList.add('active');
-                summaryText.textContent = `✦ Menampilkan ${filteredCount} Jamaah Biovisa berdasarkan ${basisLabel}: ${periodStr}`;
+                if (banner) banner.classList.add('active');
+                if (summaryText) summaryText.textContent = `${filteredCount} jamaah · ${basisLabel}: ${periodStr}`;
+                if (filterDetails) filterDetails.open = true;
                 if (printLabel) printLabel.textContent = `Periode (${basisLabel}): ${periodStr} (${filteredCount} Jamaah)`;
             } else {
-                banner.classList.remove('active');
+                if (banner) banner.classList.remove('active');
                 if (printLabel) printLabel.textContent = `Periode: Semua Tanggal (${filteredCount} Jamaah)`;
+            }
+
+            if (listSummary) {
+                const bits = [`${filteredCount} jamaah ditampilkan`];
+                const statusKey = uiState.filter || 'all';
+                if (statusKey !== 'all') bits.push(statusLabels[statusKey] || '');
+                if (q) bits.push(`cari "${q}"`);
+                if (fromVal || toVal) {
+                    const shortPeriod = fromVal && toVal && fromVal === toVal
+                        ? formatDateIndo(fromVal)
+                        : `${fromVal ? formatDateIndo(fromVal) : '…'}–${toVal ? formatDateIndo(toVal) : '…'}`;
+                    bits.push(shortPeriod);
+                }
+                listSummary.textContent = bits.filter(Boolean).join(' · ');
             }
 
             // Update Export CSV & Download ZIP links agar mengikuti filter tanggal & sumber email yang aktif
@@ -1468,11 +1692,37 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             if (zipBtn) zipBtn.href = 'api.php?action=download_zip' + qs;
         }
 
+        function refreshStatusFilterSelectLabels() {
+            const sel = document.getElementById('filter-status-select');
+            if (!sel) return;
+            const total = document.getElementById('count-filter-all')?.textContent || '0';
+            const ok = document.getElementById('count-filter-ok')?.textContent || '0';
+            const pend = document.getElementById('count-filter-pending')?.textContent || '0';
+            const sisk = document.getElementById('count-filter-siskohat-pending')?.textContent || '0';
+            const labels = {
+                all: `Semua (${total})`,
+                gdrive_ok: `Sudah GDrive (${ok})`,
+                gdrive_pending: `Belum GDrive (${pend})`,
+                siskohat_pending: `Belum Siskohat (${sisk})`
+            };
+            const cur = sel.value || uiState.filter || 'all';
+            Array.from(sel.options).forEach(opt => {
+                if (labels[opt.value]) opt.textContent = labels[opt.value];
+            });
+            sel.value = cur;
+        }
+
+        function onStatusFilterSelectChange(filterType) {
+            setRecordFilter(filterType || 'all', null);
+        }
+
         function setRecordFilter(filterType, btnEl) {
             uiState.filter = filterType;
             uiState.currentPage = 1;
             document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
             if (btnEl) btnEl.classList.add('active');
+            const statusSel = document.getElementById('filter-status-select');
+            if (statusSel && statusSel.value !== filterType) statusSel.value = filterType;
             renderRecordsExplorer();
         }
 
@@ -1498,11 +1748,14 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             const toVal   = (document.getElementById('filter-date-to') && document.getElementById('filter-date-to').value) || '';
             const basis   = (document.getElementById('date-basis-select') && document.getElementById('date-basis-select').value) || 'enrollment';
             const srcEmailFilter = (document.getElementById('filter-source-email') && document.getElementById('filter-source-email').value) || '';
+            const lemFilter = (document.getElementById('filter-lembaga') && document.getElementById('filter-lembaga').value) || '';
 
             let list = (appState.records || []).filter(r => {
                 if (uiState.filter === 'gdrive_ok' && !r.gdrive_uploaded) return false;
                 if (uiState.filter === 'gdrive_pending' && r.gdrive_uploaded) return false;
                 if (uiState.filter === 'siskohat_pending' && r.siskohat_uploaded) return false;
+
+                if (lemFilter && (r.lembaga_slug || '') !== lemFilter) return false;
 
                 const srcInfo = getRecordSourceEmailInfo(r);
                 if (srcEmailFilter && srcInfo.email !== srcEmailFilter) {
@@ -1573,22 +1826,29 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             tbody.innerHTML = items.map((r, idx) => {
                 const rowNum = startIdx + idx + 1;
                 const isChecked = uiState.selectedIds.has(r.id) ? 'checked' : '';
-                const imgUrl = 'api.php?action=download_file&inline=1&file=' + encodeURIComponent(r.filename) + '&t=' + encodeURIComponent(r.processed_at || '');
-                const dlUrl  = 'api.php?action=download_file&file=' + encodeURIComponent(r.filename);
+                const slug = r.lembaga_slug || '';
+                const slugParam = slug ? '&lembaga=' + encodeURIComponent(slug) : '';
+                const imgUrl = 'api.php?action=download_file&inline=1&file=' + encodeURIComponent(r.filename) + slugParam + '&t=' + encodeURIComponent(r.processed_at || '');
+                const dlUrl  = 'api.php?action=download_file&file=' + encodeURIComponent(r.filename) + slugParam;
                 const sizeKb = parseFloat(r.size_kb || 0);
                 const sizeBadge = sizeKb <= 50
                     ? `<span class="badge badge-gold">✦ ${sizeKb} KB</span>`
-                    : `<span class="badge badge-warning">⚠️ ${sizeKb} KB</span>`;
+                    : `<span class="badge badge-warning"> ${sizeKb} KB</span>`;
+
+                const isSuper = !!(appState.is_super_admin);
+                const lemmaBadge = (isSuper && r.lembaga_nama)
+                    ? `<div style="font-size:11px;color:var(--text-secondary);margin-top:3px;">Instansi: <strong>${escapeHtml(r.lembaga_nama)}</strong></div>`
+                    : '';
 
                 let gdriveHtml = '';
                 if (r.gdrive_uploaded) {
                     gdriveHtml = r.gdrive_url
-                        ? `<a href="${escapeHtml(r.gdrive_url)}" target="_blank" class="badge badge-charcoal" style="text-decoration:none;">☁️ Tersimpan di GDrive ↗</a>`
-                        : `<span class="badge badge-charcoal">☁️ Tersimpan di GDrive</span>`;
+                        ? `<a href="${escapeHtml(r.gdrive_url)}" target="_blank" class="badge badge-charcoal" style="text-decoration:none;"> Tersimpan di GDrive ↗</a>`
+                        : `<span class="badge badge-charcoal"> Tersimpan di GDrive</span>`;
                 } else {
                     gdriveHtml = `
                         <button class="btn btn-outline btn-sm" onclick="retryGDriveUpload('${escapeHtml(r.id)}')" title="${escapeHtml(r.gdrive_error || 'Klik untuk upload ke Google Drive')}">
-                            ☁️ Upload GDrive
+                             Upload GDrive
                         </button>`;
                 }
 
@@ -1629,6 +1889,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                                 ${sizeBadge}
                             </div>
                             ${srcLabelBadge}
+                            ${lemmaBadge}
                         </td>
                         <td>${sevenBadgesHtml}</td>
                         <td>${gdriveHtml}${siskohatHtml}</td>
@@ -1667,8 +1928,8 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                             <div style="display:flex; justify-content:space-between; align-items:center; gap:6px;">
                                 <span class="badge badge-gold">✦ ${escapeHtml(r.size_kb)} KB</span>
                                 ${r.gdrive_uploaded
-                                    ? `<span class="badge badge-charcoal">☁️ GDrive OK</span>`
-                                    : `<button class="btn btn-outline btn-sm" style="padding:2px 7px; font-size:11px;" onclick="retryGDriveUpload('${escapeHtml(r.id)}')">☁️ Upload</button>`}
+                                    ? `<span class="badge badge-charcoal"> GDrive OK</span>`
+                                    : `<button class="btn btn-outline btn-sm" style="padding:2px 7px; font-size:11px;" onclick="retryGDriveUpload('${escapeHtml(r.id)}')"> Upload</button>`}
                             </div>
                             <div style="font-weight:800; font-size:13.5px; color:var(--pure-black); margin-top:2px;">${escapeHtml(r.nama)}</div>
                             <div style="font-family:Consolas,monospace; font-size:12px; color:#856404; font-weight:700;">
@@ -1681,8 +1942,8 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                                 Asal: <strong>${escapeHtml(srcInfo.email)}</strong>
                             </div>
                             <div class="gallery-card-actions">
-                                <button class="btn btn-outline btn-sm" style="flex:1;" onclick="openPreviewModal('${escapeHtml(r.id)}')">✏️ Edit</button>
-                                <a href="${dlUrl}" download="${escapeHtml(r.filename)}" class="btn btn-gold btn-sm" style="flex:1;">⬇️ JPG</a>
+                                <button class="btn btn-outline btn-sm" style="flex:1;" onclick="openPreviewModal('${escapeHtml(r.id)}')"> Edit</button>
+                                <a href="${dlUrl}" download="${escapeHtml(r.filename)}" class="btn btn-gold btn-sm" style="flex:1;"> JPG</a>
                             </div>
                         </div>
                     </div>
@@ -1797,7 +2058,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                 const id = ids[i];
                 const rec = (appState.records || []).find(r => r.id === id);
                 const nameLabel = rec ? rec.filename : id;
-                title.textContent = `☁️ Mengunggah ke Google Drive: ${nameLabel}...`;
+                title.textContent = ` Mengunggah ke Google Drive: ${nameLabel}...`;
                 label.textContent = `${i + 1} / ${ids.length}`;
                 bar.style.width = `${Math.round(((i + 1) / ids.length) * 100)}%`;
 
@@ -1847,7 +2108,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                     <td>
                         ${j.sudah_biovisa
                             ? `<span class="badge badge-gold">✦ Sudah (${escapeHtml(j.filename)})</span>`
-                            : `<span class="badge badge-warning">⏳ Menunggu Email</span>`}
+                            : `<span class="badge badge-warning"> Menunggu Email</span>`}
                     </td>
                 </tr>
             `).join('');
@@ -1891,7 +2152,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             const btn = document.getElementById('btn-sync-now');
             const origText = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '⏳ Mengecek Email...';
+            btn.innerHTML = ' Mengecek Email...';
 
             try {
                 const res = await fetch('api.php?action=sync_emails', { method: 'POST' });
@@ -2024,7 +2285,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             e.preventDefault();
             const btn = document.getElementById('btn-submit-manual');
             btn.disabled = true;
-            btn.textContent = '⏳ Memproses JPG <= 50KB...';
+            btn.textContent = ' Memproses JPG <= 50KB...';
 
             try {
                 const fd = new FormData();
@@ -2071,32 +2332,101 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
         }
 
         // Modal Preview, Zoom & Keyboard Navigation
-        function openPreviewModal(id) {
+        function getModalRecordLembagaSlug(rec) {
+            if (rec && rec.lembaga_slug) return rec.lembaga_slug;
+            const active = appState.active_lembaga;
+            return (active && active.slug) ? active.slug : '';
+        }
+
+        function lembagaQueryParam(slug) {
+            return slug ? ('&lembaga=' + encodeURIComponent(slug)) : '';
+        }
+
+        function getCurrentModalLembagaSlug() {
+            return uiState.currentModalLembagaSlug
+                || (appState.active_lembaga && appState.active_lembaga.slug)
+                || '';
+        }
+
+        function updateModalPreviewDocLabel(catKey = 'biovisa') {
+            const labelEl = document.getElementById('modal-preview-doc-label');
+            if (!labelEl) return;
+            const meta = SEVEN_DOC_DEFS.find(d => d.key === catKey);
+            const maxKb = getCategoryMaxKb(catKey);
+            const title = meta ? meta.label : 'Dokumen';
+            labelEl.textContent = `${title} (maks ${maxKb} KB)`;
+        }
+
+        function openPreviewModal(id, preferredCatKey = '') {
             const rec = (appState.records || []).find(r => r.id === id);
             if (!rec) return;
 
+            cancelManualCropQuiet();
             uiState.currentModalId = id;
+            uiState.currentModalLembagaSlug = getModalRecordLembagaSlug(rec);
+
+            const map = getRecSevenDocsMap(rec);
+            let initialCat = 'biovisa';
+            if (preferredCatKey && map[preferredCatKey] && map[preferredCatKey].exists) {
+                initialCat = preferredCatKey;
+            } else if (rec.file_exists === false || !(map.biovisa && map.biovisa.exists)) {
+                const firstAvail = SEVEN_DOC_DEFS.find(d => map[d.key] && map[d.key].exists);
+                if (firstAvail) {
+                    initialCat = firstAvail.key;
+                }
+            }
+
+            uiState.modalPreviewCategory = initialCat;
+            updateModalPreviewDocLabel(initialCat);
+            const activeDocInfo = (map[initialCat] && map[initialCat].exists) ? map[initialCat] : null;
+            const activeFilename = (activeDocInfo && activeDocInfo.filename) ? activeDocInfo.filename : rec.filename;
+
             const srcInfo = getRecordSourceEmailInfo(rec);
             document.getElementById('edit-id').value = rec.id;
-            document.getElementById('edit-current-filename').textContent = rec.filename;
+            document.getElementById('edit-current-filename').textContent = activeFilename || rec.filename;
             const srcEl = document.getElementById('edit-current-source-email');
             if (srcEl) {
                 srcEl.textContent = srcInfo.display;
                 srcEl.dataset.email = srcInfo.email;
             }
-            document.getElementById('edit-current-size').textContent = `✦ ${rec.size_kb} KB (${rec.size_bytes} bytes) — Valid Standar Siskohat <= 50 KB`;
+            const activeMaxKb = getCategoryMaxKb(initialCat);
+            const activeSizeKb = activeDocInfo ? activeDocInfo.size_kb : rec.size_kb;
+            document.getElementById('edit-current-size').textContent = `${activeSizeKb} KB — batas maks ${activeMaxKb} KB`;
             document.getElementById('edit-nama').value = rec.nama || '';
             document.getElementById('edit-paspor').value = rec.paspor || '';
             document.getElementById('edit-enrollment').value = rec.enrollment_id || '';
 
             const imgEl = document.getElementById('modal-img');
-            imgEl.style.transform = 'scale(1)';
+            imgEl.classList.remove('zoomed-out');
             imgEl.dataset.zoomed = '0';
-            imgEl.src = 'api.php?action=download_file&inline=1&file=' + encodeURIComponent(rec.filename) + '&t=' + Date.now();
+            imgEl.onclick = function() { toggleImageZoom(imgEl); };
+            const slugParam = lembagaQueryParam(uiState.currentModalLembagaSlug);
+            const resolvedPreviewUrl = (typeof window.__resolveBiovisaImgUrl === 'function')
+                ? window.__resolveBiovisaImgUrl(activeFilename, false, initialCat)
+                : ('api.php?action=download_file&cat=' + encodeURIComponent(initialCat) + '&inline=1&file=' + encodeURIComponent(activeFilename) + slugParam + '&t=' + Date.now());
+
+            imgEl.onerror = async function() {
+                imgEl.onerror = null;
+                if (typeof window.__fetchGDriveDocDataUrl === 'function') {
+                    const gUrl = await window.__fetchGDriveDocDataUrl(rec.id, initialCat);
+                    if (gUrl) {
+                        imgEl.src = gUrl;
+                        return;
+                    }
+                }
+                const fallbackDef = SEVEN_DOC_DEFS.find(d => d.key !== initialCat && map[d.key] && map[d.key].exists);
+                if (fallbackDef) {
+                    const fbInfo = map[fallbackDef.key];
+                    uiState.modalPreviewCategory = fallbackDef.key;
+                    updateModalPreviewDocLabel(fallbackDef.key);
+                    imgEl.src = 'api.php?action=download_file&cat=' + encodeURIComponent(fallbackDef.key) + '&inline=1&file=' + encodeURIComponent(fbInfo.filename) + slugParam + '&t=' + Date.now();
+                }
+            };
+            imgEl.src = resolvedPreviewUrl;
 
             const dlBtn = document.getElementById('modal-download-btn');
-            dlBtn.href = 'api.php?action=download_file&file=' + encodeURIComponent(rec.filename);
-            dlBtn.setAttribute('download', rec.filename);
+            dlBtn.href = 'api.php?action=download_file&cat=' + encodeURIComponent(initialCat) + '&file=' + encodeURIComponent(activeFilename) + slugParam;
+            dlBtn.setAttribute('download', activeFilename);
 
             const gdBtn = document.getElementById('modal-gdrive-btn');
             if (rec.gdrive_uploaded && rec.gdrive_url) {
@@ -2111,14 +2441,21 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
         }
 
         const SEVEN_DOC_DEFS = [
-            { num: 1, key: 'paspor', short: '1.Paspor', label: '1. Scan Halaman Pertama Paspor' },
-            { num: 2, key: 'endorsement', short: '2.Endorse', label: '2. Scan/Upload Halaman Endorsement' },
-            { num: 3, key: 'vaksin', short: '3.Vaksin', label: '3. Scan/Upload Keterangan Vaksin Meningitis *' },
-            { num: 4, key: 'kitas', short: '4.KITAS', label: '4. Scan/Upload Keterangan KITAS' },
-            { num: 5, key: 'pendukung', short: '5.Pendukung', label: '5. Scan/Upload Dokumen Pendukung' },
-            { num: 6, key: 'biovisa', short: '6.Biovisa', label: '6. Scan/Upload Biovisa (jpeg)' },
-            { num: 7, key: 'foto', short: '7.Foto', label: '7. Scan/Upload Foto Terbaru' }
+            { num: 1, key: 'paspor', short: '1.Paspor', label: '1. Scan Halaman Pertama Paspor', max_kb: 200 },
+            { num: 2, key: 'endorsement', short: '2.Endorse', label: '2. Scan/Upload Halaman Endorsement', max_kb: 50 },
+            { num: 3, key: 'vaksin', short: '3.Vaksin', label: '3. Scan/Upload Keterangan Vaksin Meningitis *', max_kb: 50 },
+            { num: 4, key: 'kitas', short: '4.KITAS', label: '4. Scan/Upload Keterangan KITAS', max_kb: 50 },
+            { num: 5, key: 'pendukung', short: '5.Pendukung', label: '5. Scan/Upload Dokumen Pendukung', max_kb: 50 },
+            { num: 6, key: 'biovisa', short: '6.Biovisa', label: '6. Scan/Upload Biovisa (jpeg)', max_kb: 100 },
+            { num: 7, key: 'foto', short: '7.Foto', label: '7. Scan/Upload Foto Terbaru', max_kb: 100 }
         ];
+
+        function getCategoryMaxKb(catKey) {
+            const fromApi = (appState.doc_categories || []).find(c => c.key === catKey);
+            if (fromApi && fromApi.max_kb) return fromApi.max_kb;
+            const local = SEVEN_DOC_DEFS.find(d => d.key === catKey);
+            return local ? (local.max_kb || 50) : 50;
+        }
 
         function getRecSevenDocsMap(rec) {
             const raw = (rec && rec.seven_docs && rec.seven_docs.docs) ? rec.seven_docs.docs : {};
@@ -2167,18 +2504,21 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             if (!container || !rec) return;
             const map = getRecSevenDocsMap(rec);
 
+            const lembSlug = getModalRecordLembagaSlug(rec);
+            const slugQ = lembagaQueryParam(lembSlug);
             container.innerHTML = SEVEN_DOC_DEFS.map(d => {
+                const maxKb = getCategoryMaxKb(d.key);
                 const info = map[d.key] || { exists: false };
                 const isReady = !!info.exists;
                 const previewUrl = isReady
                     ? (typeof window.__resolveBiovisaImgUrl === 'function'
                         ? window.__resolveBiovisaImgUrl(info.filename, false, d.key)
-                        : `api.php?action=download_file&cat=${encodeURIComponent(d.key)}&inline=1&file=${encodeURIComponent(info.filename)}&t=${Date.now()}`)
+                        : `api.php?action=download_file&cat=${encodeURIComponent(d.key)}&inline=1&file=${encodeURIComponent(info.filename)}${slugQ}&t=${Date.now()}`)
                     : '';
                 return `
                     <div class="modal-doc7-card ${isReady ? 'ready' : 'blocked'}">
                         <div style="display:flex; justify-content:space-between; align-items:center; gap:6px; margin-bottom:6px;">
-                            <strong style="font-size:12px; color:var(--pure-black);">${escapeHtml(d.label)}</strong>
+                            <strong style="font-size:12px; color:var(--pure-black);">${escapeHtml(d.label)} <span style="font-weight:600;color:var(--text-secondary);">(maks ${maxKb} KB)</span></strong>
                             <span class="badge ${isReady ? 'badge-gold' : 'badge-outline'}" style="font-size:10.5px;">
                                 ${isReady ? ('✓ Siap (' + escapeHtml(info.size_kb) + ' KB)') : '⊘ Kosong (Diblokir & Lewati)'}
                             </span>
@@ -2187,20 +2527,20 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                             ${isReady ? escapeHtml(info.filename) : 'Belum ada file — Pilih Dari Komputer atau Scanner'}
                         </div>
                         <div style="display:flex; gap:5px; align-items:center; flex-wrap:wrap;">
-                            <label class="btn btn-gold btn-sm" style="cursor:pointer; margin:0;" title="Pilih file gambar dari folder komputer (Otomatis dikompres <= 50 KB)">
+                            <label class="btn btn-gold btn-sm" style="cursor:pointer; margin:0;" title="Pilih file gambar dari folder komputer (Otomatis dikompres <= ${maxKb} KB)">
                                 💻 Dari Komputer
                                 <input type="file" accept="image/*" style="display:none;" onchange="uploadSingleJamaahDoc('${escapeHtml(rec.id)}', '${escapeHtml(d.key)}', this)">
                             </label>
-                            <button type="button" class="btn btn-charcoal btn-sm" onclick="openScannerModal('${escapeHtml(rec.id)}', '${escapeHtml(d.key)}')" title="Pindai langsung dari Driver Scanner yang aktif di komputer ini (Otomatis <= 50 KB)">
-                                🖨️ Dari Scanner
+                            <button type="button" class="btn btn-charcoal btn-sm" onclick="openScannerModal('${escapeHtml(rec.id)}', '${escapeHtml(d.key)}')" title="Pindai dari Driver Scanner (otomatis crop tepi gelap & kompres <= ${maxKb} KB)">
+                                 Dari Scanner
                             </button>
                             ${isReady ? `
                                 <button type="button" class="btn btn-outline btn-sm" onclick="previewDocInModal('${escapeHtml(previewUrl)}', '${escapeHtml(d.label)}', '${escapeHtml(rec.id)}', '${escapeHtml(d.key)}')">
-                                    👁️ Lihat
+                                     Lihat
                                 </button>
                                 ${d.key !== 'biovisa' ? `
                                     <button type="button" class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger);" onclick="deleteSingleJamaahDoc('${escapeHtml(rec.id)}', '${escapeHtml(d.key)}')">
-                                        🗑️
+                                        
                                     </button>
                                 ` : ''}
                             ` : ''}
@@ -2213,22 +2553,59 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
         async function previewDocInModal(url, label, recId = '', catKey = '') {
             const imgEl = document.getElementById('modal-img');
             const dlBtn = document.getElementById('modal-download-btn');
-            if (!imgEl || !url) return;
+            if (!imgEl) return;
 
-            showToast(`👁️ Menampilkan preview: ${label}`);
+            cancelManualCropQuiet();
+            const cleanCat = catKey || 'biovisa';
+            uiState.modalPreviewCategory = cleanCat;
+            updateModalPreviewDocLabel(cleanCat);
+
+            const rec = recId ? (appState.records || []).find(r => r.id === recId) : null;
+            let targetUrl = url;
+            let dlUrl = url;
+            let activeFilename = rec ? rec.filename : '';
+            if (rec) {
+                const map = getRecSevenDocsMap(rec);
+                const info = map[cleanCat];
+                if (info && info.filename) {
+                    activeFilename = info.filename;
+                }
+                const fnEl = document.getElementById('edit-current-filename');
+                if (fnEl && activeFilename) fnEl.textContent = activeFilename;
+                const sizeEl = document.getElementById('edit-current-size');
+                if (sizeEl && info && info.size_kb) {
+                    sizeEl.textContent = `${info.size_kb} KB — batas maks ${getCategoryMaxKb(cleanCat)} KB`;
+                }
+                const slugQ = lembagaQueryParam(getModalRecordLembagaSlug(rec));
+                if (typeof window.__resolveBiovisaImgUrl === 'function') {
+                    targetUrl = window.__resolveBiovisaImgUrl(activeFilename, false, cleanCat);
+                    dlUrl = window.__resolveBiovisaImgUrl(activeFilename, true, cleanCat);
+                } else if (activeFilename) {
+                    targetUrl = `api.php?action=download_file&cat=${encodeURIComponent(cleanCat)}&inline=1&file=${encodeURIComponent(activeFilename)}${slugQ}&t=${Date.now()}`;
+                    dlUrl = `api.php?action=download_file&cat=${encodeURIComponent(cleanCat)}&file=${encodeURIComponent(activeFilename)}${slugQ}`;
+                }
+            }
+            if (!targetUrl) return;
+
+            imgEl.classList.remove('zoomed-out');
+            imgEl.dataset.zoomed = '0';
+            imgEl.onclick = function() { toggleImageZoom(imgEl); };
+
+            showToast(` Menampilkan preview: ${label}`);
             imgEl.onerror = async function() {
                 imgEl.onerror = null;
-                if (typeof window.__fetchGDriveDocDataUrl === 'function' && recId && catKey) {
-                    const gUrl = await window.__fetchGDriveDocDataUrl(recId, catKey);
+                if (typeof window.__fetchGDriveDocDataUrl === 'function' && recId && cleanCat) {
+                    const gUrl = await window.__fetchGDriveDocDataUrl(recId, cleanCat);
                     if (gUrl) {
                         imgEl.src = gUrl;
                         if (dlBtn) dlBtn.href = gUrl;
                     }
                 }
             };
-            imgEl.src = url;
+            imgEl.src = targetUrl;
             if (dlBtn) {
-                dlBtn.href = url;
+                dlBtn.href = dlUrl;
+                if (activeFilename) dlBtn.setAttribute('download', activeFilename);
             }
         }
 
@@ -2246,14 +2623,14 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             fd.append('category', catKey);
             fd.append('file', fileInput.files[0]);
 
-            showToast('⏳ Mengunggah & menyesuaikan dokumen...');
+            showToast(' Mengunggah & menyesuaikan dokumen...');
             try {
                 const res = await fetch('api.php?action=upload_jamaah_doc', { method: 'POST', body: fd });
                 const data = await res.json();
                 await loadAppStatus();
                 if (data.ok) {
                     showToast(data.message || 'Dokumen berhasil disimpan!');
-                    openPreviewModal(recId);
+                    openPreviewModal((data.record && data.record.id) ? data.record.id : recId, catKey);
                 } else {
                     showToast(data.error || 'Gagal mengunggah dokumen.', true);
                 }
@@ -2289,7 +2666,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             const btn = document.getElementById('btn-bulk-doc-upload');
             const origText = btn.textContent;
             btn.disabled = true;
-            btn.textContent = `⏳ Mengunggah ${fi.files.length} File...`;
+            btn.textContent = ` Mengunggah ${fi.files.length} File...`;
 
             try {
                 const fd = new FormData();
@@ -2319,7 +2696,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
         async function syncGDriveSevenDocs() {
             const btn = document.getElementById('btn-sync-gdrive-7docs');
             if (btn) btn.disabled = true;
-            showToast('☁️ Memeriksa & menarik 7 Sub-Folder Dokumen dari Google Drive...');
+            showToast(' Memeriksa & menarik 7 Sub-Folder Dokumen dari Google Drive...');
             try {
                 const res = await fetch('api.php?action=sync_gdrive_7docs', { method: 'POST' });
                 const data = await res.json();
@@ -2340,6 +2717,20 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
         // ====================================================================
         // FITUR PEMINDAI (SCANNER) LANGSUNG DARI DRIVER SCANNER AKTIF KOMPUTER
         // ====================================================================
+        function updateScannerSizeHint() {
+            const catSel = document.getElementById('scanner-target-category');
+            const hint = document.getElementById('scanner-size-hint');
+            const btn = document.getElementById('btn-start-hardware-scan');
+            const catKey = catSel ? catSel.value : 'paspor';
+            const maxKb = getCategoryMaxKb(catKey);
+            if (hint) {
+                hint.textContent = `Membaca driver scanner (WIA / TWAIN), auto-crop tepi gelap scanner, lalu kompres JPG ≤ ${maxKb} KB untuk kategori ini.`;
+            }
+            if (btn) {
+                btn.textContent = `Mulai Scan dari Driver Scanner (≤ ${maxKb} KB)`;
+            }
+        }
+
         function openScannerModal(recId = '', catKey = 'paspor') {
             const jamaahSel = document.getElementById('scanner-target-jamaah');
             const catSel    = document.getElementById('scanner-target-category');
@@ -2354,6 +2745,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                 catSel.value = catKey;
             }
 
+            updateScannerSizeHint();
             document.getElementById('modal-scanner').classList.add('open');
             refreshActiveScannerDrivers();
         }
@@ -2365,9 +2757,9 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
         async function refreshActiveScannerDrivers() {
             const statusText = document.getElementById('scanner-driver-status-text');
             const devSelect  = document.getElementById('scanner-device-select');
-            statusText.textContent = '⏳ Membaca daftar driver scanner (WIA / TWAIN) yang aktif di komputer ini...';
+            statusText.textContent = ' Membaca daftar driver scanner (WIA / TWAIN) yang aktif di komputer ini...';
             statusText.style.color = 'var(--pure-black)';
-            devSelect.innerHTML = `<option value="">⏳ Memindai driver scanner aktif...</option>`;
+            devSelect.innerHTML = `<option value=""> Memindai driver scanner aktif...</option>`;
 
             try {
                 const res = await fetch('api.php?action=list_scanners&_t=' + Date.now());
@@ -2380,17 +2772,17 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                     let opts = '';
                     devices.forEach((d, idx) => {
                         const mfg = d.manufacturer ? ` (${d.manufacturer})` : '';
-                        opts += `<option value="${escapeHtml(d.id || '')}" ${idx === 0 ? 'selected' : ''}>🖨️ [Driver Aktif] ${escapeHtml(d.name)}${escapeHtml(mfg)} — ${escapeHtml(d.driver_type || 'WIA/TWAIN')}</option>`;
+                        opts += `<option value="${escapeHtml(d.id || '')}" ${idx === 0 ? 'selected' : ''}> [Driver Aktif] ${escapeHtml(d.name)}${escapeHtml(mfg)} — ${escapeHtml(d.driver_type || 'WIA/TWAIN')}</option>`;
                     });
                     opts += `<option value="__DIALOG__">🪟 Dialog Pemilih Driver Scanner Bawaan Windows (WIA / TWAIN)</option>`;
                     devSelect.innerHTML = opts;
                 } else {
-                    statusText.textContent = '⚠️ Tidak ada scanner yang terdeteksi menyala otomatis — Gunakan Dialog Driver Scanner Windows atau pastikan kabel USB scanner menyala (ON)';
+                    statusText.textContent = ' Tidak ada scanner yang terdeteksi menyala otomatis — Gunakan Dialog Driver Scanner Windows atau pastikan kabel USB scanner menyala (ON)';
                     statusText.style.color = 'var(--warning)';
                     devSelect.innerHTML = `<option value="__DIALOG__" selected>🪟 Gunakan Driver Scanner Default Windows (Dialog WIA / TWAIN Aktif)</option>`;
                 }
             } catch (e) {
-                statusText.textContent = '⚠️ Pastikan layanan lokal aktif untuk mengakses driver hardware scanner Windows.';
+                statusText.textContent = ' Pastikan layanan lokal aktif untuk mengakses driver hardware scanner Windows.';
                 statusText.style.color = 'var(--danger)';
                 devSelect.innerHTML = `<option value="__DIALOG__" selected>🪟 Driver Scanner Default Windows (WIA / TWAIN)</option>`;
             }
@@ -2410,8 +2802,9 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
 
             const origText = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = '⏳ Membaca dari Driver Scanner & Mengompres <= 50 KB...';
-            showToast('🖨️ Menghubungi driver scanner aktif pada komputer... Pastikan dokumen sudah diletakkan di kaca/ADF scanner.');
+            const scanMaxKb = getCategoryMaxKb(catKey);
+            btn.innerHTML = ` Membaca dari Driver Scanner & Mengompres <= ${scanMaxKb} KB...`;
+            showToast(' Mode Foto aktif: scanner mengambil area objek dokumen saja (bukan full halaman). Letakkan dokumen di tengah kaca scanner.');
 
             try {
                 const res = await fetch('api.php?action=scan_jamaah_doc', {
@@ -2425,7 +2818,8 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                         device_id: devId === '__DIALOG__' ? '' : devId,
                         use_dialog: useDialog,
                         dpi: dpi,
-                        color_mode: colorMode
+                        color_mode: colorMode,
+                        scan_profile: 'photo'
                     })
                 });
                 const data = await res.json();
@@ -2433,10 +2827,11 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
 
                 if (data && data.ok) {
                     playNotificationSound();
-                    showToast(data.message || `✅ Berhasil scan dokumen (${data.size_kb} KB <= 50 KB)!`);
+                    showToast(data.message || `✅ Berhasil scan dokumen (${data.size_kb} KB <= ${scanMaxKb} KB)!`);
                     closeScannerModal();
-                    if (recId) {
-                        openPreviewModal(recId);
+                    const targetId = (data.record && data.record.id) ? data.record.id : recId;
+                    if (targetId) {
+                        openPreviewModal(targetId, catKey);
                     }
                 } else {
                     showToast((data && data.error) || 'Gagal memindai dari driver scanner.', true);
@@ -2449,14 +2844,186 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             }
         }
 
+        function setModalCropUi(active) {
+            uiState.modalCropActive = !!active;
+            const panel = document.getElementById('modal-preview-img-panel');
+            const hintZoom = document.getElementById('modal-img-zoom-hint');
+            const hintCrop = document.getElementById('modal-crop-hint');
+            const btnStart = document.getElementById('btn-start-crop');
+            const btnAuto = document.getElementById('btn-auto-crop');
+            const btnApply = document.getElementById('btn-apply-crop');
+            const btnCancel = document.getElementById('btn-cancel-crop');
+            if (panel) panel.classList.toggle('crop-active', !!active);
+            if (hintZoom) hintZoom.hidden = !!active;
+            if (hintCrop) hintCrop.hidden = !active;
+            if (btnStart) btnStart.style.display = active ? 'none' : '';
+            if (btnAuto) btnAuto.style.display = active ? 'none' : '';
+            if (btnApply) btnApply.style.display = active ? 'inline-flex' : 'none';
+            if (btnCancel) btnCancel.style.display = active ? 'inline-flex' : 'none';
+        }
+
+        function destroyModalCropper() {
+            if (uiState.modalCropper) {
+                uiState.modalCropper.destroy();
+                uiState.modalCropper = null;
+            }
+        }
+
+        function cancelManualCropQuiet() {
+            destroyModalCropper();
+            setModalCropUi(false);
+            const imgEl = document.getElementById('modal-img');
+            if (imgEl) {
+                imgEl.onclick = function() { toggleImageZoom(imgEl); };
+            }
+        }
+
+        function cancelManualCrop() {
+            cancelManualCropQuiet();
+            const recId = uiState.currentModalId;
+            if (recId) openPreviewModal(recId, uiState.modalPreviewCategory || '');
+        }
+
+        function startManualCrop() {
+            if (typeof Cropper === 'undefined') {
+                showToast('Library crop belum dimuat. Muat ulang halaman.', true);
+                return;
+            }
+            const imgEl = document.getElementById('modal-img');
+            if (!imgEl || !imgEl.src) return;
+
+            const boot = () => {
+                cancelManualCropQuiet();
+                setModalCropUi(true);
+                imgEl.onclick = null;
+                uiState.modalCropper = new Cropper(imgEl, {
+                    viewMode: 1,
+                    dragMode: 'move',
+                    background: false,
+                    autoCropArea: 0.92,
+                    responsive: true,
+                    restore: false,
+                    guides: true,
+                    center: true,
+                    highlight: true,
+                    cropBoxMovable: true,
+                    cropBoxResizable: true,
+                    toggleDragModeOnDblclick: false
+                });
+            };
+
+            if (!imgEl.complete || imgEl.naturalWidth < 2) {
+                imgEl.onload = () => boot();
+                return;
+            }
+            boot();
+        }
+
+        async function postCropJamaahDoc(payload) {
+            const body = Object.assign({}, payload, {
+                lembaga: payload.lembaga || getCurrentModalLembagaSlug()
+            });
+            const res = await fetch('api.php?action=crop_jamaah_doc', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify(body)
+            });
+            const text = await res.text();
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                return { ok: false, error: res.status === 401 ? 'Sesi berakhir. Silakan login ulang.' : 'Respons server tidak valid.' };
+            }
+        }
+
+        function refreshModalAfterCrop() {
+            const recId = uiState.currentModalId;
+            const cat = uiState.modalPreviewCategory || 'biovisa';
+            if (!recId) return;
+            openPreviewModal(recId);
+            if (cat === 'biovisa') return;
+            const rec = (appState.records || []).find(r => r.id === recId);
+            if (!rec) return;
+            const map = getRecSevenDocsMap(rec);
+            const info = map[cat];
+            if (!info || !info.exists || !info.filename) return;
+            const def = SEVEN_DOC_DEFS.find(d => d.key === cat);
+            const slugQ = lembagaQueryParam(getCurrentModalLembagaSlug());
+            const previewUrl = typeof window.__resolveBiovisaImgUrl === 'function'
+                ? window.__resolveBiovisaImgUrl(info.filename, false, cat)
+                : `api.php?action=download_file&cat=${encodeURIComponent(cat)}&inline=1&file=${encodeURIComponent(info.filename)}${slugQ}&t=${Date.now()}`;
+            previewDocInModal(previewUrl, def ? def.label : cat, recId, cat);
+        }
+
+        async function applyManualCrop() {
+            if (!uiState.modalCropper || !uiState.currentModalId) return;
+            const cropData = uiState.modalCropper.getData(true);
+            if (!cropData || cropData.width < 40 || cropData.height < 40) {
+                showToast('Area crop terlalu kecil.', true);
+                return;
+            }
+            const btnApply = document.getElementById('btn-apply-crop');
+            if (btnApply) { btnApply.disabled = true; }
+            showToast(' Memproses crop & kompres JPG...');
+            try {
+                const data = await postCropJamaahDoc({
+                    id: uiState.currentModalId,
+                    category: uiState.modalPreviewCategory || 'biovisa',
+                    x: Math.round(cropData.x),
+                    y: Math.round(cropData.y),
+                    width: Math.round(cropData.width),
+                    height: Math.round(cropData.height)
+                });
+                await loadAppStatus();
+                if (data.ok) {
+                    showToast(data.message || 'Crop berhasil.');
+                    cancelManualCropQuiet();
+                    refreshModalAfterCrop();
+                } else {
+                    showToast(data.error || 'Gagal crop gambar.', true);
+                }
+            } catch (e) {
+                showToast('Gagal crop gambar.', true);
+            } finally {
+                if (btnApply) btnApply.disabled = false;
+            }
+        }
+
+        async function applyAutoCropDoc() {
+            if (!uiState.currentModalId) return;
+            if (!confirm('Terapkan auto-crop (deteksi tepi dokumen) pada file ini?')) return;
+            const btnAuto = document.getElementById('btn-auto-crop');
+            if (btnAuto) btnAuto.disabled = true;
+            showToast(' Auto-crop & kompres JPG...');
+            try {
+                const data = await postCropJamaahDoc({
+                    id: uiState.currentModalId,
+                    category: uiState.modalPreviewCategory || 'biovisa',
+                    auto: true
+                });
+                await loadAppStatus();
+                if (data.ok) {
+                    showToast(data.message || 'Auto-crop berhasil.');
+                    cancelManualCropQuiet();
+                    refreshModalAfterCrop();
+                } else {
+                    showToast(data.error || 'Gagal auto-crop.', true);
+                }
+            } catch (e) {
+                showToast('Gagal auto-crop.', true);
+            } finally {
+                if (btnAuto) btnAuto.disabled = false;
+            }
+        }
+
         function toggleImageZoom(imgEl) {
+            if (uiState.modalCropActive) return;
             if (imgEl.dataset.zoomed === '1') {
-                imgEl.style.transform = 'scale(1)';
-                imgEl.style.cursor = 'zoom-in';
+                imgEl.classList.remove('zoomed-out');
                 imgEl.dataset.zoomed = '0';
             } else {
-                imgEl.style.transform = 'scale(1.45)';
-                imgEl.style.cursor = 'zoom-out';
+                imgEl.classList.add('zoomed-out');
                 imgEl.dataset.zoomed = '1';
             }
         }
@@ -2480,31 +3047,49 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
         });
 
         function closeModal() {
+            cancelManualCropQuiet();
             document.getElementById('modal-preview').classList.remove('open');
         }
 
         async function submitEditRecord(e) {
             e.preventDefault();
+            const btn = e.submitter || document.querySelector('#form-edit-record button[type="submit"]');
             const payload = {
                 id: document.getElementById('edit-id').value,
                 nama: document.getElementById('edit-nama').value,
                 paspor: document.getElementById('edit-paspor').value,
-                enrollment_id: document.getElementById('edit-enrollment').value
+                enrollment_id: document.getElementById('edit-enrollment').value,
+                lembaga: getCurrentModalLembagaSlug()
             };
 
-            const res = await fetch('api.php?action=update_record', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const data = await res.json();
-            await loadAppStatus();
+            if (btn) btn.disabled = true;
+            try {
+                const res = await fetch('api.php?action=update_record', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(payload)
+                });
+                let data;
+                try {
+                    data = await res.json();
+                } catch (parseErr) {
+                    showToast(res.status === 401 ? 'Sesi berakhir. Silakan login ulang.' : 'Gagal membaca respons server.', true);
+                    return;
+                }
+                await loadAppStatus();
 
-            if (data.ok && data.record) {
-                showToast(data.message);
-                openPreviewModal(data.record.id);
-            } else {
-                showToast(data.error || 'Gagal memperbarui data.', true);
+                if (data.ok && data.record) {
+                    showToast(data.message || 'Perubahan berhasil disimpan.');
+                    uiState.currentModalLembagaSlug = getModalRecordLembagaSlug(data.record) || payload.lembaga;
+                    openPreviewModal(data.record.id);
+                } else {
+                    showToast(data.error || 'Gagal memperbarui data.', true);
+                }
+            } catch (err) {
+                showToast('Gagal menyimpan: periksa koneksi atau login ulang.', true);
+            } finally {
+                if (btn) btn.disabled = false;
             }
         }
 
@@ -2515,7 +3100,8 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             const res = await fetch('api.php?action=delete_record', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id })
+                credentials: 'same-origin',
+                body: JSON.stringify({ id, lembaga: getCurrentModalLembagaSlug() })
             });
             const data = await res.json();
             closeModal();
@@ -2563,7 +3149,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                 sourceAccountsDraft = [
                     {
                         id: 'acc_primary',
-                        label: 'Email Utama PHU Pasuruan',
+                        label: 'Email Utama Kemenhaj Pasuruan',
                         email: set.source_email || 'phujtmkopasuruan@gmail.com',
                         mode: set.connection_mode || 'gas',
                         gas_url: set.gas_gmail_webapp_url || '',
@@ -2603,7 +3189,7 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                                 </label>
                                 ${sourceAccountsDraft.length > 1 ? `
                                     <button type="button" class="btn btn-outline btn-sm" style="color:var(--danger); border-color:var(--danger); padding:3px 8px;" onclick="removeSourceAccountCard(${idx})" title="Hapus Akun Ini">
-                                        🗑️ Hapus
+                                         Hapus
                                     </button>
                                 ` : ''}
                             </div>
@@ -2751,9 +3337,9 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
             const btn = document.getElementById('btn-test-conn');
             const box = document.getElementById('connection-diag-box');
             btn.disabled = true;
-            btn.textContent = '⏳ Menguji Koneksi...';
+            btn.textContent = ' Menguji Koneksi...';
             box.style.display = 'block';
-            box.innerHTML = '⏳ Sedang menguji koneksi ke seluruh akun Web App Gmail dan Web App Google Drive...';
+            box.innerHTML = ' Sedang menguji koneksi ke seluruh akun Web App Gmail dan Web App Google Drive...';
 
             try {
                 await saveAppSettings();
@@ -2769,18 +3355,18 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                     const gmAccountsHtml = gmList.length > 0
                         ? gmList.map((item, i) => `
                             <div style="margin-bottom:6px; padding:9px 12px; border-radius:8px; background:${!item.enabled ? '#f1f5f9' : (item.ok ? '#dcfce7' : '#fee2e2')}; color:${!item.enabled ? '#475569' : (item.ok ? '#15803d' : '#b91c1c')}; font-size:13px;">
-                                <strong>${!item.enabled ? '⏸️' : (item.ok ? '✅' : '❌')} EMAIL #${i + 1} (${escapeHtml(item.email || item.label || '')}):</strong> ${escapeHtml(item.message || '')}
+                                <strong>${!item.enabled ? '' : (item.ok ? '✅' : '')} EMAIL #${i + 1} (${escapeHtml(item.email || item.label || '')}):</strong> ${escapeHtml(item.message || '')}
                             </div>
                         `).join('')
                         : `<div style="margin-bottom:8px; padding:10px 12px; border-radius:8px; background:${gm.ok ? '#dcfce7' : '#fee2e2'}; color:${gm.ok ? '#15803d' : '#b91c1c'}; font-size:13px;">
-                            <strong>${gm.ok ? '✅ GMAIL OK:' : '❌ GMAIL:'}</strong> ${escapeHtml(gm.message || '')}
+                            <strong>${gm.ok ? '✅ GMAIL OK:' : ' GMAIL:'}</strong> ${escapeHtml(gm.message || '')}
                            </div>`;
 
                     box.innerHTML = `
                         <div style="font-weight:800; margin-bottom:8px; font-size:14px; color:var(--charcoal);">Hasil Diagnosa Koneksi Multi-Email &amp; Google Drive:</div>
                         ${gmAccountsHtml}
                         <div style="padding:10px 12px; border-radius:8px; background:${gd.ok ? '#dcfce7' : '#fee2e2'}; color:${gd.ok ? '#15803d' : '#b91c1c'}; font-size:13px;">
-                            <strong>${gd.ok ? '✅ GOOGLE DRIVE OK:' : '❌ GOOGLE DRIVE:'}</strong> ${escapeHtml(gd.message || '')}
+                            <strong>${gd.ok ? '✅ GOOGLE DRIVE OK:' : ' GOOGLE DRIVE:'}</strong> ${escapeHtml(gd.message || '')}
                             ${gd.folder_url ? ` — <a href="${escapeHtml(gd.folder_url)}" target="_blank" style="font-weight:700; color:#15803d;">Buka Folder GDrive ↗</a>` : ''}
                         </div>
                     `;
@@ -2789,14 +3375,14 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                 box.innerHTML = '<span style="color:var(--danger);">Gagal menjalankan tes koneksi.</span>';
             } finally {
                 btn.disabled = false;
-                btn.textContent = '🔍 Tes & Diagnosa Koneksi Gmail + GDrive';
+                btn.textContent = ' Tes & Diagnosa Koneksi Gmail + GDrive';
             }
         }
 
         async function clearSyncLogs() {
             await fetch('api.php?action=clear_logs', { method: 'POST' });
             await loadAppStatus();
-            showToast('🗑️ Log aktivitas berhasil dibersihkan.');
+            showToast(' Log aktivitas berhasil dibersihkan.');
         }
 
         async function toggleSiskohatStatus(id, status) {
@@ -2854,10 +3440,272 @@ $gasGmailCode  = @file_get_contents(__DIR__ . '/gas/2_Gmail_phujtmkopasuruan.gs'
                 .replace(/'/g, '&#039;');
         }
 
+        async function loadSecurityAdminPanel() {
+            const statusEl = document.getElementById('security-admin-status');
+            if (!statusEl) return;
+            try {
+                const res = await fetch('api.php?action=list_users');
+                const data = await res.json();
+                if (!data.ok) {
+                    statusEl.textContent = data.error || 'Gagal memuat data keamanan.';
+                    return;
+                }
+                const lembaga = data.lembaga || [];
+                const users = data.users || [];
+                securityUsersCache = users;
+                securityLembagaCache = lembaga;
+
+                const usrLem = document.getElementById('usr-lembaga');
+                if (usrLem) {
+                    usrLem.innerHTML = '<option value="">-- Tanpa Instansi (Super Admin) --</option>' +
+                        lembaga.map(l => `<option value="${escapeHtml(l.id)}">${escapeHtml(l.nama)}</option>`).join('');
+                }
+
+                // Tabel instansi
+                const lemTbody = document.getElementById('security-lembaga-tbody');
+                if (lemTbody) {
+                    if (lembaga.length === 0) {
+                        lemTbody.innerHTML = '<tr><td colspan="5" class="empty-state">Belum ada instansi terdaftar.</td></tr>';
+                    } else {
+                        lemTbody.innerHTML = lembaga.map(l => `<tr>
+                            <td><strong>${escapeHtml(l.nama)}</strong></td>
+                            <td><code>${escapeHtml(l.slug)}</code></td>
+                            <td>${escapeHtml(l.source_email || '-')}</td>
+                            <td>${escapeHtml(l.target_gdrive_email || '-')}</td>
+                            <td>
+                                <button type="button" class="btn btn-outline btn-sm" onclick="editLembagaForm('${escapeHtml(l.slug)}')">Edit</button>
+                            </td>
+                        </tr>`).join('');
+                    }
+                }
+
+                // Tabel pengguna
+                const tbody = document.getElementById('security-users-tbody');
+                if (tbody) {
+                    if (users.length === 0) {
+                        tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Belum ada pengguna.</td></tr>';
+                    } else {
+                        tbody.innerHTML = users.map(u => {
+                            const lem = lembaga.find(l => l.id === u.lembaga_id);
+                            const roleLabel = u.role === 'super_admin' ? 'Super Admin' : 'Admin Instansi';
+                            const lemLabel = u.role === 'super_admin'
+                                ? 'Semua Instansi'
+                                : escapeHtml(lem ? lem.nama : (u.lembaga_id || '-'));
+                            return `<tr>
+                                <td><strong>${escapeHtml(u.username)}</strong></td>
+                                <td>${escapeHtml(u.nama || '-')}</td>
+                                <td><span class="badge ${u.role === 'super_admin' ? 'badge-charcoal' : 'badge-gold'}">${roleLabel}</span></td>
+                                <td>${lemLabel}</td>
+                                <td>
+                                    <button type="button" class="btn btn-outline btn-sm" onclick="editUserForm('${escapeHtml(u.id)}')">Edit</button>
+                                    <button type="button" class="btn btn-outline btn-sm" onclick="resetUserPassword('${escapeHtml(u.id)}')">Reset Password</button>
+                                </td>
+                            </tr>`;
+                        }).join('');
+                    }
+                }
+
+                statusEl.textContent = `${lembaga.length} instansi terdaftar | ${users.length} pengguna aktif. Data tiap instansi tersimpan terpisah di storage/lembaga/{slug}/.`;
+            } catch (e) {
+                statusEl.textContent = 'Gagal memuat panel keamanan.';
+            }
+        }
+
+        let securityUsersCache = [];
+        let securityLembagaCache = [];
+
+        function resetUserForm() {
+            document.getElementById('usr-id').value = '';
+            document.getElementById('usr-username').value = '';
+            document.getElementById('usr-nama').value = '';
+            document.getElementById('usr-password').value = '';
+            document.getElementById('usr-password').placeholder = 'Password (kosongkan bila tidak diubah)';
+            document.getElementById('usr-form-title').textContent = 'Tambah Pengguna';
+        }
+
+        function resetLembagaForm() {
+            document.getElementById('lem-id').value = '';
+            document.getElementById('lem-slug').value = '';
+            document.getElementById('lem-nama').value = '';
+            document.getElementById('lem-source-email').value = '';
+            document.getElementById('lem-gdrive-email').value = '';
+            document.getElementById('lem-gdrive-folder').value = '';
+            document.getElementById('lem-form-title').textContent = 'Tambah Instansi';
+        }
+
+        function editUserForm(id) {
+            const u = securityUsersCache.find(x => x.id === id);
+            if (!u) {
+                loadSecurityAdminPanel();
+                return;
+            }
+            document.getElementById('usr-id').value = u.id;
+            document.getElementById('usr-username').value = u.username || '';
+            document.getElementById('usr-nama').value = u.nama || '';
+            document.getElementById('usr-password').value = '';
+            document.getElementById('usr-password').placeholder = 'Kosongkan bila tidak diubah';
+            document.getElementById('usr-role').value = u.role || 'admin';
+            document.getElementById('usr-lembaga').value = u.lembaga_id || '';
+            document.getElementById('usr-form-title').textContent = 'Edit Pengguna: ' + u.username;
+        }
+
+        async function resetUserPassword(id) {
+            const u = securityUsersCache.find(x => x.id === id);
+            if (!u) return;
+            const pass = prompt('Password baru untuk pengguna "' + u.username + '" (minimal 8 karakter):');
+            if (!pass) return;
+            if (pass.length < 8) {
+                showToast('Password minimal 8 karakter.', true);
+                return;
+            }
+            await saveUserPayload({ id, username: u.username, nama: u.nama, role: u.role, lembaga_id: u.lembaga_id, password: pass });
+        }
+
+        async function saveUserPayload(payload) {
+            const res = await fetch('api.php?action=save_user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            showToast(data.message || data.error || 'Selesai', !data.ok);
+            if (data.ok) {
+                document.getElementById('usr-password').value = '';
+                document.getElementById('usr-id').value = '';
+                document.getElementById('usr-form-title').textContent = 'Tambah Pengguna';
+                loadSecurityAdminPanel();
+            }
+        }
+
+        async function switchActiveLembaga() {
+            const slug = document.getElementById('security-lembaga-switch')?.value || '';
+            const res = await fetch('api.php?action=switch_lembaga', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slug })
+            });
+            const data = await res.json();
+            showToast(data.message || (data.ok ? 'Instansi aktif diganti.' : (data.error || 'Gagal')), !data.ok);
+            if (data.ok) location.reload();
+        }
+
+        async function saveLembagaForm() {
+            const payload = {
+                id: document.getElementById('lem-id')?.value || '',
+                slug: document.getElementById('lem-slug')?.value || '',
+                nama: document.getElementById('lem-nama')?.value || '',
+                source_email: document.getElementById('lem-source-email')?.value || '',
+                target_gdrive_email: document.getElementById('lem-gdrive-email')?.value || '',
+                gdrive_folder_name: document.getElementById('lem-gdrive-folder')?.value || ''
+            };
+            const res = await fetch('api.php?action=save_lembaga', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            showToast(data.message || data.error || 'Selesai', !data.ok);
+            if (data.ok) {
+                document.getElementById('lem-id').value = '';
+                document.getElementById('lem-slug').value = '';
+                document.getElementById('lem-nama').value = '';
+                document.getElementById('lem-source-email').value = '';
+                document.getElementById('lem-gdrive-email').value = '';
+                document.getElementById('lem-gdrive-folder').value = '';
+                document.getElementById('lem-form-title').textContent = 'Tambah Instansi';
+                loadSecurityAdminPanel();
+            }
+        }
+
+        function editLembagaForm(slug) {
+            const l = securityLembagaCache.find(x => x.slug === slug);
+            if (!l) {
+                loadSecurityAdminPanel();
+                return;
+            }
+            document.getElementById('lem-id').value = l.id;
+            document.getElementById('lem-slug').value = l.slug;
+            document.getElementById('lem-nama').value = l.nama;
+            document.getElementById('lem-source-email').value = l.source_email || '';
+            document.getElementById('lem-gdrive-email').value = l.target_gdrive_email || '';
+            document.getElementById('lem-gdrive-folder').value = l.gdrive_folder_name || '';
+            document.getElementById('lem-form-title').textContent = 'Edit Instansi: ' + l.nama;
+        }
+
+        async function saveUserForm() {
+            const role = document.getElementById('usr-role')?.value || 'admin';
+            const lembagaId = document.getElementById('usr-lembaga')?.value || '';
+            if (role === 'admin' && !lembagaId) {
+                showToast('Pilih instansi untuk akun Admin.', true);
+                return;
+            }
+            await saveUserPayload({
+                id: document.getElementById('usr-id')?.value || '',
+                username: document.getElementById('usr-username')?.value || '',
+                nama: document.getElementById('usr-nama')?.value || '',
+                password: document.getElementById('usr-password')?.value || '',
+                role,
+                lembaga_id: role === 'super_admin' ? null : lembagaId
+            });
+        }
+
+        // --- Modal Ubah Password ---
+        function openPasswordModal() {
+            const m = document.getElementById('password-modal');
+            if (m) m.classList.add('open');
+            document.getElementById('pw-current').value = '';
+            document.getElementById('pw-new').value = '';
+            document.getElementById('pw-confirm').value = '';
+            const msg = document.getElementById('pw-message');
+            if (msg) {
+                msg.textContent = '';
+                msg.className = 'password-modal-message';
+            }
+        }
+
+        function closePasswordModal() {
+            const m = document.getElementById('password-modal');
+            if (m) m.classList.remove('open');
+        }
+
+        async function submitChangePassword() {
+            const cur = document.getElementById('pw-current').value;
+            const neu = document.getElementById('pw-new').value;
+            const conf = document.getElementById('pw-confirm').value;
+            const msg = document.getElementById('pw-message');
+
+            if (neu !== conf) {
+                msg.textContent = 'Konfirmasi password tidak cocok.';
+                msg.className = 'password-modal-message pw-error';
+                return;
+            }
+            if (neu.length < 8) {
+                msg.textContent = 'Password baru minimal 8 karakter.';
+                msg.className = 'password-modal-message pw-error';
+                return;
+            }
+
+            const res = await fetch('api.php?action=change_my_password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ current_password: cur, new_password: neu })
+            });
+            const data = await res.json();
+            if (data.ok) {
+                msg.textContent = data.message || 'Password berhasil diperbarui.';
+                msg.className = 'password-modal-message pw-success';
+                setTimeout(closePasswordModal, 1500);
+            } else {
+                msg.textContent = data.error || 'Gagal mengubah password.';
+                msg.className = 'password-modal-message pw-error';
+            }
+        }
+
         window.addEventListener('DOMContentLoaded', async () => {
             await loadAppStatus();
             resetCountdown();
             startAutoSyncTimer();
+            if (document.getElementById('tab-security')) loadSecurityAdminPanel();
         });
     </script>
 </body>

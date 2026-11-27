@@ -1,4 +1,15 @@
 <?php
+$buildSessDir = __DIR__ . '/storage/temp';
+if (!is_dir($buildSessDir)) {
+    @mkdir($buildSessDir, 0755, true);
+}
+session_save_path($buildSessDir);
+session_name('SILAHUT_EVISA_SESS');
+session_start();
+$_SESSION['user_id'] = 'usr_admin_1';
+$_SESSION['role'] = 'admin';
+$_SESSION['active_lembaga_slug'] = 'phu-pasuruan';
+
 ob_start();
 include 'c:/laragon/www/e-visa/index.php';
 $fullHtml = ob_get_clean();
@@ -215,6 +226,18 @@ $clientEngineJs = <<<JS
                 changed = true;
             } else {
                 const combined = JSON.parse(JSON.stringify({ ...rr, ...lr }));
+                if (rr.nama && rr.nama !== 'JAMAAH' && (!lr.nama || lr.nama === 'JAMAAH' || lr.nama !== rr.nama)) {
+                    combined.nama = rr.nama;
+                    combined.filename = rr.filename;
+                    combined.size_kb = rr.size_kb;
+                    combined.size_bytes = rr.size_bytes;
+                    changed = true;
+                }
+                if ((parseFloat(lr.size_kb) || 0) > 50 && (parseFloat(rr.size_kb) || 0) <= 50) {
+                    combined.size_kb = rr.size_kb;
+                    combined.size_bytes = rr.size_bytes;
+                    changed = true;
+                }
                 if (rr.gdrive_uploaded) {
                     if (!lr.gdrive_uploaded) changed = true;
                     combined.gdrive_uploaded = true;
@@ -725,7 +748,7 @@ $clientEngineJs = <<<JS
             const dlJson = await dlRes.json();
             if (dlJson && dlJson.ok && dlJson.base64) {
                 const mimeType = String(dlJson.mime_type || 'image/jpeg').toLowerCase();
-                const dUrl = `data:${mimeType};base64,${dlJson.base64}`;
+                const dUrl = 'data:' + mimeType + ';base64,' + dlJson.base64;
                 ghImages[cloudKey] = dUrl;
                 saveGhState();
                 window.postMessage({ type: 'SILAHUT_CLOUD_IMAGE_UPDATE', key: cloudKey, dataUrl: dUrl }, '*');
@@ -877,7 +900,7 @@ $clientEngineJs = <<<JS
                     const res = await origFetch(qUrl);
                     const data = await res.json();
                     for (const em of (data.emails || [])) {
-                        const rawCombined = (em.subject || '') + '\\n' + (em.body_text || '');
+                        const rawCombined = ((em.subject || '') + '\\n' + (em.body_text || '')).replace(/ØŒ|،/g, ',');
                         if (/One Time Password|Verify Your Account/i.test(rawCombined)) continue;
                         if (/under review/i.test(rawCombined) && !/passport\\s+number/i.test(rawCombined)) continue;
                         if (!/Application Submitted Successfully|Enrollment confirmation/i.test(rawCombined)) continue;
@@ -890,10 +913,12 @@ $clientEngineJs = <<<JS
                             const pasporM = combined.match(/passport\\s+number\\s*:\\s*([A-Z0-9]{6,12})/i) || combined.match(/\\b([A-Z]{1,3}\\d{6,8})\\b/);
                             if (!pasporM) continue;
                             const paspor = pasporM[1].toUpperCase();
-                            if (ghRecords.some(r => r.paspor === paspor)) continue;
+                            const existingIdx = ghRecords.findIndex(r => r.paspor === paspor);
+                            if (existingIdx !== -1 && ghRecords[existingIdx].nama && ghRecords[existingIdx].nama !== 'JAMAAH') continue;
 
                             const namaM = combined.match(/Dear\\s+([^\\r\\n,،<]{2,55}?)\\s*[,،\\r\\n<]/i);
-                            const nama = namaM ? namaM[1].replace(/[،,]/g, '').trim().toUpperCase() : 'JAMAAH';
+                            const rawNama = namaM ? namaM[1].replace(/ØŒ|[،,]/g, ' ').replace(/[^A-Za-z\\s.'\\-]+/g, ' ').replace(/\\s+/g, ' ').trim().toUpperCase() : '';
+                            const nama = (rawNama && rawNama.length >= 2) ? rawNama : 'JAMAAH';
                             const enrollM = combined.match(/Enrollment\\s*Id\\s*(?:is)?\\s*:\\s*(\\d{5,15})/i);
                             const enrollId = enrollM ? enrollM[1] : '-';
                             const timeM = combined.match(/\\bon\\s+(\\d{4}-\\d{2}-\\d{2}\\s+\\d{2}:\\d{2}:\\d{2})/i);

@@ -155,7 +155,7 @@ class GDriveSync
         }
 
         $filename = $record['filename'] ?? '';
-        $filePath = BIOVISA_DIR . DIRECTORY_SEPARATOR . $filename;
+        $filePath = getBiovisaDir() . DIRECTORY_SEPARATOR . $filename;
 
         if ($filename === '' || !file_exists($filePath)) {
             return [
@@ -443,3 +443,4 @@ class GDriveSync
         return $report;
     }
 }
+

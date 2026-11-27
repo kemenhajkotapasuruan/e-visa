@@ -62,6 +62,7 @@ class BiovisaProcessor
     public static function splitMultipleConfirmationBlocks(string $bodyText, string $bodyHtml = ''): array
     {
         $raw = trim($bodyText !== '' ? $bodyText : strip_tags(preg_replace('/<(br|p|div|tr)[^>]*>/i', "\n", $bodyHtml)));
+        $raw = str_replace(["\xC3\x98\xC5\x92", 'ØŒ', '،'], ',', $raw);
         if ($raw === '') {
             return [$raw];
         }
@@ -89,6 +90,7 @@ class BiovisaProcessor
         }
 
         $combinedText = trim($subject . "\n" . ($bodyText !== '' ? $bodyText : $cleanHtmlText) . "\n" . $cleanHtmlText);
+        $combinedText = str_replace(["\xC3\x98\xC5\x92", 'ØŒ', '،'], ',', $combinedText);
         $combinedText = preg_replace("/\r\n|\r/", "\n", $combinedText);
 
         $paspor = '';
@@ -204,14 +206,15 @@ class BiovisaProcessor
 
     private static function cleanPersonName(string $raw, string $paspor = ''): string
     {
-        // Hapus koma Arab '،' dan karakter non-huruf di ujung
-        $name = str_replace(['،', ','], ' ', $raw);
+        // Hapus koma Arab '،', mojibake 'ØŒ', dan karakter non-ASCII / tanda baca di ujung
+        $name = str_replace(["\xC3\x98\xC5\x92", 'ØŒ', '،', ','], ' ', $raw);
+        $name = preg_replace('/[^\x20-\x7E]+/', ' ', $name);
         $name = trim($name);
         if ($paspor !== '') {
             $name = str_ireplace($paspor, '', $name);
         }
         $name = preg_replace('/\b(Passport|Number|No|Enrollment|Confirmation|ID|MOFA|Saudi|Visa|Bio)\b.*/i', '', $name);
-        $name = preg_replace('/[_\-|\/]+/', ' ', $name);
+        $name = preg_replace('/[^A-Za-z\s\.\'\-]+/', ' ', $name);
         $name = preg_replace('/\s+/', ' ', $name);
         return trim($name, " \t\n\r\0\x0B.,:-_");
     }
@@ -440,12 +443,395 @@ class BiovisaProcessor
     }
 
     /**
-     * Kompres dan simpan GD Image menjadi file JPG dengan ukuran DIJAMIN <= 50 KB
-     * (Ideal di rentang $minKB s/d $maxKB, default 42 KB - 49.5 KB)
+     * Crop otomatis area dokumen dari hasil scan/upload.
+     * Mendukung dua jenis latar:
+     * - Latar gelap (scanner cover hitam) -> cari area terang (dokumen).
+     * - Latar putih (kertas/latar kantor) -> cari bounding box area non-putih (dokumen).
+     */
+    public static function autoCropScannedDocument($im, int $margin = 8)
+    {
+        if (!is_resource($im) && !($im instanceof \GdImage)) {
+            return $im;
+        }
+        $w = imagesx($im);
+        $h = imagesy($im);
+        if ($w < 120 || $h < 120) {
+            return $im;
+        }
+
+        $edgeSample = self::sampleImageEdgesLuminance($im, $w, $h);
+        if (floatval($edgeSample['dark_ratio']) >= 0.22) {
+            $trimmed = self::stripDarkScannerBorder($im);
+            if ($trimmed !== $im) {
+                imagedestroy($im);
+                $im = $trimmed;
+                $w = imagesx($im);
+                $h = imagesy($im);
+                if ($w < 120 || $h < 120) {
+                    return $im;
+                }
+            }
+        }
+
+        $crop = self::detectDocumentBBox($im, $w, $h);
+        if ($crop === null) {
+            $trimmed = self::trimUniformContentMargins($im);
+            return ($trimmed !== $im) ? $trimmed : $im;
+        }
+
+        [$left, $top, $right, $bottom] = $crop;
+        if ($left >= $right || $top >= $bottom) {
+            return $im;
+        }
+
+        $m = max(0, min($margin, 20));
+        $left = max(0, $left - $m);
+        $top = max(0, $top - $m);
+        $right = min($w - 1, $right + $m);
+        $bottom = min($h - 1, $bottom + $m);
+
+        $cropW = $right - $left + 1;
+        $cropH = $bottom - $top + 1;
+        if ($cropW < intval($w * 0.12) || $cropH < intval($h * 0.12)) {
+            return $im;
+        }
+        if ($cropW >= $w - 6 && $cropH >= $h - 6) {
+            return $im;
+        }
+
+        $cropped = imagecreatetruecolor($cropW, $cropH);
+        $white = imagecolorallocate($cropped, 255, 255, 255);
+        imagefilledrectangle($cropped, 0, 0, $cropW - 1, $cropH - 1, $white);
+        imagecopyresampled($cropped, $im, 0, 0, $left, $top, $cropW, $cropH, $cropW, $cropH);
+        imagedestroy($im);
+        return $cropped;
+    }
+
+    /**
+     * Crop manual berdasarkan koordinat piksel (natural image space).
+     */
+    public static function cropGdRect($im, int $x, int $y, int $width, int $height)
+    {
+        if (!is_resource($im) && !($im instanceof \GdImage)) {
+            return $im;
+        }
+        $w = imagesx($im);
+        $h = imagesy($im);
+        if ($w < 1 || $h < 1) {
+            return $im;
+        }
+
+        $x = max(0, min($x, $w - 1));
+        $y = max(0, min($y, $h - 1));
+        $width = max(1, min($width, $w - $x));
+        $height = max(1, min($height, $h - $y));
+        if ($width < 8 || $height < 8) {
+            return $im;
+        }
+
+        $cropped = imagecreatetruecolor($width, $height);
+        $white = imagecolorallocate($cropped, 255, 255, 255);
+        imagefilledrectangle($cropped, 0, 0, $width - 1, $height - 1, $white);
+        imagecopyresampled($cropped, $im, 0, 0, $x, $y, $width, $height, $width, $height);
+        imagedestroy($im);
+        return $cropped;
+    }
+
+    /**
+     * Deteksi bounding box area dokumen (non-latar).
+     */
+    private static function detectDocumentBBox($im, int $w, int $h): ?array
+    {
+        $sample = self::sampleImageEdgesLuminance($im, $w, $h);
+        $avgEdge = floatval($sample['avg_luminance']);
+        $darkRatio = floatval($sample['dark_ratio']);
+
+        $mode = ($avgEdge >= 175 && $darkRatio < 0.4) ? 'light_bg' : 'dark_bg';
+        $bgLum = (int) round($avgEdge);
+        $lightThresh = min(248, max(198, $bgLum - 14));
+        $darkThresh = max(48, min(130, $bgLum + 28));
+
+        $step = max(2, (int) floor(min($w, $h) / 220));
+        $xMin = $w;
+        $xMax = -1;
+        $yMin = $h;
+        $yMax = -1;
+        $contentCount = 0;
+        $total = 0;
+
+        for ($y = 0; $y < $h; $y += $step) {
+            for ($x = 0; $x < $w; $x += $step) {
+                $total++;
+                $lum = self::pixelLuminance($im, $x, $y);
+                $isContent = ($mode === 'light_bg') ? ($lum < $lightThresh) : ($lum > $darkThresh);
+                if (!$isContent) {
+                    continue;
+                }
+                $contentCount++;
+                if ($x < $xMin) $xMin = $x;
+                if ($x > $xMax) $xMax = $x;
+                if ($y < $yMin) $yMin = $y;
+                if ($y > $yMax) $yMax = $y;
+            }
+        }
+
+        if ($xMax < 0 || $total < 100) {
+            return null;
+        }
+        if ($contentCount < (int)($total * 0.006) || $contentCount > (int)($total * 0.96)) {
+            return null;
+        }
+
+        // Padding proporsional agar dokumen tidak kepotong terlalu rapat
+        $padX = max(6, (int)(($xMax - $xMin) * 0.04));
+        $padY = max(6, (int)(($yMax - $yMin) * 0.04));
+
+        return [
+            max(0, $xMin - $padX),
+            max(0, $yMin - $padY),
+            min($w - 1, $xMax + $padX),
+            min($h - 1, $yMax + $padY)
+        ];
+    }
+
+    /**
+     * Perbaiki kontras/kecerahan ringan setelah crop scan.
+     */
+    public static function refineScannedDocument($im)
+    {
+        if (!is_resource($im) && !($im instanceof \GdImage)) {
+            return $im;
+        }
+        @imagefilter($im, IMG_FILTER_CONTRAST, -10);
+        @imagefilter($im, IMG_FILTER_BRIGHTNESS, 3);
+        return $im;
+    }
+
+    private static function pixelLuminance($im, int $x, int $y): int
+    {
+        $rgb = imagecolorat($im, $x, $y);
+        $r = ($rgb >> 16) & 0xFF;
+        $g = ($rgb >> 8) & 0xFF;
+        $b = $rgb & 0xFF;
+        return intval(($r * 299 + $g * 587 + $b * 114) / 1000);
+    }
+
+    private static function sampleImageEdgesLuminance($im, int $w, int $h): array
+    {
+        $samples = [];
+        $strip = max(4, (int) floor(min($w, $h) * 0.04));
+        $stepX = max(1, (int) floor($w / 100));
+        $stepY = max(1, (int) floor($strip / 4));
+        $stepXv = max(1, (int) floor($h / 100));
+        for ($x = 0; $x < $w; $x += $stepX) {
+            for ($y = 0; $y < $strip; $y += $stepY) {
+                $samples[] = self::pixelLuminance($im, $x, $y);
+                $samples[] = self::pixelLuminance($im, $x, $h - 1 - $y);
+            }
+        }
+        for ($y = 0; $y < $h; $y += $stepXv) {
+            for ($x = 0; $x < $strip; $x += $stepY) {
+                $samples[] = self::pixelLuminance($im, $x, $y);
+                $samples[] = self::pixelLuminance($im, $w - 1 - $x, $y);
+            }
+        }
+        if (empty($samples)) {
+            return ['avg_luminance' => 128, 'dark_ratio' => 0];
+        }
+        $sum = array_sum($samples);
+        $dark = 0;
+        foreach ($samples as $lum) {
+            if ($lum < 80) {
+                $dark++;
+            }
+        }
+        return [
+            'avg_luminance' => $sum / count($samples),
+            'dark_ratio' => $dark / count($samples)
+        ];
+    }
+
+    /**
+     * Pangkas margin kosong di tepi jika deteksi bounding box gagal.
+     */
+    private static function trimUniformContentMargins($im)
+    {
+        $w = imagesx($im);
+        $h = imagesy($im);
+        if ($w < 160 || $h < 160) {
+            return $im;
+        }
+
+        $step = max(2, (int) floor(min($w, $h) / 200));
+        $edge = self::sampleImageEdgesLuminance($im, $w, $h);
+        $bg = (int) round(floatval($edge['avg_luminance']));
+        $isLightBg = ($bg >= 165 && floatval($edge['dark_ratio']) < 0.45);
+        $thresh = $isLightBg ? min(245, max(190, $bg - 18)) : max(55, min(125, $bg + 32));
+        $densityCut = 0.055;
+
+        $left = 0;
+        for ($x = 0; $x < $w; $x++) {
+            if (self::lineContentRatio($im, $x, 0, 1, $h, $step, $isLightBg, $thresh) >= $densityCut) {
+                $left = $x;
+                break;
+            }
+        }
+        $right = $w - 1;
+        for ($x = $w - 1; $x >= 0; $x--) {
+            if (self::lineContentRatio($im, $x, 0, 1, $h, $step, $isLightBg, $thresh) >= $densityCut) {
+                $right = $x;
+                break;
+            }
+        }
+        $top = 0;
+        for ($y = 0; $y < $h; $y++) {
+            if (self::lineContentRatio($im, 0, $y, $w, 1, $step, $isLightBg, $thresh) >= $densityCut) {
+                $top = $y;
+                break;
+            }
+        }
+        $bottom = $h - 1;
+        for ($y = $h - 1; $y >= 0; $y--) {
+            if (self::lineContentRatio($im, 0, $y, $w, 1, $step, $isLightBg, $thresh) >= $densityCut) {
+                $bottom = $y;
+                break;
+            }
+        }
+
+        $cropW = $right - $left + 1;
+        $cropH = $bottom - $top + 1;
+        if ($cropW < (int)($w * 0.2) || $cropH < (int)($h * 0.2)) {
+            return $im;
+        }
+        if ($cropW >= $w - 4 && $cropH >= $h - 4) {
+            return $im;
+        }
+
+        $pad = max(6, (int) floor(min($cropW, $cropH) * 0.02));
+        $left = max(0, $left - $pad);
+        $top = max(0, $top - $pad);
+        $right = min($w - 1, $right + $pad);
+        $bottom = min($h - 1, $bottom + $pad);
+        $cropW = $right - $left + 1;
+        $cropH = $bottom - $top + 1;
+
+        $cropped = imagecreatetruecolor($cropW, $cropH);
+        $white = imagecolorallocate($cropped, 255, 255, 255);
+        imagefilledrectangle($cropped, 0, 0, $cropW - 1, $cropH - 1, $white);
+        imagecopyresampled($cropped, $im, 0, 0, $left, $top, $cropW, $cropH, $cropW, $cropH);
+        imagedestroy($im);
+        return $cropped;
+    }
+
+    private static function lineContentRatio($im, int $x0, int $y0, int $wLine, int $hLine, int $step, bool $lightBg, int $thresh): float
+    {
+        $hits = 0;
+        $total = 0;
+        for ($y = $y0; $y < $y0 + $hLine; $y += $step) {
+            for ($x = $x0; $x < $x0 + $wLine; $x += $step) {
+                $total++;
+                $lum = self::pixelLuminance($im, $x, $y);
+                $isContent = $lightBg ? ($lum < $thresh) : ($lum > $thresh);
+                if ($isContent) {
+                    $hits++;
+                }
+            }
+        }
+        return $total > 0 ? ($hits / $total) : 0.0;
+    }
+
+    /**
+     * Buang pinggiran gelap (cover scanner) hingga area terang (alas putih + dokumen).
+     */
+    private static function stripDarkScannerBorder($im)
+    {
+        $w = imagesx($im);
+        $h = imagesy($im);
+        if ($w < 160 || $h < 160) {
+            return $im;
+        }
+
+        $step = max(2, (int) floor(min($w, $h) / 180));
+        $maxScan = (int) floor(min($w, $h) * 0.38);
+        $darkCutoff = 0.44;
+
+        $left = 0;
+        for ($x = 0; $x < $maxScan; $x++) {
+            if (self::lineDarkRatio($im, $x, 0, 1, $h, $step) < $darkCutoff) {
+                $left = $x;
+                break;
+            }
+        }
+        $right = $w - 1;
+        for ($x = $w - 1; $x > $w - 1 - $maxScan; $x--) {
+            if (self::lineDarkRatio($im, $x, 0, 1, $h, $step) < $darkCutoff) {
+                $right = $x;
+                break;
+            }
+        }
+        $top = 0;
+        for ($y = 0; $y < $maxScan; $y++) {
+            if (self::lineDarkRatio($im, 0, $y, $w, 1, $step) < $darkCutoff) {
+                $top = $y;
+                break;
+            }
+        }
+        $bottom = $h - 1;
+        for ($y = $h - 1; $y > $h - 1 - $maxScan; $y--) {
+            if (self::lineDarkRatio($im, 0, $y, $w, 1, $step) < $darkCutoff) {
+                $bottom = $y;
+                break;
+            }
+        }
+
+        $cropW = $right - $left + 1;
+        $cropH = $bottom - $top + 1;
+        if ($cropW < (int) ($w * 0.45) || $cropH < (int) ($h * 0.45)) {
+            return $im;
+        }
+        if ($left <= 2 && $top <= 2 && $right >= $w - 3 && $bottom >= $h - 3) {
+            return $im;
+        }
+
+        $out = imagecreatetruecolor($cropW, $cropH);
+        $white = imagecolorallocate($out, 255, 255, 255);
+        imagefilledrectangle($out, 0, 0, $cropW - 1, $cropH - 1, $white);
+        imagecopyresampled($out, $im, 0, 0, $left, $top, $cropW, $cropH, $cropW, $cropH);
+        return $out;
+    }
+
+    /**
+     * Rasio piksel gelap pada garis vertikal atau horizontal.
+     */
+    private static function lineDarkRatio($im, int $x0, int $y0, int $lineW, int $lineH, int $step): float
+    {
+        $dark = 0;
+        $total = 0;
+        if ($lineW === 1) {
+            for ($y = $y0; $y < $y0 + $lineH; $y += $step) {
+                $total++;
+                if (self::pixelLuminance($im, $x0, $y) < 82) {
+                    $dark++;
+                }
+            }
+        } else {
+            for ($x = $x0; $x < $x0 + $lineW; $x += $step) {
+                $total++;
+                if (self::pixelLuminance($im, $x, $y0) < 82) {
+                    $dark++;
+                }
+            }
+        }
+        return $total > 0 ? ($dark / $total) : 0.0;
+    }
+
+    /**
+     * Kompres dan simpan GD Image menjadi file JPG sesuai batas ukuran kategori ($minKB s/d $maxKB).
      */
     public static function saveGdAs50KbJpg($im, string $outputPath, float $minKB = 42.0, float $maxKB = 49.5, bool $padIfUnderMin = true): array
     {
-        $maxBytes = intval(floor(min($maxKB, 49.8) * 1024));
+        $maxKB = min(200.0, max(10.0, $maxKB));
+        $maxBytes = intval(floor($maxKB * 1024));
         $minBytes = intval(floor($minKB * 1024));
 
         $bestBlob = null;
@@ -513,7 +899,7 @@ class BiovisaProcessor
         // 3. Jika ukuran hasil < $minBytes (misal 32 KB) dan opsi strict_50kb_padding aktif,
         // sisipkan segmen JPEG COM standar agar ukuran file berada tepat di kisaran ~46 - 49 KB (<= 50 KB)
         $currentBytes = strlen($bestBlob);
-        if ($padIfUnderMin && $currentBytes < $minBytes) {
+        if ($padIfUnderMin && $maxKB <= 50.5 && $currentBytes < $minBytes) {
             $targetBytes = intval(($minBytes + $maxBytes) / 2);
             $needed = $targetBytes - $currentBytes;
             if ($needed > 6 && $needed < 45000 && substr($bestBlob, -2) === "\xFF\xD9") {
@@ -527,7 +913,8 @@ class BiovisaProcessor
         }
 
         file_put_contents($outputPath, $bestBlob, LOCK_EX);
-        $finalBytes = filesize($outputPath);
+        clearstatcache(true, $outputPath);
+        $finalBytes = is_file($outputPath) ? filesize($outputPath) : strlen($bestBlob);
 
         return [
             'path' => $outputPath,
@@ -579,7 +966,7 @@ class BiovisaProcessor
             : $extracted['enrollment_time'];
 
         $filename = self::buildFilename($nama, $paspor, $settings);
-        $outputPath = BIOVISA_DIR . DIRECTORY_SEPARATOR . $filename;
+        $outputPath = getBiovisaDir() . DIRECTORY_SEPARATOR . $filename;
 
         $renderData = [
             'nama' => $nama,
@@ -613,8 +1000,8 @@ class BiovisaProcessor
             }
         }
 
-        $minKB = floatval($settings['target_min_kb'] ?? 42);
-        $maxKB = floatval($settings['target_max_kb'] ?? 49.5);
+        $minKB = floatval($settings['target_min_kb'] ?? 42.0);
+        $maxKB = min(49.5, floatval($settings['target_max_kb'] ?? 49.5));
         $padIfUnder = !empty($settings['strict_50kb_padding']);
 
         if ($hasValidImageAttachment && ($settings['process_mode'] ?? 'both') !== 'render_only') {
@@ -708,3 +1095,4 @@ class BiovisaProcessor
         self::drawText($im, $size, $x, $y, $color, $fontPath, $text);
     }
 }
+

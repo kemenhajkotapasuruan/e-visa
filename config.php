@@ -9,10 +9,129 @@ date_default_timezone_set('Asia/Jakarta');
 
 define('BASE_DIR', __DIR__);
 define('STORAGE_DIR', BASE_DIR . DIRECTORY_SEPARATOR . 'storage');
-define('DATA_DIR', STORAGE_DIR . DIRECTORY_SEPARATOR . 'data');
-define('BIOVISA_DIR', STORAGE_DIR . DIRECTORY_SEPARATOR . 'biovisa');
-define('DOKUMEN_DIR', STORAGE_DIR . DIRECTORY_SEPARATOR . 'dokumen');
-define('TEMP_DIR', STORAGE_DIR . DIRECTORY_SEPARATOR . 'temp');
+
+/** @var array<string, string> path aktif per konteks lembaga */
+$GLOBALS['TENANT_PATHS'] = [
+    'slug' => 'phu-pasuruan',
+    'root' => '',
+    'data' => '',
+    'biovisa' => '',
+    'dokumen' => '',
+    'temp' => '',
+];
+
+function tenantSlugActive(): string
+{
+    $slug = $GLOBALS['TENANT_PATHS']['slug'] ?? 'phu-pasuruan';
+    $slug = strtolower(trim($slug));
+    return preg_replace('/[^a-z0-9\-]+/', '-', $slug) ?: 'phu-pasuruan';
+}
+
+function tenantEnsureDirs(string $slug): void
+{
+    $slug = strtolower(preg_replace('/[^a-z0-9\-]+/', '-', trim($slug)));
+    $root = STORAGE_DIR . DIRECTORY_SEPARATOR . 'lembaga' . DIRECTORY_SEPARATOR . $slug;
+    foreach ([$root, $root . '/data', $root . '/biovisa', $root . '/dokumen', $root . '/temp'] as $dir) {
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+    }
+    foreach (getSiskohatDocCategories() as $catMeta) {
+        $sub = $root . DIRECTORY_SEPARATOR . 'dokumen' . DIRECTORY_SEPARATOR . $catMeta['folder'];
+        if (!is_dir($sub)) {
+            @mkdir($sub, 0755, true);
+        }
+    }
+    tenantInitEmptyDataFiles($slug);
+}
+
+/**
+ * Inisialisasi berkas data tenant kosong (tanpa menyalin data instansi lain).
+ */
+function tenantInitEmptyDataFiles(string $slug): void
+{
+    $slug = strtolower(preg_replace('/[^a-z0-9\-]+/', '-', trim($slug)));
+    $dataDir = STORAGE_DIR . DIRECTORY_SEPARATOR . 'lembaga' . DIRECTORY_SEPARATOR . $slug . DIRECTORY_SEPARATOR . 'data';
+    if (!is_dir($dataDir)) {
+        @mkdir($dataDir, 0755, true);
+    }
+    foreach ([
+        'records.json' => [],
+        'jamaah_master.json' => [],
+        'sync_logs.json' => [],
+    ] as $file => $default) {
+        $path = $dataDir . DIRECTORY_SEPARATOR . $file;
+        if (!is_file($path)) {
+            $json = json_encode($default, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+            @file_put_contents($path, $json, LOCK_EX);
+        }
+    }
+}
+
+function tenantBindPaths(string $slug): void
+{
+    $slug = strtolower(preg_replace('/[^a-z0-9\-]+/', '-', trim($slug)));
+    tenantEnsureDirs($slug);
+    $root = STORAGE_DIR . DIRECTORY_SEPARATOR . 'lembaga' . DIRECTORY_SEPARATOR . $slug;
+    $GLOBALS['TENANT_PATHS'] = [
+        'slug' => $slug,
+        'root' => $root,
+        'data' => $root . DIRECTORY_SEPARATOR . 'data',
+        'biovisa' => $root . DIRECTORY_SEPARATOR . 'biovisa',
+        'dokumen' => $root . DIRECTORY_SEPARATOR . 'dokumen',
+        'temp' => $root . DIRECTORY_SEPARATOR . 'temp',
+    ];
+}
+
+function getDataDir(): string
+{
+    if (!empty($GLOBALS['TENANT_PATHS']['data'])) {
+        return $GLOBALS['TENANT_PATHS']['data'];
+    }
+    tenantBindPaths('phu-pasuruan');
+    return $GLOBALS['TENANT_PATHS']['data'];
+}
+
+function getBiovisaDir(): string
+{
+    if (!empty($GLOBALS['TENANT_PATHS']['biovisa'])) {
+        return $GLOBALS['TENANT_PATHS']['biovisa'];
+    }
+    tenantBindPaths('phu-pasuruan');
+    return $GLOBALS['TENANT_PATHS']['biovisa'];
+}
+
+function getDokumenDir(): string
+{
+    if (!empty($GLOBALS['TENANT_PATHS']['dokumen'])) {
+        return $GLOBALS['TENANT_PATHS']['dokumen'];
+    }
+    tenantBindPaths('phu-pasuruan');
+    return $GLOBALS['TENANT_PATHS']['dokumen'];
+}
+
+function getTempDir(): string
+{
+    if (!empty($GLOBALS['TENANT_PATHS']['temp'])) {
+        return $GLOBALS['TENANT_PATHS']['temp'];
+    }
+    tenantBindPaths('phu-pasuruan');
+    return $GLOBALS['TENANT_PATHS']['temp'];
+}
+
+// Kompatibilitas kode lama
+if (!defined('DATA_DIR')) {
+    define('DATA_DIR', STORAGE_DIR . DIRECTORY_SEPARATOR . 'data');
+}
+if (!defined('BIOVISA_DIR')) {
+    define('BIOVISA_DIR', STORAGE_DIR . DIRECTORY_SEPARATOR . 'biovisa');
+}
+if (!defined('DOKUMEN_DIR')) {
+    define('DOKUMEN_DIR', STORAGE_DIR . DIRECTORY_SEPARATOR . 'dokumen');
+}
+if (!defined('TEMP_DIR')) {
+    define('TEMP_DIR', STORAGE_DIR . DIRECTORY_SEPARATOR . 'temp');
+}
 
 /**
  * Definisi Resmi 7 Dokumen Pemvisaan Siskohat Gen.2
@@ -28,7 +147,8 @@ function getSiskohatDocCategories(): array {
             'siskohat_label' => 'Scan Halaman Pertama Paspor *',
             'folder' => 'paspor',
             'gdrive_subfolder' => '1_Paspor',
-            'max_kb' => 49.5
+            'max_kb' => 200.0,
+            'min_kb' => 42.0
         ],
         'endorsement' => [
             'num' => 2,
@@ -38,7 +158,8 @@ function getSiskohatDocCategories(): array {
             'siskohat_label' => 'Scan/Upload Halaman Endorsement',
             'folder' => 'endorsement',
             'gdrive_subfolder' => '2_Endorsement',
-            'max_kb' => 49.5
+            'max_kb' => 50.0,
+            'min_kb' => 35.0
         ],
         'vaksin' => [
             'num' => 3,
@@ -48,7 +169,8 @@ function getSiskohatDocCategories(): array {
             'siskohat_label' => 'Scan/Upload Keterangan Vaksin Meningitis *',
             'folder' => 'vaksin',
             'gdrive_subfolder' => '3_Vaksin',
-            'max_kb' => 49.5
+            'max_kb' => 50.0,
+            'min_kb' => 35.0
         ],
         'kitas' => [
             'num' => 4,
@@ -58,7 +180,8 @@ function getSiskohatDocCategories(): array {
             'siskohat_label' => 'Scan/Upload Keterangan KITAS',
             'folder' => 'kitas',
             'gdrive_subfolder' => '4_Kitas',
-            'max_kb' => 49.5
+            'max_kb' => 50.0,
+            'min_kb' => 35.0
         ],
         'pendukung' => [
             'num' => 5,
@@ -68,7 +191,8 @@ function getSiskohatDocCategories(): array {
             'siskohat_label' => 'Scan/Upload Dokumen Pendukung',
             'folder' => 'pendukung',
             'gdrive_subfolder' => '5_Pendukung',
-            'max_kb' => 49.5
+            'max_kb' => 50.0,
+            'min_kb' => 35.0
         ],
         'biovisa' => [
             'num' => 6,
@@ -78,7 +202,8 @@ function getSiskohatDocCategories(): array {
             'siskohat_label' => 'Scan/Upload Biovisa (jpeg) *',
             'folder' => 'biovisa',
             'gdrive_subfolder' => '6_Biovisa',
-            'max_kb' => 49.5
+            'max_kb' => 100.0,
+            'min_kb' => 42.0
         ],
         'foto' => [
             'num' => 7,
@@ -88,40 +213,86 @@ function getSiskohatDocCategories(): array {
             'siskohat_label' => 'Scan/Upload Foto Terbaru *',
             'folder' => 'foto',
             'gdrive_subfolder' => '7_Foto',
-            'max_kb' => 49.5
+            'max_kb' => 100.0,
+            'min_kb' => 42.0
         ]
     ];
 }
 
-foreach ([STORAGE_DIR, DATA_DIR, BIOVISA_DIR, DOKUMEN_DIR, TEMP_DIR] as $dir) {
+/**
+ * Batas kompresi JPEG per kategori dokumen Siskohat (upload/scan).
+ */
+function getSiskohatCategoryCompressLimits(string $catKey): array
+{
+    $cats = getSiskohatDocCategories();
+    if (!isset($cats[$catKey])) {
+        return ['min_kb' => 35.0, 'max_kb' => 50.0, 'pad_if_under_min' => true];
+    }
+    $meta = $cats[$catKey];
+    $maxKb = floatval($meta['max_kb'] ?? 50.0);
+    $minKb = floatval($meta['min_kb'] ?? ($maxKb <= 55 ? 35.0 : 42.0));
+    $settings = getSettings();
+    $pad = ($maxKb <= 50.5) && !empty($settings['strict_50kb_padding']);
+    return [
+        'min_kb' => $minKb,
+        'max_kb' => $maxKb,
+        'pad_if_under_min' => $pad
+    ];
+}
+
+foreach ([STORAGE_DIR] as $dir) {
     if (!is_dir($dir)) {
-        mkdir($dir, 0777, true);
+        mkdir($dir, 0755, true);
     }
 }
 
-foreach (getSiskohatDocCategories() as $catKey => $catMeta) {
-    $subDir = DOKUMEN_DIR . DIRECTORY_SEPARATOR . $catMeta['folder'];
-    if (!is_dir($subDir)) {
-        mkdir($subDir, 0777, true);
-    }
+tenantBindPaths('phu-pasuruan');
+
+function getSettingsFile(): string
+{
+    return getDataDir() . DIRECTORY_SEPARATOR . 'settings.json';
 }
 
-define('SETTINGS_FILE', DATA_DIR . DIRECTORY_SEPARATOR . 'settings.json');
-define('RECORDS_FILE', DATA_DIR . DIRECTORY_SEPARATOR . 'records.json');
-define('JAMAAH_FILE', DATA_DIR . DIRECTORY_SEPARATOR . 'jamaah_master.json');
-define('LOGS_FILE', DATA_DIR . DIRECTORY_SEPARATOR . 'sync_logs.json');
+function getRecordsFile(): string
+{
+    return getDataDir() . DIRECTORY_SEPARATOR . 'records.json';
+}
+
+function getJamaahFile(): string
+{
+    return getDataDir() . DIRECTORY_SEPARATOR . 'jamaah_master.json';
+}
+
+function getLogsFile(): string
+{
+    return getDataDir() . DIRECTORY_SEPARATOR . 'sync_logs.json';
+}
+
+// Konstanta legacy — gunakan getter di atas untuk path tenant
+if (!defined('SETTINGS_FILE')) {
+    define('SETTINGS_FILE', getSettingsFile());
+}
+if (!defined('RECORDS_FILE')) {
+    define('RECORDS_FILE', getRecordsFile());
+}
+if (!defined('JAMAAH_FILE')) {
+    define('JAMAAH_FILE', getJamaahFile());
+}
+if (!defined('LOGS_FILE')) {
+    define('LOGS_FILE', getLogsFile());
+}
 
 function getDefaultSettings(): array {
     return [
-        'source_email' => 'phujtmkopasuruan@gmail.com',
-        'target_gdrive_email' => 'muchammad.ali.sanjaya@gmail.com',
+        'source_email' => '',
+        'target_gdrive_email' => '',
         'email_subject_filter' => 'Enrollment confirmation',
         'connection_mode' => 'gas', // 'gas' (Google Apps Script) atau 'imap' (Gmail App Password)
         'imap_app_password' => '',
         'gas_gmail_webapp_url' => '',
         'source_accounts' => [], // Daftar multi-email pembaca Enrollment confirmation
         'gas_gdrive_webapp_url' => '',
-        'gdrive_folder_name' => 'Biovisa_Jamaah_PHU_Pasuruan',
+        'gdrive_folder_name' => '',
         'gdrive_folder_id' => '',
         'auto_sync_enabled' => true,
         'auto_sync_interval_sec' => 30,
@@ -139,7 +310,13 @@ function getDefaultSettings(): array {
 }
 
 function loadJsonFile(string $path, array $default = []): array {
-    if (!file_exists($path)) {
+    if (!is_file($path)) {
+        return $default;
+    }
+    $maxBytes = 48 * 1024 * 1024;
+    $size = @filesize($path);
+    if ($size === false || $size > $maxBytes) {
+        error_log('[e-visa] loadJsonFile: berkas terlalu besar atau tidak terbaca — ' . $path . ' (' . (string)$size . ' byte)');
         return $default;
     }
     $content = @file_get_contents($path);
@@ -147,7 +324,11 @@ function loadJsonFile(string $path, array $default = []): array {
         return $default;
     }
     $decoded = json_decode($content, true);
-    return is_array($decoded) ? $decoded : $default;
+    if (!is_array($decoded)) {
+        error_log('[e-visa] loadJsonFile: JSON tidak valid — ' . $path);
+        return $default;
+    }
+    return $decoded;
 }
 
 function saveJsonFile(string $path, array $data): bool {
@@ -156,22 +337,26 @@ function saveJsonFile(string $path, array $data): bool {
 }
 
 function getSettings(): array {
-    $saved = loadJsonFile(SETTINGS_FILE, []);
+    $saved = loadJsonFile(getSettingsFile(), []);
     $merged = array_merge(getDefaultSettings(), $saved);
 
-    // Migrasi otomatis: jika source_accounts masih kosong, bentuk Akun #1 dari pengaturan tunggal
+    // Migrasi otomatis: bentuk Akun #1 hanya jika email sumber instansi sudah dikonfigurasi
     if (empty($merged['source_accounts']) || !is_array($merged['source_accounts'])) {
-        $merged['source_accounts'] = [
-            [
-                'id' => 'acc_primary',
-                'label' => 'Email Utama PHU Pasuruan',
-                'email' => $merged['source_email'] ?: 'phujtmkopasuruan@gmail.com',
-                'mode' => $merged['connection_mode'] ?: 'gas',
-                'gas_url' => $merged['gas_gmail_webapp_url'] ?? '',
-                'imap_password' => $merged['imap_app_password'] ?? '',
-                'enabled' => true
-            ]
-        ];
+        $merged['source_accounts'] = [];
+        $primaryEmail = trim((string)($merged['source_email'] ?? ''));
+        if ($primaryEmail !== '') {
+            $merged['source_accounts'] = [
+                [
+                    'id' => 'acc_primary',
+                    'label' => 'Email Utama Instansi',
+                    'email' => $primaryEmail,
+                    'mode' => $merged['connection_mode'] ?: 'gas',
+                    'gas_url' => $merged['gas_gmail_webapp_url'] ?? '',
+                    'imap_password' => $merged['imap_app_password'] ?? '',
+                    'enabled' => true
+                ]
+            ];
+        }
     } else {
         // Sinkronkan akun aktif pertama ke field legacy agar kompatibel
         foreach ($merged['source_accounts'] as $acc) {
@@ -185,38 +370,252 @@ function getSettings(): array {
         }
     }
 
+    $merged = applyLembagaSettingsOverlay($merged);
     return $merged;
+}
+
+function applyLembagaSettingsOverlay(array $settings): array
+{
+    $slug = tenantSlugActive();
+    $lemFile = STORAGE_DIR . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'auth' . DIRECTORY_SEPARATOR . 'lembaga.json';
+    if (!is_file($lemFile)) {
+        return $settings;
+    }
+    $list = loadJsonFile($lemFile, []);
+    foreach ($list as $lem) {
+        if (($lem['slug'] ?? '') !== $slug) {
+            continue;
+        }
+        foreach ([
+            'source_email', 'target_gdrive_email', 'gdrive_folder_name',
+            'gas_gdrive_webapp_url', 'gas_gmail_webapp_url'
+        ] as $k) {
+            if (!empty($lem[$k])) {
+                $settings[$k] = $lem[$k];
+            }
+        }
+        if (!empty($lem['source_accounts']) && is_array($lem['source_accounts'])) {
+            $settings['source_accounts'] = $lem['source_accounts'];
+        }
+        break;
+    }
+    return $settings;
 }
 
 function saveSettings(array $newSettings): array {
     $current = getSettings();
     $merged = array_merge($current, $newSettings);
-    saveJsonFile(SETTINGS_FILE, $merged);
+    saveJsonFile(getSettingsFile(), $merged);
     return $merged;
 }
 
+function normalizeLegacySourceAccountLabels(array $records, bool &$changed = false): array
+{
+    $legacyPrimaryLabel = 'Email Utama PHU Pasuruan';
+    $newPrimaryLabel = 'Email Utama Kemenhaj Pasuruan';
+
+    foreach ($records as &$rec) {
+        if (!is_array($rec)) {
+            continue;
+        }
+        $lbl = trim((string)($rec['source_account_label'] ?? ''));
+        if ($lbl === $legacyPrimaryLabel) {
+            $rec['source_account_label'] = $newPrimaryLabel;
+            $changed = true;
+        }
+    }
+    unset($rec);
+
+    return $records;
+}
+
 function getRecords(): array {
-    return loadJsonFile(RECORDS_FILE, []);
+    $file = getRecordsFile();
+    $records = loadJsonFile($file, []);
+    $changed = false;
+    $records = normalizeLegacySourceAccountLabels($records, $changed);
+    if ($changed) {
+        saveJsonFile($file, array_values($records));
+    }
+    return $records;
+}
+
+/**
+ * Kumpulkan seluruh record dari semua_storage/lembaga/{slug}/data/records.json.
+ * Dipakai Super Admin untuk melihat agregasi seluruh instansi.
+ */
+function getAllTenantsRecords(): array {
+    $all = [];
+    $base = STORAGE_DIR . DIRECTORY_SEPARATOR . 'lembaga';
+    if (!is_dir($base)) {
+        return $all;
+    }
+    foreach (glob($base . DIRECTORY_SEPARATOR . '*', GLOB_ONLYDIR) ?: [] as $slugDir) {
+        $slug = basename($slugDir);
+        $file = $slugDir . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'records.json';
+        $records = loadJsonFile($file, []);
+        $changed = false;
+        $records = normalizeLegacySourceAccountLabels($records, $changed);
+        if ($changed) {
+            saveJsonFile($file, array_values($records));
+        }
+        foreach ($records as $rec) {
+            if (!is_array($rec)) {
+                continue;
+            }
+            $rec['lembaga_slug'] = $slug;
+            $all[] = $rec;
+        }
+    }
+    usort($all, static function ($a, $b) {
+        $ta = strtotime((string)($a['processed_at'] ?? $a['email_date'] ?? '')) ?: 0;
+        $tb = strtotime((string)($b['processed_at'] ?? $b['email_date'] ?? '')) ?: 0;
+        return $tb <=> $ta;
+    });
+    return $all;
+}
+
+/**
+ * Ambil nama lembaga berdasarkan slug (untuk label agregat).
+ */
+function getLembagaNameBySlug(string $slug): string {
+    static $map = null;
+    if ($map === null) {
+        $map = [];
+        $file = STORAGE_DIR . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'auth' . DIRECTORY_SEPARATOR . 'lembaga.json';
+        foreach (loadJsonFile($file, []) as $lem) {
+            $map[(string)($lem['slug'] ?? '')] = (string)($lem['nama'] ?? '');
+        }
+    }
+    return $map[$slug] ?? $slug;
+}
+
+/**
+ * Daftar slug folder storage/lembaga yang ada.
+ */
+function listTenantStorageSlugs(): array
+{
+    $base = STORAGE_DIR . DIRECTORY_SEPARATOR . 'lembaga';
+    if (!is_dir($base)) {
+        return ['phu-pasuruan'];
+    }
+    $slugs = [];
+    foreach (glob($base . DIRECTORY_SEPARATOR . '*', GLOB_ONLYDIR) ?: [] as $dir) {
+        $slug = basename($dir);
+        if ($slug !== '') {
+            $slugs[] = $slug;
+        }
+    }
+    return $slugs === [] ? ['phu-pasuruan'] : $slugs;
+}
+
+/**
+ * Cari record jamaah/Biovisa di storage tenant (multi-lembaga & Super Admin).
+ * Mengembalikan slug tenant, indeks array, serta snapshot records.
+ */
+function locateRecordInTenantStores(string $recordId, string $hintSlug = ''): ?array
+{
+    $recordId = trim($recordId);
+    if ($recordId === '') {
+        return null;
+    }
+
+    $slugs = [];
+    $hintSlug = strtolower(preg_replace('/[^a-z0-9\-]+/', '-', trim($hintSlug)));
+    if ($hintSlug !== '') {
+        $slugs[] = $hintSlug;
+    }
+
+    if (class_exists('Auth') && method_exists('Auth', 'isLoggedIn') && Auth::isLoggedIn()) {
+        if (Auth::isSuperAdmin()) {
+            if ($slugs === []) {
+                $slugs = Auth::accessibleSlugs();
+            }
+        } else {
+            $slugs = [Auth::tenantSlug()];
+        }
+    }
+
+    if ($slugs === []) {
+        $slugs = [tenantSlugActive()];
+    }
+
+    $tried = [];
+    foreach ($slugs as $slug) {
+        if ($slug === '' || isset($tried[$slug])) {
+            continue;
+        }
+        $tried[$slug] = true;
+        tenantBindPaths($slug);
+        $records = getRecords();
+        foreach ($records as $idx => $r) {
+            if (($r['id'] ?? '') === $recordId) {
+                return [
+                    'slug' => $slug,
+                    'index' => $idx,
+                    'record' => $r,
+                    'records' => $records,
+                ];
+            }
+        }
+    }
+
+    if (class_exists('Auth') && method_exists('Auth', 'isLoggedIn') && Auth::isLoggedIn() && Auth::isSuperAdmin()) {
+        foreach (listTenantStorageSlugs() as $slug) {
+            if (isset($tried[$slug])) {
+                continue;
+            }
+            tenantBindPaths($slug);
+            $records = getRecords();
+            foreach ($records as $idx => $r) {
+                if (($r['id'] ?? '') === $recordId) {
+                    return [
+                        'slug' => $slug,
+                        'index' => $idx,
+                        'record' => $r,
+                        'records' => $records,
+                    ];
+                }
+            }
+        }
+    }
+
+    return null;
+}
+
+function bindTenantFromRecordPayload(array $payload): void
+{
+    $hint = strtolower(preg_replace('/[^a-z0-9\-]+/', '-', trim((string)($payload['lembaga'] ?? $payload['lembaga_slug'] ?? ''))));
+    if ($hint === '') {
+        return;
+    }
+    if (class_exists('Auth') && method_exists('Auth', 'isLoggedIn') && Auth::isLoggedIn()) {
+        if (Auth::isSuperAdmin() || Auth::tenantSlug() === $hint) {
+            tenantBindPaths($hint);
+        }
+        return;
+    }
+    tenantBindPaths($hint);
 }
 
 function saveRecords(array $records): bool {
-    return saveJsonFile(RECORDS_FILE, array_values($records));
+    return saveJsonFile(getRecordsFile(), array_values($records));
 }
 
 function getJamaahMaster(): array {
-    return loadJsonFile(JAMAAH_FILE, []);
+    return loadJsonFile(getJamaahFile(), []);
 }
 
 function saveJamaahMaster(array $list): bool {
-    return saveJsonFile(JAMAAH_FILE, $list);
+    return saveJsonFile(getJamaahFile(), $list);
 }
 
 function addSyncLog(string $type, string $message, array $context = []): void {
-    $logs = loadJsonFile(LOGS_FILE, []);
+    $logs = loadJsonFile(getLogsFile(), []);
     // Hindari spam log error/info berulang yang identik dengan entri paling atas
     if (!empty($logs) && ($logs[0]['message'] ?? '') === $message && ($logs[0]['type'] ?? '') === $type) {
         $logs[0]['time'] = date('Y-m-d H:i:s');
-        saveJsonFile(LOGS_FILE, $logs);
+        saveJsonFile(getLogsFile(), $logs);
         return;
     }
     array_unshift($logs, [
@@ -229,7 +628,7 @@ function addSyncLog(string $type, string $message, array $context = []): void {
     if (count($logs) > 150) {
         $logs = array_slice($logs, 0, 150);
     }
-    saveJsonFile(LOGS_FILE, $logs);
+    saveJsonFile(getLogsFile(), $logs);
 }
 
 /**
@@ -238,7 +637,7 @@ function addSyncLog(string $type, string $message, array $context = []): void {
 function getDocCategoryDir(string $catKey): string {
     $cats = getSiskohatDocCategories();
     $folder = $cats[$catKey]['folder'] ?? $catKey;
-    return DOKUMEN_DIR . DIRECTORY_SEPARATOR . $folder;
+    return getDokumenDir() . DIRECTORY_SEPARATOR . $folder;
 }
 
 /**
@@ -249,16 +648,29 @@ function getDocCategoryDir(string $catKey): string {
  * - File apa pun di folder kategori tersebut yang mengandung Nomor Paspor jamaah
  * - Khusus kategori 'biovisa', memeriksa folder storage/biovisa/ dan storage/dokumen/biovisa/
  */
-function findJamaahDocFile(string $catKey, string $paspor, string $nama = '', string $defaultBiovisaFile = ''): ?array {
+function findJamaahDocFile(string $catKey, string $paspor, string $nama = '', string $defaultBiovisaFile = '', string $slug = ''): ?array {
     $pasporClean = strtoupper(trim($paspor));
     $namaClean   = strtoupper(trim($nama));
 
+    $slug = $slug !== '' ? $slug : tenantSlugActive();
+    $tenantRoot = STORAGE_DIR . DIRECTORY_SEPARATOR . 'lembaga' . DIRECTORY_SEPARATOR . $slug;
+    $tenantBiovisa = $tenantRoot . DIRECTORY_SEPARATOR . 'biovisa';
+    $tenantDoc = $tenantRoot . DIRECTORY_SEPARATOR . 'dokumen';
+    $tenantCatDir = $tenantDoc . DIRECTORY_SEPARATOR . (getSiskohatDocCategories()[$catKey]['folder'] ?? $catKey);
+
     $searchDirs = [];
     if ($catKey === 'biovisa') {
-        $searchDirs[] = BIOVISA_DIR;
-        $searchDirs[] = getDocCategoryDir('biovisa');
+        $searchDirs[] = $tenantBiovisa;
+        $searchDirs[] = $tenantCatDir;
+        if ($slug === 'phu-pasuruan') {
+            $searchDirs[] = BIOVISA_DIR;
+            $searchDirs[] = DOKUMEN_DIR . DIRECTORY_SEPARATOR . 'biovisa';
+        }
     } else {
-        $searchDirs[] = getDocCategoryDir($catKey);
+        $searchDirs[] = $tenantCatDir;
+        if ($slug === 'phu-pasuruan') {
+            $searchDirs[] = DOKUMEN_DIR . DIRECTORY_SEPARATOR . (getSiskohatDocCategories()[$catKey]['folder'] ?? $catKey);
+        }
     }
 
     foreach ($searchDirs as $dir) {
@@ -286,7 +698,7 @@ function findJamaahDocFile(string $catKey, string $paspor, string $nama = '', st
             $fullPath = $dir . DIRECTORY_SEPARATOR . $cand;
             if (is_file($fullPath)) {
                 $bytes = filesize($fullPath);
-                $relDir = ($dir === BIOVISA_DIR) ? 'storage/biovisa' : ('storage/dokumen/' . $catKey);
+                $relDir = ($dir === $tenantBiovisa) ? ('storage/lembaga/' . $slug . '/biovisa') : ('storage/lembaga/' . $slug . '/dokumen/' . $catKey);
                 return [
                     'exists' => true,
                     'category' => $catKey,
@@ -317,7 +729,7 @@ function findJamaahDocFile(string $catKey, string $paspor, string $nama = '', st
                         $fullPath = $dir . DIRECTORY_SEPARATOR . $f;
                         if (is_file($fullPath)) {
                             $bytes = filesize($fullPath);
-                            $relDir = ($dir === BIOVISA_DIR) ? 'storage/biovisa' : ('storage/dokumen/' . $catKey);
+                            $relDir = ($dir === $tenantBiovisa) ? ('storage/lembaga/' . $slug . '/biovisa') : ('storage/lembaga/' . $slug . '/dokumen/' . $catKey);
                             return [
                                 'exists' => true,
                                 'category' => $catKey,
@@ -340,7 +752,7 @@ function findJamaahDocFile(string $catKey, string $paspor, string $nama = '', st
 /**
  * Dapatkan peta kelengkapan 7 dokumen Siskohat untuk 1 record jamaah
  */
-function getJamaahSevenDocsStatus(array $rec): array {
+function getJamaahSevenDocsStatus(array $rec, string $slug = ''): array {
     $cats = getSiskohatDocCategories();
     $paspor = (string)($rec['paspor'] ?? '');
     $nama   = (string)($rec['nama'] ?? '');
@@ -349,7 +761,7 @@ function getJamaahSevenDocsStatus(array $rec): array {
     $docs = [];
     $availableCount = 0;
     foreach ($cats as $catKey => $meta) {
-        $found = findJamaahDocFile($catKey, $paspor, $nama, $catKey === 'biovisa' ? $bvFile : '');
+        $found = findJamaahDocFile($catKey, $paspor, $nama, $catKey === 'biovisa' ? $bvFile : '', $slug);
         if ($found) {
             $availableCount++;
             $docs[$catKey] = [
@@ -429,7 +841,7 @@ function pullMissingSevenDocsFromGDrive(?array $settings = null): int {
     foreach ($cats as $catKey => $meta) {
         $filesInCat = $gdriveCats[$catKey] ?? [];
         if (!is_array($filesInCat)) continue;
-        $targetDir = ($catKey === 'biovisa') ? BIOVISA_DIR : getDocCategoryDir($catKey);
+        $targetDir = ($catKey === 'biovisa') ? getBiovisaDir() : getDocCategoryDir($catKey);
         if (!is_dir($targetDir)) {
             @mkdir($targetDir, 0777, true);
         }
@@ -464,7 +876,14 @@ function pullMissingSevenDocsFromGDrive(?array $settings = null): int {
  * serta salin file JPG baru ke docs/storage/ agar seluruh komputer lain yang membuka GitHub Pages
  * selalu mendapatkan daftar Akun Email Pembaca & Data Biovisa yang 100% sama dengan Komputer Server.
  */
-function writeCloudSyncBundle(): array {
+function writeCloudSyncBundle(bool $forceWrite = false): array {
+    if (!$forceWrite) {
+        $secFile = STORAGE_DIR . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'auth' . DIRECTORY_SEPARATOR . 'secrets.json';
+        $sec = loadJsonFile($secFile, []);
+        if (!empty($sec['block_public_cloud_sync'])) {
+            return ['ok' => true, 'records' => getRecords(), 'skipped' => 'private_mode'];
+        }
+    }
     $safeSettings = getPublicCloudSettings();
     $records = getRecords();
     foreach ($records as &$r) {
@@ -481,7 +900,7 @@ function writeCloudSyncBundle(): array {
         'records' => $records
     ];
 
-    $bundlePath = DATA_DIR . DIRECTORY_SEPARATOR . 'cloud_sync_bundle.json';
+    $bundlePath = getDataDir() . DIRECTORY_SEPARATOR . 'cloud_sync_bundle.json';
     saveJsonFile($bundlePath, $bundle);
 
     $docsDataDir = BASE_DIR . DIRECTORY_SEPARATOR . 'docs' . DIRECTORY_SEPARATOR . 'storage' . DIRECTORY_SEPARATOR . 'data';
@@ -496,7 +915,7 @@ function writeCloudSyncBundle(): array {
     if (!is_dir($docsBiovisaDir)) {
         @mkdir($docsBiovisaDir, 0777, true);
     }
-    foreach (glob(BIOVISA_DIR . DIRECTORY_SEPARATOR . '*.jpg') ?: [] as $jpgFile) {
+    foreach (glob(getBiovisaDir() . DIRECTORY_SEPARATOR . '*.jpg') ?: [] as $jpgFile) {
         $dest = $docsBiovisaDir . DIRECTORY_SEPARATOR . basename($jpgFile);
         if (!is_file($dest) || filesize($dest) !== filesize($jpgFile)) {
             @copy($jpgFile, $dest);
@@ -525,6 +944,12 @@ function writeCloudSyncBundle(): array {
  * setiap kali ada penambahan email pembaca atau data Biovisa baru di Komputer Server.
  */
 function triggerBackgroundGitHubPush(string $commitMsg = 'Auto-sync Biovisa & Email Pembaca dari Komputer Server'): void {
+    $secFile = STORAGE_DIR . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'auth' . DIRECTORY_SEPARATOR . 'secrets.json';
+    $sec = loadJsonFile($secFile, []);
+    if (!empty($sec['block_public_cloud_sync'])) {
+        writeCloudSyncBundle();
+        return;
+    }
     $bundle = writeCloudSyncBundle();
 
     // Simpan juga snapshot Cloud DB ke Google Drive jika URL Web App GDrive aktif
@@ -546,7 +971,7 @@ function triggerBackgroundGitHubPush(string $commitMsg = 'Auto-sync Biovisa & Em
     }
 
     $safeMsg = str_replace(['"', "'", '&', '|'], '', $commitMsg);
-    $batPath = TEMP_DIR . DIRECTORY_SEPARATOR . 'auto_git_push.bat';
+    $batPath = getTempDir() . DIRECTORY_SEPARATOR . 'auto_git_push.bat';
     $batContent = "@echo off\r\n"
         . "cd /d \"" . BASE_DIR . "\"\r\n"
         . "\"{$phpExe}\" build_github_pages.php >nul 2>&1\r\n"

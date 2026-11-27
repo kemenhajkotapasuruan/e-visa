@@ -1,1 +1,10 @@
 DirectoryIndex index.php index.html
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^storage/ - [F,L]
+</IfModule>
+
+<FilesMatch "\.(json|log)$">
+    Require all denied
+</FilesMatch>

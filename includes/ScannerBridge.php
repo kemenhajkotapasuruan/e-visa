@@ -110,7 +110,16 @@ PS1;
             $dpi = 150;
         }
         $colorMode  = strtolower(trim((string)($options['color_mode'] ?? 'color'))); // 'color' | 'grayscale'
-        $colorIntent = ($colorMode === 'grayscale') ? 2 : 1;
+        $colorType  = ($colorMode === 'grayscale') ? 2 : 1; // WIA_INTENT_IMAGE_TYPE_*
+
+        // Mode foto (bukan full halaman A4): WIA intent MaximizeQuality + bias foto
+        $scanProfile = strtolower(trim((string)($options['scan_profile'] ?? 'photo')));
+        $usePhotoMode = ($scanProfile !== 'document' && $scanProfile !== 'fullpage');
+        // WIA_IPS_CUR_INTENT flags
+        $wiaMinimizeSize      = 65536;   // 0x10000 — dokumen penuh
+        $wiaMaximizeQuality   = 131072;  // 0x20000 — mode foto / objek di kaca
+        $wiaBias              = $usePhotoMode ? $wiaMaximizeQuality : $wiaMinimizeSize;
+        $wiaItemIntent        = $colorType + ($usePhotoMode ? $wiaMaximizeQuality : $wiaMinimizeSize);
 
         $tempOutFile = TEMP_DIR . DIRECTORY_SEPARATOR . 'scan_' . uniqid() . '.jpg';
         $psScriptPath = TEMP_DIR . DIRECTORY_SEPARATOR . 'exec_scan.ps1';
@@ -118,25 +127,55 @@ PS1;
         $escapedOut = str_replace("'", "''", $tempOutFile);
         $escapedDev = str_replace("'", "''", $deviceId);
         $dialogFlag = $useDialog ? '$true' : '$false';
+        $photoFlag  = $usePhotoMode ? '$true' : '$false';
 
         $psCode = <<<PS1
 \$ErrorActionPreference = 'Stop'
 \$outPath = '$escapedOut'
 \$targetId = '$escapedDev'
 \$useDialog = $dialogFlag
+\$photoMode = $photoFlag
 \$dpi = $dpi
-\$intent = $colorIntent
+\$colorType = $colorType
+\$wiaBias = $wiaBias
+\$wiaItemIntent = $wiaItemIntent
 \$wiaFormatJPEG = '{B96B3CAE-0728-11D3-9D7B-0000F81EF32E}'
+
+function Set-WiaPhotoScanProperties {
+    param(\$item)
+    if (\$null -eq \$item) { return }
+    # WIA_IPS_CUR_INTENT, resolusi, dan opsi yang umum untuk mode foto / auto-detect
+    try { \$item.Properties('6146').Value = \$wiaItemIntent } catch {}
+    try { \$item.Properties('6147').Value = \$dpi } catch {}
+    try { \$item.Properties('6148').Value = \$dpi } catch {}
+    if (-not \$photoMode) { return }
+    # Ukuran halaman otomatis (driver yang mendukung)
+    try { \$item.Properties('3097').Value = 0 } catch {}
+    # Document handling: flatbed / scan objek tunggal
+    try { \$item.Properties('3088').Value = 1 } catch {}
+    foreach (\$propId in @('4103','4104','6144','6145','3096','3264')) {
+        try {
+            \$p = \$item.Properties(\$propId)
+            if (\$null -ne \$p -and \$p.IsReadOnly -eq \$false) {
+                \$name = [string]\$p.Name
+                if (\$name -match 'Auto|Crop|Detect|Picture|Photo|Area') {
+                    # Aktifkan nilai "on" / 1 jika tersedia di driver
+                    if (\$p.SubType -eq 2) { \$p.Value = 1 } else { \$p.Value = \$true }
+                }
+            }
+        } catch {}
+    }
+}
 
 try {
     \$imgFile = \$null
     \$usedScannerName = ''
 
     if (\$useDialog) {
-        # Buka dialog interaktif driver scanner Windows
+        # Dialog WIA: bias MaximizeQuality = profil foto (bukan minimize/full halaman)
         \$dlg = New-Object -ComObject WIA.CommonDialog
-        \$imgFile = \$dlg.ShowAcquireImage(1, \$intent, 65536, \$wiaFormatJPEG, \$false, \$true, \$false)
-        \$usedScannerName = 'Dialog Driver Scanner Windows'
+        \$imgFile = \$dlg.ShowAcquireImage(1, \$colorType, \$wiaBias, \$wiaFormatJPEG, \$false, \$true, \$false)
+        \$usedScannerName = 'Dialog Driver Scanner Windows (Mode Foto)'
     } else {
         \$dm = New-Object -ComObject WIA.DeviceManager
         \$targetInfo = \$null
@@ -163,18 +202,14 @@ try {
             try { \$usedScannerName = [string]\$targetInfo.Properties('Name').Value } catch { \$usedScannerName = 'Scanner Aktif' }
             \$device = \$targetInfo.Connect()
             \$item = \$device.Items.Item(1)
-
-            # Set properti resolusi DPI & Color Intent jika didukung oleh driver scanner
-            try { \$item.Properties('6146').Value = \$intent } catch {}
-            try { \$item.Properties('6147').Value = \$dpi } catch {}
-            try { \$item.Properties('6148').Value = \$dpi } catch {}
+            Set-WiaPhotoScanProperties -item \$item
 
             \$imgFile = \$item.Transfer(\$wiaFormatJPEG)
         } else {
             # Fallback ke CommonDialog jika DeviceInfos kosong tapi driver TWAIN/WIA tersedia lewat dialog
             \$dlg = New-Object -ComObject WIA.CommonDialog
-            \$imgFile = \$dlg.ShowAcquireImage(1, \$intent, 65536, \$wiaFormatJPEG, \$false, \$true, \$false)
-            \$usedScannerName = 'Driver Scanner Windows'
+            \$imgFile = \$dlg.ShowAcquireImage(1, \$colorType, \$wiaBias, \$wiaFormatJPEG, \$false, \$true, \$false)
+            \$usedScannerName = 'Driver Scanner Windows (Mode Foto)'
         }
     }
 

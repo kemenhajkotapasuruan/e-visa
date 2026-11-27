@@ -1,7 +1,7 @@
 {
     "ok": true,
-    "version_ts": 1795690190,
-    "updated_at": "2026-11-26 17:49:50",
+    "version_ts": 1795691176,
+    "updated_at": "2026-11-26 18:06:16",
     "settings": {
         "source_email": "phujtmkopasuruan@gmail.com",
         "target_gdrive_email": "muchammad.ali.sanjaya@gmail.com",
@@ -12,7 +12,7 @@
         "source_accounts": [
             {
                 "id": "acc_primary",
-                "label": "Email Utama PHU Pasuruan",
+                "label": "Email Utama Kemenhaj Pasuruan",
                 "email": "phujtmkopasuruan@gmail.com",
                 "mode": "gas",
                 "gas_url": "https://script.google.com/macros/s/AKfycbyIx8j5qKxn3Swo0PkWhy-H7LXjHgINC4oerr193ZJLuLnZgTcfRYV5EQ0IQlC4TGHU/exec",
@@ -60,7 +60,7 @@
         "strict_50kb_padding": true,
         "filename_pattern": "{NAMA}_{PASPOR}",
         "uppercase_filename": true,
-        "last_sync_at": "2026-11-26 17:49:26",
+        "last_sync_at": "2026-11-26 18:02:16",
         "last_sync_status": "Sinkronisasi berhasil (Tidak ada email baru)"
     },
     "records": [
@@ -183,7 +183,7 @@
             "from_email": "Mofa <MofaBioApp@mofa.gov.sa>",
             "to_email": "phujtmkopasuruan@gmail.com",
             "source_account_email": "phujtmkopasuruan@gmail.com",
-            "source_account_label": "Email Utama PHU Pasuruan",
+            "source_account_label": "Email Utama Kemenhaj Pasuruan",
             "processed_at": "2026-11-26 04:29:06",
             "gdrive_uploaded": true,
             "seven_docs": {
@@ -491,7 +491,7 @@
             "from_email": "Mofa <MofaBioApp@mofa.gov.sa>",
             "to_email": "phujtmkopasuruan@gmail.com",
             "source_account_email": "phujtmkopasuruan@gmail.com",
-            "source_account_label": "Email Utama PHU Pasuruan",
+            "source_account_label": "Email Utama Kemenhaj Pasuruan",
             "email_date": "26 Nov 2026, 10:48:50 WIB",
             "body_excerpt": "Application Submitted Successfully\r\n    \r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n    \n\r\n        \r\n            \r\n                \n\r\n                     \n\r\n                 \n\r\n\r\n                \n\r\n                    \r\n                        \r\n                     \n\r\n                 \n\r\n                \n\r\n                    \r\n                        \r\n\r\n                     \n\r\n                 \n\r\n\r\n                \n\r\n                     \n\r\n                 \n\r\n            \r\n         \n\r\n     \n\r\n\r\n\r\n    \r\n    \n\r\n      ",
             "processed_at": "2026-11-26 10:49:53",
@@ -595,7 +595,7 @@
             "from_email": "Mofa <MofaBioApp@mofa.gov.sa>",
             "to_email": "phujtmkopasuruan@gmail.com",
             "source_account_email": "phujtmkopasuruan@gmail.com",
-            "source_account_label": "Email Utama PHU Pasuruan",
+            "source_account_label": "Email Utama Kemenhaj Pasuruan",
             "processed_at": "2026-11-26 03:48:40",
             "gdrive_uploaded": true,
             "seven_docs": {
@@ -799,7 +799,7 @@
             "from_email": "Mofa <MofaBioApp@mofa.gov.sa>",
             "to_email": "phujtmkopasuruan@gmail.com",
             "source_account_email": "phujtmkopasuruan@gmail.com",
-            "source_account_label": "Email Utama PHU Pasuruan",
+            "source_account_label": "Email Utama Kemenhaj Pasuruan",
             "processed_at": "2026-11-26 03:44:11",
             "gdrive_uploaded": true,
             "seven_docs": {
@@ -1005,7 +1005,7 @@
             "from_email": "Mofa <MofaBioApp@mofa.gov.sa>",
             "to_email": "phujtmkopasuruan@gmail.com",
             "source_account_email": "phujtmkopasuruan@gmail.com",
-            "source_account_label": "Email Utama PHU Pasuruan",
+            "source_account_label": "Email Utama Kemenhaj Pasuruan",
             "processed_at": "2026-11-26 03:27:07",
             "gdrive_uploaded": true,
             "seven_docs": {
@@ -1209,7 +1209,7 @@
             "from_email": "Mofa <MofaBioApp@mofa.gov.sa>",
             "to_email": "phujtmkopasuruan@gmail.com",
             "source_account_email": "phujtmkopasuruan@gmail.com",
-            "source_account_label": "Email Utama PHU Pasuruan",
+            "source_account_label": "Email Utama Kemenhaj Pasuruan",
             "email_date": "26 Nov 2026, 09:33:00 WIB",
             "body_excerpt": "Application Submitted Successfully\r\n    \r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n    \n\r\n        \r\n            \r\n                \n\r\n                     \n\r\n                 \n\r\n\r\n                \n\r\n                    \r\n                        \r\n                     \n\r\n                 \n\r\n                \n\r\n                    \r\n                        \r\n\r\n                     \n\r\n                 \n\r\n\r\n                \n\r\n                     \n\r\n                 \n\r\n            \r\n         \n\r\n     \n\r\n\r\n\r\n    \r\n    \n\r\n      ",
             "processed_at": "2026-11-26 09:43:42",
@@ -5638,7 +5638,7 @@
             "from_email": "Mofa <MofaBioApp@mofa.gov.sa>",
             "to_email": "phujtmkopasuruan@gmail.com",
             "source_account_email": "phujtmkopasuruan@gmail.com",
-            "source_account_label": "Email Utama PHU Pasuruan",
+            "source_account_label": "Email Utama Kemenhaj Pasuruan",
             "email_date": "16 Nov 2026, 08:56:10 WIB",
             "body_excerpt": "Application Submitted Successfully\r\n    \r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n    \n\r\n        \r\n            \r\n                \n\r\n                     \n\r\n                 \n\r\n\r\n                \n\r\n                    \r\n                        \r\n                     \n\r\n                 \n\r\n                \n\r\n                    \r\n                        \r\n\r\n                     \n\r\n                 \n\r\n\r\n                \n\r\n                     \n\r\n                 \n\r\n            \r\n         \n\r\n     \n\r\n\r\n\r\n    \r\n    \n\r\n      ",
             "processed_at": "2026-11-26 00:04:12",
@@ -5744,7 +5744,7 @@
             "from_email": "Mofa <MofaBioApp@mofa.gov.sa>",
             "to_email": "phujtmkopasuruan@gmail.com",
             "source_account_email": "phujtmkopasuruan@gmail.com",
-            "source_account_label": "Email Utama PHU Pasuruan",
+            "source_account_label": "Email Utama Kemenhaj Pasuruan",
             "email_date": "24 Nov 2026, 11:22:47 WIB",
             "body_excerpt": "Application Submitted Successfully\r\n    \r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n    \n\r\n        \r\n            \r\n                \n\r\n                     \n\r\n                 \n\r\n\r\n                \n\r\n                    \r\n                        \r\n                     \n\r\n                 \n\r\n                \n\r\n                    \r\n                        \r\n\r\n                     \n\r\n                 \n\r\n\r\n                \n\r\n                     \n\r\n                 \n\r\n            \r\n         \n\r\n     \n\r\n\r\n\r\n    \r\n    \n\r\n      ",
             "processed_at": "2026-11-26 00:04:06",
@@ -7433,7 +7433,7 @@
             "from_email": "Mofa <MofaBioApp@mofa.gov.sa>",
             "to_email": "phujtmkopasuruan+2@gmail.com",
             "source_account_email": "phujtmkopasuruan@gmail.com",
-            "source_account_label": "Email Utama PHU Pasuruan",
+            "source_account_label": "Email Utama Kemenhaj Pasuruan",
             "email_date": "10 Nov 2026, 13:07:40 WIB",
             "body_excerpt": "Application Submitted Successfully\r\n    \r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n    \n\r\n        \r\n            \r\n                \n\r\n                     \n\r\n                 \n\r\n\r\n                \n\r\n                    \r\n                        \r\n                     \n\r\n                 \n\r\n                \n\r\n                    \r\n                        \r\n\r\n                     \n\r\n                 \n\r\n\r\n                \n\r\n                     \n\r\n                 \n\r\n            \r\n         \n\r\n     \n\r\n\r\n\r\n    \r\n    \n\r\n      ",
             "processed_at": "2026-11-26 00:04:21",

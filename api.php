@@ -18,7 +18,7 @@ require_once __DIR__ . '/includes/ScannerBridge.php';
 // Izinkan akses CORS untuk Ekstensi Chrome Siskohat Gen.2
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Accept');
+header('Access-Control-Allow-Headers: Content-Type, Accept, X-Evisa-Token, Authorization, X-Webhook-Token');
 header('Access-Control-Allow-Private-Network: true');
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
@@ -27,6 +27,48 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
 }
 
 $action = $_GET['action'] ?? $_POST['action'] ?? '';
+
+require_once __DIR__ . '/includes/Auth.php';
+Auth::init();
+
+$lembagaSlug = trim((string)($_GET['lembaga'] ?? $_POST['lembaga'] ?? ''));
+$tokenActions = [
+    'ping_server',
+    'siskohat_queue',
+    'siskohat_get_file',
+    'siskohat_get_all_docs',
+    'mark_siskohat',
+    'siskohat_dom_debug',
+];
+$webhookActions = ['webhook_incoming'];
+
+if (in_array($action, $webhookActions, true)) {
+    $wh = trim((string)($_GET['token'] ?? $_SERVER['HTTP_X_WEBHOOK_TOKEN'] ?? ''));
+    if (!Auth::verifyWebhookToken($wh)) {
+        header('Content-Type: application/json; charset=utf-8');
+        http_response_code(401);
+        echo json_encode(['ok' => false, 'error' => 'Webhook token tidak valid.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if ($lembagaSlug !== '') {
+        Auth::bootstrapTenantBySlug($lembagaSlug);
+    }
+} elseif (in_array($action, $tokenActions, true)) {
+    if (!Auth::verifyApiToken(Auth::extractBearerOrHeaderToken())) {
+        header('Content-Type: application/json; charset=utf-8');
+        http_response_code(401);
+        echo json_encode(['ok' => false, 'error' => 'API token tidak valid.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if ($lembagaSlug !== '') {
+        Auth::bootstrapTenantBySlug($lembagaSlug);
+    }
+} elseif ($action !== '') {
+    Auth::requireLogin();
+    if ($lembagaSlug !== '' && (Auth::user()['role'] ?? '') === Auth::ROLE_SUPER) {
+        Auth::setActiveLembagaSlug($lembagaSlug);
+    }
+}
 
 if ($action === 'ping_server') {
     header('Content-Type: application/json; charset=utf-8');
@@ -42,7 +84,7 @@ if ($action === 'ping_server') {
 if ($action === 'download_siskohat_ext') {
     $extDir = BASE_DIR . DIRECTORY_SEPARATOR . 'siskohat-extension';
     $zipFilename = 'SILAHUT_Auto_Siskohat_Extension.zip';
-    $zipPath = TEMP_DIR . DIRECTORY_SEPARATOR . $zipFilename;
+    $zipPath = getTempDir() . DIRECTORY_SEPARATOR . $zipFilename;
 
     $zip = new ZipArchive();
     if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
@@ -87,15 +129,68 @@ if ($action === 'download_siskohat_ext') {
 if ($action === 'download_file') {
     $cat  = preg_replace('/[^a-z_]/', '', strtolower(trim((string)($_GET['cat'] ?? 'biovisa'))));
     $file = basename($_GET['file'] ?? '');
+    $slug = preg_replace('/[^a-z0-9\-]/', '', strtolower(trim((string)($_GET['lembaga'] ?? ''))));
     $path = '';
 
+    if ($slug !== '' && !Auth::isSuperAdmin()) {
+        // Admin hanya boleh mengunduh file milik lembaganya sendiri.
+        $own = Auth::tenantSlug();
+        if ($slug !== $own) {
+            http_response_code(403);
+            echo "Akses ditolak.";
+            exit;
+        }
+    }
+
+    if ($slug === '') {
+        $slug = Auth::tenantSlug();
+    }
+    $tenantRoot = STORAGE_DIR . DIRECTORY_SEPARATOR . 'lembaga' . DIRECTORY_SEPARATOR . $slug;
+    $tenantBiovisa = $tenantRoot . DIRECTORY_SEPARATOR . 'biovisa';
+    $catFolder = getSiskohatDocCategories()[$cat]['folder'] ?? $cat;
+    $tenantCatDir = $tenantRoot . DIRECTORY_SEPARATOR . 'dokumen' . DIRECTORY_SEPARATOR . $catFolder;
+
     if ($cat !== '' && $cat !== 'biovisa') {
-        $catDir = getDocCategoryDir($cat);
-        $path = $catDir . DIRECTORY_SEPARATOR . $file;
+        $path = $tenantCatDir . DIRECTORY_SEPARATOR . $file;
+        if (!is_file($path) && $slug === 'phu-pasuruan') {
+            $path = DOKUMEN_DIR . DIRECTORY_SEPARATOR . $catFolder . DIRECTORY_SEPARATOR . $file;
+        }
+        if (!is_file($path) && $file !== '') {
+            $pasporGuess = '';
+            if (preg_match('/_([A-Z0-9]{6,12})\.(?:jpe?g|png|webp)$/i', $file, $m)) {
+                $pasporGuess = $m[1];
+            } elseif (preg_match('/^([A-Z0-9]{6,12})\.(?:jpe?g|png|webp)$/i', $file, $m)) {
+                $pasporGuess = $m[1];
+            }
+            $foundDoc = findJamaahDocFile($cat, $pasporGuess, '', $file, $slug);
+            if ($foundDoc && !empty($foundDoc['path']) && is_file($foundDoc['path'])) {
+                $path = $foundDoc['path'];
+            }
+        }
     } else {
-        $path = BIOVISA_DIR . DIRECTORY_SEPARATOR . $file;
+        $path = $tenantBiovisa . DIRECTORY_SEPARATOR . $file;
         if (!is_file($path)) {
-            $path = getDocCategoryDir('biovisa') . DIRECTORY_SEPARATOR . $file;
+            $path = $tenantCatDir . DIRECTORY_SEPARATOR . $file;
+        }
+        if (!is_file($path) && $slug === 'phu-pasuruan') {
+            $path = BIOVISA_DIR . DIRECTORY_SEPARATOR . $file;
+            if (!is_file($path)) {
+                $path = DOKUMEN_DIR . DIRECTORY_SEPARATOR . 'biovisa' . DIRECTORY_SEPARATOR . $file;
+            }
+        }
+        if (!is_file($path) && $file !== '') {
+            // Fallback ke dokumen paspor / kategori lain jika jamaah belum punya file biovisa
+            $pasporGuess = '';
+            if (preg_match('/_([A-Z0-9]{6,12})\.(?:jpe?g|png|webp)$/i', $file, $m)) {
+                $pasporGuess = $m[1];
+            }
+            foreach (array_keys(getSiskohatDocCategories()) as $fallbackCat) {
+                $foundDoc = findJamaahDocFile($fallbackCat, $pasporGuess, '', $file, $slug);
+                if ($foundDoc && !empty($foundDoc['path']) && is_file($foundDoc['path'])) {
+                    $path = $foundDoc['path'];
+                    break;
+                }
+            }
         }
     }
 
@@ -234,7 +329,7 @@ if ($action === 'download_zip') {
     }
 
     $zipFilename = 'Biovisa_PHU_Pasuruan' . $dateSuffix . '_' . date('Ymd_His') . '.zip';
-    $zipPath = TEMP_DIR . DIRECTORY_SEPARATOR . $zipFilename;
+    $zipPath = getTempDir() . DIRECTORY_SEPARATOR . $zipFilename;
 
     $zip = new ZipArchive();
     if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
@@ -246,7 +341,7 @@ if ($action === 'download_zip') {
     $added = 0;
     foreach ($records as $rec) {
         $fn = $rec['filename'] ?? '';
-        $fp = BIOVISA_DIR . DIRECTORY_SEPARATOR . $fn;
+        $fp = getBiovisaDir() . DIRECTORY_SEPARATOR . $fn;
         if ($fn !== '' && file_exists($fp)) {
             $zip->addFile($fp, $fn);
             $added++;
@@ -364,7 +459,7 @@ function upsertAndSyncRecord(array $processedRecord, array $settings): array
             ($existing['message_id'] === $processedRecord['message_id'])
         ) {
             if (!empty($existing['filename']) && $existing['filename'] !== $processedRecord['filename']) {
-                $oldPath = BIOVISA_DIR . DIRECTORY_SEPARATOR . $existing['filename'];
+                $oldPath = getBiovisaDir() . DIRECTORY_SEPARATOR . $existing['filename'];
                 if (file_exists($oldPath)) {
                     @unlink($oldPath);
                 }
@@ -400,9 +495,13 @@ function upsertAndSyncRecord(array $processedRecord, array $settings): array
 switch ($action) {
     case 'status':
         $settings = getSettings();
-        $records  = getRecords();
+        $isSuper = Auth::isSuperAdmin();
+        $records  = $isSuper ? getAllTenantsRecords() : getRecords();
         $jamaah   = getJamaahMaster();
-        $logs     = loadJsonFile(LOGS_FILE, []);
+        $logs     = loadJsonFile(getLogsFile(), []);
+
+        // Untuk Super Admin: hitung kelengkapan dokumen per tenant aktif (konteks landing)
+        $currentSlug = Auth::tenantSlug();
 
         $totalRecords = count($records);
         $uploadedGdrive = 0;
@@ -410,20 +509,25 @@ switch ($action) {
         $totalKb = 0;
 
         foreach ($records as &$r) {
-            $fp = BIOVISA_DIR . DIRECTORY_SEPARATOR . ($r['filename'] ?? '');
+            $slug = (string)($r['lembaga_slug'] ?? $currentSlug);
+            $r['lembaga_slug'] = $slug;
+            $biovisaDir = STORAGE_DIR . DIRECTORY_SEPARATOR . 'lembaga' . DIRECTORY_SEPARATOR . $slug . DIRECTORY_SEPARATOR . 'biovisa';
+            $fp = $biovisaDir . DIRECTORY_SEPARATOR . ($r['filename'] ?? '');
             $r['file_exists'] = ($r['filename'] ?? '') !== '' && file_exists($fp);
             if ($r['file_exists']) {
                 $r['size_bytes'] = filesize($fp);
                 $r['size_kb'] = round($r['size_bytes'] / 1024, 2);
             }
+            $r['lembaga_nama'] = getLembagaNameBySlug($slug);
             if (!empty($r['gdrive_uploaded'])) {
                 $uploadedGdrive++;
             }
-            if (($r['size_kb'] ?? 0) <= 50.0) {
+            $biovisaMaxKb = floatval(getSiskohatDocCategories()['biovisa']['max_kb'] ?? 100.0);
+            if (($r['size_kb'] ?? 0) <= $biovisaMaxKb) {
                 $under50KbCount++;
             }
             $totalKb += ($r['size_kb'] ?? 0);
-            $r['seven_docs'] = getJamaahSevenDocsStatus($r);
+            $r['seven_docs'] = getJamaahSevenDocsStatus($r, $slug);
         }
         unset($r);
 
@@ -458,8 +562,11 @@ switch ($action) {
             'ok' => true,
             'settings' => $settings,
             'records' => $records,
+            'is_super_admin' => $isSuper,
+            'active_lembaga' => Auth::getLembagaBySlug($currentSlug),
+            'lembaga_list' => Auth::getLembagaList(),
             'doc_categories' => array_values(getSiskohatDocCategories()),
-            'docs_root_path' => DOKUMEN_DIR,
+            'docs_root_path' => getDokumenDir(),
             'jamaah' => $jamaahWithStatus,
             'logs' => array_slice($logs, 0, 40),
             'stats' => [
@@ -483,12 +590,16 @@ switch ($action) {
         $existingMsgIds = [];
         $existingPassportIdx = [];
         foreach ($records as $rIdx => $recItem) {
-            if (!empty($recItem['message_id'])) {
-                $existingMsgIds[] = $recItem['message_id'];
-            }
-            if (!empty($recItem['all_message_ids']) && is_array($recItem['all_message_ids'])) {
-                foreach ($recItem['all_message_ids'] as $mId) {
-                    $existingMsgIds[] = $mId;
+            $recNama = strtoupper(trim((string)($recItem['nama'] ?? '')));
+            $needsNameRepair = ($recNama === '' || $recNama === 'JAMAAH');
+            if (!$needsNameRepair) {
+                if (!empty($recItem['message_id'])) {
+                    $existingMsgIds[] = $recItem['message_id'];
+                }
+                if (!empty($recItem['all_message_ids']) && is_array($recItem['all_message_ids'])) {
+                    foreach ($recItem['all_message_ids'] as $mId) {
+                        $existingMsgIds[] = $mId;
+                    }
                 }
             }
             $pKey = strtoupper(trim((string)($recItem['paspor'] ?? '')));
@@ -528,11 +639,12 @@ switch ($action) {
                 continue;
             }
 
-            // Jika paspor sudah ada di dashboard dan file JPG-nya sudah ada, cukup catat message_id-nya agar tidak di-upload ganda ke GDrive
+            // Jika paspor sudah ada di dashboard, file JPG-nya sudah ada, dan namanya BUKAN 'JAMAAH', cukup catat message_id-nya
             if (isset($existingPassportIdx[$prePaspor])) {
                 $eIdx = $existingPassportIdx[$prePaspor];
-                $eFile = BIOVISA_DIR . DIRECTORY_SEPARATOR . ($records[$eIdx]['filename'] ?? '');
-                if (is_file($eFile)) {
+                $eNama = strtoupper(trim((string)($records[$eIdx]['nama'] ?? '')));
+                $eFile = getBiovisaDir() . DIRECTORY_SEPARATOR . ($records[$eIdx]['filename'] ?? '');
+                if ($eNama !== '' && $eNama !== 'JAMAAH' && is_file($eFile)) {
                     $msgId = (string)($emailItem['message_id'] ?? '');
                     if ($msgId !== '') {
                         $allIds = $records[$eIdx]['all_message_ids'] ?? [];
@@ -549,7 +661,7 @@ switch ($action) {
 
             $processed = BiovisaProcessor::processIncomingEmail($emailItem, $settings, $jamaah);
             if (($processed['paspor'] ?? 'TANPAPASPOR') === 'TANPAPASPOR') {
-                $badFile = BIOVISA_DIR . DIRECTORY_SEPARATOR . ($processed['filename'] ?? '');
+                $badFile = getBiovisaDir() . DIRECTORY_SEPARATOR . ($processed['filename'] ?? '');
                 if (!empty($processed['filename']) && file_exists($badFile)) {
                     @unlink($badFile);
                 }
@@ -572,6 +684,60 @@ switch ($action) {
                 'success',
                 "Email Enrollment Confirmation diproses -> {$saved['filename']} ({$saved['size_kb']} KB)"
             );
+        }
+        // Perbaiki otomatis record lama yang masih bernama 'JAMAAH' menggunakan body_excerpt yang tersimpan
+        $records = getRecords();
+        foreach ($records as $rIdx => $recItem) {
+            $curNama = strtoupper(trim((string)($recItem['nama'] ?? '')));
+            $curPaspor = strtoupper(trim((string)($recItem['paspor'] ?? '')));
+            if (($curNama === '' || $curNama === 'JAMAAH') && $curPaspor !== '' && $curPaspor !== 'TANPAPASPOR') {
+                $reExtracted = BiovisaProcessor::extractEmailInfo(
+                    (string)($recItem['subject'] ?? ''),
+                    (string)($recItem['body_excerpt'] ?? ''),
+                    '',
+                    $jamaah
+                );
+                $fixedNama = strtoupper(trim((string)($reExtracted['nama'] ?? '')));
+                if ($fixedNama !== '' && $fixedNama !== 'JAMAAH') {
+                    $oldFn = (string)($recItem['filename'] ?? '');
+                    $newFn = BiovisaProcessor::buildFilename($fixedNama, $curPaspor, $settings);
+                    $newPath = getBiovisaDir() . DIRECTORY_SEPARATOR . $newFn;
+                    $gd = BiovisaProcessor::renderEmailConfirmationToGd([
+                        'nama' => $fixedNama,
+                        'paspor' => $curPaspor,
+                        'enrollment_id' => $recItem['enrollment_id'] ?? $reExtracted['enrollment_id'],
+                        'enrollment_time' => $recItem['enrollment_time'] ?? $reExtracted['enrollment_time'],
+                        'body_text' => $recItem['body_excerpt'] ?? ''
+                    ]);
+                    $minKB = floatval($settings['target_min_kb'] ?? 42.0);
+                    $maxKB = min(49.5, floatval($settings['target_max_kb'] ?? 49.5));
+                    $savedJpg = BiovisaProcessor::saveGdAs50KbJpg($gd, $newPath, $minKB, $maxKB, !empty($settings['strict_50kb_padding']));
+                    imagedestroy($gd);
+
+                    if ($oldFn !== '' && $oldFn !== $newFn) {
+                        $oldPath = getBiovisaDir() . DIRECTORY_SEPARATOR . $oldFn;
+                        if (is_file($oldPath)) {
+                            @unlink($oldPath);
+                        }
+                        foreach (array_keys(getSiskohatDocCategories()) as $cKey) {
+                            if ($cKey === 'biovisa') continue;
+                            $cDir = getDocCategoryDir($cKey);
+                            $oldDocPath = $cDir . DIRECTORY_SEPARATOR . $oldFn;
+                            $newDocPath = $cDir . DIRECTORY_SEPARATOR . $newFn;
+                            if (is_file($oldDocPath) && !is_file($newDocPath)) {
+                                @rename($oldDocPath, $newDocPath);
+                            }
+                        }
+                    }
+
+                    $records[$rIdx]['nama'] = $fixedNama;
+                    $records[$rIdx]['filename'] = $newFn;
+                    $records[$rIdx]['size_bytes'] = $savedJpg['size_bytes'];
+                    $records[$rIdx]['size_kb'] = $savedJpg['size_kb'];
+                    $recordsModified = true;
+                    $newRecords[] = $records[$rIdx];
+                }
+            }
         }
         if ($recordsModified) {
             saveRecords($records);
@@ -775,18 +941,26 @@ switch ($action) {
             jsonResponse(['ok' => false, 'error' => 'ID, Nama, dan Nomor Paspor wajib diisi.'], 400);
         }
 
+        $hintSlug = trim((string)($payload['lembaga'] ?? $payload['lembaga_slug'] ?? ''));
+        bindTenantFromRecordPayload($payload);
+        $located = locateRecordInTenantStores($id, $hintSlug);
+        if (!$located) {
+            jsonResponse(['ok' => false, 'error' => 'Data Biovisa tidak ditemukan di instansi ini.'], 404);
+        }
+        tenantBindPaths($located['slug']);
+
         $settings = getSettings();
         $records = getRecords();
-        $foundIdx = -1;
-
-        foreach ($records as $idx => $r) {
-            if (($r['id'] ?? '') === $id) {
-                $foundIdx = $idx;
-                break;
+        $foundIdx = $located['index'];
+        if ($foundIdx < 0 || $foundIdx >= count($records) || ($records[$foundIdx]['id'] ?? '') !== $id) {
+            foreach ($records as $idx => $r) {
+                if (($r['id'] ?? '') === $id) {
+                    $foundIdx = $idx;
+                    break;
+                }
             }
         }
-
-        if ($foundIdx === -1) {
+        if ($foundIdx < 0 || !isset($records[$foundIdx])) {
             jsonResponse(['ok' => false, 'error' => 'Data Biovisa tidak ditemukan.'], 404);
         }
 
@@ -795,7 +969,7 @@ switch ($action) {
 
         // Render ulang gambar dengan Nama & Nomor Paspor baru
         $newFilename = BiovisaProcessor::buildFilename($newNama, $newPaspor, $settings);
-        $newPath = BIOVISA_DIR . DIRECTORY_SEPARATOR . $newFilename;
+        $newPath = getBiovisaDir() . DIRECTORY_SEPARATOR . $newFilename;
 
         $renderData = [
             'nama' => $newNama,
@@ -809,18 +983,30 @@ switch ($action) {
             'body_text' => $rec['body_excerpt'] ?? ''
         ];
 
-        $gd = BiovisaProcessor::renderEmailConfirmationToGd($renderData);
-        $savedImg = BiovisaProcessor::saveGdAs50KbJpg(
-            $gd,
-            $newPath,
-            floatval($settings['target_min_kb'] ?? 42),
-            floatval($settings['target_max_kb'] ?? 49.5),
-            !empty($settings['strict_50kb_padding'])
-        );
-        imagedestroy($gd);
+        try {
+            $gd = BiovisaProcessor::renderEmailConfirmationToGd($renderData);
+            if ($gd === false || $gd === null) {
+                jsonResponse(['ok' => false, 'error' => 'Gagal merender gambar Biovisa (GD library).'], 500);
+            }
+            $bvLimits = getSiskohatCategoryCompressLimits('biovisa');
+            $savedImg = BiovisaProcessor::saveGdAs50KbJpg(
+                $gd,
+                $newPath,
+                floatval($bvLimits['min_kb']),
+                floatval($bvLimits['max_kb']),
+                !empty($bvLimits['pad_if_under_min'])
+            );
+            imagedestroy($gd);
+        } catch (Throwable $e) {
+            jsonResponse(['ok' => false, 'error' => 'Gagal menyimpan file JPG: ' . $e->getMessage()], 500);
+        }
+
+        if (!is_file($newPath)) {
+            jsonResponse(['ok' => false, 'error' => 'File JPG tidak tersimpan. Periksa izin folder biovisa.'], 500);
+        }
 
         if ($oldFilename !== '' && $oldFilename !== $newFilename) {
-            $oldPath = BIOVISA_DIR . DIRECTORY_SEPARATOR . $oldFilename;
+            $oldPath = getBiovisaDir() . DIRECTORY_SEPARATOR . $oldFilename;
             if (file_exists($oldPath)) {
                 @unlink($oldPath);
             }
@@ -846,7 +1032,9 @@ switch ($action) {
         }
 
         $records[$foundIdx] = $rec;
-        saveRecords($records);
+        if (!saveRecords($records)) {
+            jsonResponse(['ok' => false, 'error' => 'Gagal menulis records.json. Periksa izin folder data.'], 500);
+        }
         addSyncLog('info', "Data diperbarui menjadi {$newFilename} ({$rec['size_kb']} KB)");
 
         jsonResponse([
@@ -861,13 +1049,24 @@ switch ($action) {
         $payload = json_decode($rawInput, true) ?: $_POST;
         $id = $payload['id'] ?? '';
         $ids = $payload['ids'] ?? ($id !== '' ? [$id] : []);
+        $hintSlug = trim((string)($payload['lembaga'] ?? $payload['lembaga_slug'] ?? ''));
+
+        if ($id !== '' && count($ids) === 1) {
+            bindTenantFromRecordPayload($payload);
+            $located = locateRecordInTenantStores($id, $hintSlug);
+            if ($located) {
+                tenantBindPaths($located['slug']);
+            }
+        } else {
+            bindTenantFromRecordPayload($payload);
+        }
 
         $records = getRecords();
         $remaining = [];
         $deletedCount = 0;
         foreach ($records as $r) {
             if (in_array(($r['id'] ?? ''), $ids, true)) {
-                $fp = BIOVISA_DIR . DIRECTORY_SEPARATOR . ($r['filename'] ?? '');
+                $fp = getBiovisaDir() . DIRECTORY_SEPARATOR . ($r['filename'] ?? '');
                 if (file_exists($fp)) {
                     @unlink($fp);
                 }
@@ -1000,8 +1199,21 @@ switch ($action) {
         }
 
         $updated = saveSettings($toSave);
+        $lem = Auth::getLembagaBySlug(Auth::tenantSlug());
+        if ($lem) {
+            Auth::saveLembaga(array_merge($lem, [
+                'source_email' => $updated['source_email'] ?? $lem['source_email'] ?? '',
+                'target_gdrive_email' => $updated['target_gdrive_email'] ?? $lem['target_gdrive_email'] ?? '',
+                'gdrive_folder_name' => $updated['gdrive_folder_name'] ?? $lem['gdrive_folder_name'] ?? '',
+                'gas_gdrive_webapp_url' => $updated['gas_gdrive_webapp_url'] ?? $lem['gas_gdrive_webapp_url'] ?? '',
+                'gas_gmail_webapp_url' => $updated['gas_gmail_webapp_url'] ?? $lem['gas_gmail_webapp_url'] ?? '',
+                'source_accounts' => $updated['source_accounts'] ?? $lem['source_accounts'] ?? [],
+            ]));
+        }
         addSyncLog('info', 'Pengaturan sistem & integrasi berhasil disimpan.');
-        triggerBackgroundGitHubPush('Auto-sync daftar akun email pembaca & pengaturan ke GitHub Pages');
+        if (empty(Auth::getSecrets()['block_public_cloud_sync'] ?? false)) {
+            triggerBackgroundGitHubPush('Auto-sync daftar akun email pembaca & pengaturan ke GitHub Pages');
+        }
 
         jsonResponse([
             'ok' => true,
@@ -1032,7 +1244,7 @@ switch ($action) {
         break;
 
     case 'clear_logs':
-        saveJsonFile(LOGS_FILE, []);
+        saveJsonFile(getLogsFile(), []);
         addSyncLog('info', 'Riwayat log aktivitas telah dibersihkan.');
         jsonResponse(['ok' => true, 'message' => 'Log berhasil dibersihkan.']);
         break;
@@ -1113,7 +1325,7 @@ switch ($action) {
         $queue = [];
         foreach ($records as $r) {
             $fn = $r['filename'] ?? '';
-            $fp = BIOVISA_DIR . DIRECTORY_SEPARATOR . $fn;
+            $fp = getBiovisaDir() . DIRECTORY_SEPARATOR . $fn;
             $sevenDocs = getJamaahSevenDocsStatus($r);
             if ($sevenDocs['available_count'] === 0 && ($fn === '' || !file_exists($fp))) {
                 continue;
@@ -1251,7 +1463,7 @@ switch ($action) {
         }
         $catMeta   = $cats[$catKey];
         $targetId  = trim((string)($payload['id'] ?? ''));
-        $targetDir = ($catKey === 'biovisa') ? BIOVISA_DIR : getDocCategoryDir($catKey);
+        $targetDir = ($catKey === 'biovisa') ? getBiovisaDir() : getDocCategoryDir($catKey);
 
         $matchedRec = null;
         foreach ($records as $r) {
@@ -1271,10 +1483,11 @@ switch ($action) {
         }
 
         $scanRes = ScannerBridge::scanFromActiveDriver([
-            'device_id'  => $payload['device_id'] ?? '',
-            'use_dialog' => !empty($payload['use_dialog']),
-            'dpi'        => intval($payload['dpi'] ?? 150),
-            'color_mode' => $payload['color_mode'] ?? 'color'
+            'device_id'   => $payload['device_id'] ?? '',
+            'use_dialog'  => !empty($payload['use_dialog']),
+            'dpi'         => intval($payload['dpi'] ?? 150),
+            'color_mode'  => $payload['color_mode'] ?? 'color',
+            'scan_profile'=> $payload['scan_profile'] ?? 'photo',
         ]);
 
         if (empty($scanRes['ok'])) {
@@ -1301,12 +1514,19 @@ switch ($action) {
         }
 
         $destPath = $targetDir . DIRECTORY_SEPARATOR . $finalFilename;
+        $limits = getSiskohatCategoryCompressLimits($catKey);
+        $catMaxKb = floatval($limits['max_kb']);
         $gd = @imagecreatefromstring($rawBytes);
         if ($gd !== false) {
-            $minKb = floatval($settings['target_min_kb'] ?? 42.0);
-            $maxKb = min(49.5, floatval($settings['target_max_kb'] ?? 49.5));
-            $pad50 = !empty($settings['strict_50kb_padding']);
-            BiovisaProcessor::saveGdAs50KbJpg($gd, $destPath, $minKb, $maxKb, $pad50);
+            $gd = BiovisaProcessor::autoCropScannedDocument($gd);
+            $gd = BiovisaProcessor::refineScannedDocument($gd);
+            BiovisaProcessor::saveGdAs50KbJpg(
+                $gd,
+                $destPath,
+                floatval($limits['min_kb']),
+                $catMaxKb,
+                !empty($limits['pad_if_under_min'])
+            );
             imagedestroy($gd);
         } else {
             file_put_contents($destPath, $rawBytes);
@@ -1342,7 +1562,7 @@ switch ($action) {
             'size_bytes' => strlen($finalBytes),
             'data_url' => 'data:image/jpeg;base64,' . base64_encode($finalBytes),
             'gdrive_synced' => $gdriveSynced,
-            'message' => "Berhasil scan dari [{$scanRes['scanner_name']}] -> {$finalFilename} ({$finalSizeKb} KB <= 50 KB)!"
+            'message' => "Berhasil scan dari [{$scanRes['scanner_name']}] -> {$finalFilename} ({$finalSizeKb} KB <= {$catMaxKb} KB)!"
         ]);
         break;
 
@@ -1357,7 +1577,7 @@ switch ($action) {
         }
         $catMeta = $cats[$catKey];
         $targetId = trim((string)($_POST['id'] ?? ''));
-        $targetDir = ($catKey === 'biovisa') ? BIOVISA_DIR : getDocCategoryDir($catKey);
+        $targetDir = ($catKey === 'biovisa') ? getBiovisaDir() : getDocCategoryDir($catKey);
 
         // Kumpulkan semua file yang diupload (bisa single 'file' atau multi 'files[]')
         $uploadedList = [];
@@ -1423,13 +1643,18 @@ switch ($action) {
 
             $destPath = $targetDir . DIRECTORY_SEPARATOR . $finalFilename;
 
-            // Konversi & kompres otomatis menjadi JPEG <= 50 KB (42 - 49.5 KB) untuk semua 7 kategori dokumen Siskohat
+            $limits = getSiskohatCategoryCompressLimits($catKey);
             $gd = @imagecreatefromstring($rawBytes);
             if ($gd !== false) {
-                $minKb = floatval($settings['target_min_kb'] ?? 42.0);
-                $maxKb = min(49.5, floatval($settings['target_max_kb'] ?? 49.5));
-                $pad50 = !empty($settings['strict_50kb_padding']);
-                BiovisaProcessor::saveGdAs50KbJpg($gd, $destPath, $minKb, $maxKb, $pad50);
+                $gd = BiovisaProcessor::autoCropScannedDocument($gd);
+                $gd = BiovisaProcessor::refineScannedDocument($gd);
+                BiovisaProcessor::saveGdAs50KbJpg(
+                    $gd,
+                    $destPath,
+                    floatval($limits['min_kb']),
+                    floatval($limits['max_kb']),
+                    !empty($limits['pad_if_under_min'])
+                );
                 imagedestroy($gd);
             } else {
                 file_put_contents($destPath, $rawBytes);
@@ -1471,6 +1696,156 @@ switch ($action) {
             'count' => count($savedFiles),
             'saved' => $savedFiles,
             'message' => "Berhasil menyimpan " . count($savedFiles) . " file dokumen pada kategori {$catMeta['label']}!"
+        ]);
+        break;
+
+    case 'crop_jamaah_doc':
+        $rawInput = file_get_contents('php://input');
+        $payload = json_decode($rawInput, true) ?: $_POST;
+
+        $id = trim((string)($payload['id'] ?? ''));
+        $catKey = strtolower(trim((string)($payload['category'] ?? 'biovisa')));
+        $autoOnly = !empty($payload['auto']);
+
+        $settings = getSettings();
+        $cats = getSiskohatDocCategories();
+        if (!isset($cats[$catKey])) {
+            jsonResponse(['ok' => false, 'error' => 'Kategori dokumen tidak valid.'], 400);
+        }
+        $catMeta = $cats[$catKey];
+
+        if ($id === '') {
+            jsonResponse(['ok' => false, 'error' => 'ID jamaah wajib diisi.'], 400);
+        }
+
+        $hintSlug = trim((string)($payload['lembaga'] ?? $payload['lembaga_slug'] ?? ''));
+        bindTenantFromRecordPayload($payload);
+        $located = locateRecordInTenantStores($id, $hintSlug);
+        if (!$located) {
+            jsonResponse(['ok' => false, 'error' => 'Data jamaah tidak ditemukan di instansi ini.'], 404);
+        }
+        $tenantSlug = $located['slug'];
+        tenantBindPaths($tenantSlug);
+        $records = getRecords();
+        $matchedIdx = $located['index'];
+        $matched = $records[$matchedIdx] ?? $located['record'];
+        if (!$matched || ($matched['id'] ?? '') !== $id) {
+            jsonResponse(['ok' => false, 'error' => 'Data jamaah tidak ditemukan.'], 404);
+        }
+
+        $found = findJamaahDocFile(
+            $catKey,
+            (string)($matched['paspor'] ?? ''),
+            (string)($matched['nama'] ?? ''),
+            $catKey === 'biovisa' ? (string)($matched['filename'] ?? '') : '',
+            $tenantSlug
+        );
+        if (!$found || empty($found['path']) || !is_file($found['path'])) {
+            jsonResponse(['ok' => false, 'error' => 'File gambar tidak ditemukan di server.'], 404);
+        }
+
+        $destPath = $found['path'];
+        $limits = getSiskohatCategoryCompressLimits($catKey);
+        $rawBytes = file_get_contents($destPath);
+        if ($rawBytes === false || $rawBytes === '') {
+            jsonResponse(['ok' => false, 'error' => 'Gagal membaca file gambar.'], 400);
+        }
+
+        $gd = @imagecreatefromstring($rawBytes);
+        if ($gd === false) {
+            jsonResponse(['ok' => false, 'error' => 'Format gambar tidak didukung.'], 400);
+        }
+
+        $imgW = imagesx($gd);
+        $imgH = imagesy($gd);
+        $beforeW = $imgW;
+        $beforeH = $imgH;
+
+        if ($autoOnly) {
+            $gd = BiovisaProcessor::autoCropScannedDocument($gd);
+        } else {
+            $x = intval($payload['x'] ?? 0);
+            $y = intval($payload['y'] ?? 0);
+            $cw = intval($payload['width'] ?? 0);
+            $ch = intval($payload['height'] ?? 0);
+            if ($cw < 40 || $ch < 40) {
+                imagedestroy($gd);
+                jsonResponse(['ok' => false, 'error' => 'Area crop terlalu kecil. Pilih area yang lebih besar.'], 400);
+            }
+            $gd = BiovisaProcessor::cropGdRect($gd, $x, $y, $cw, $ch);
+        }
+
+        $afterW = imagesx($gd);
+        $afterH = imagesy($gd);
+        if ($autoOnly && $afterW === $beforeW && $afterH === $beforeH) {
+            imagedestroy($gd);
+            jsonResponse([
+                'ok' => false,
+                'error' => 'Auto-crop tidak mendeteksi tepi dokumen. Gunakan Crop Manual atau perkecil area crop.'
+            ], 400);
+        }
+
+        $gd = BiovisaProcessor::refineScannedDocument($gd);
+        $savedImg = BiovisaProcessor::saveGdAs50KbJpg(
+            $gd,
+            $destPath,
+            floatval($limits['min_kb']),
+            floatval($limits['max_kb']),
+            !empty($limits['pad_if_under_min'])
+        );
+        imagedestroy($gd);
+
+        $finalFilename = basename($destPath);
+        $gdriveSynced = false;
+        if (!empty($settings['auto_upload_gdrive']) && !empty($settings['gas_gdrive_webapp_url']) && is_file($destPath)) {
+            $docRec = [
+                'filename' => $finalFilename,
+                'nama' => $matched['nama'] ?? pathinfo($finalFilename, PATHINFO_FILENAME),
+                'paspor' => $matched['paspor'] ?? '-',
+                'enrollment_id' => $matched['enrollment_id'] ?? $catMeta['label'],
+                'size_kb' => $savedImg['size_kb'],
+                'custom_path' => $destPath,
+                'subfolder' => $catMeta['gdrive_subfolder'] ?? ''
+            ];
+            if ($catKey === 'biovisa') {
+                $matched['size_kb'] = $savedImg['size_kb'];
+                $matched['size_bytes'] = $savedImg['size_bytes'];
+                $gdRes = GDriveSync::uploadFileToDrive($matched, $settings);
+            } else {
+                $gdRes = GDriveSync::uploadCustomDocToDrive($docRec, $settings);
+            }
+            $gdriveSynced = !empty($gdRes['ok']);
+            if ($catKey === 'biovisa' && $gdriveSynced) {
+                $matched['gdrive_uploaded'] = true;
+                $matched['gdrive_file_id'] = $gdRes['file_id'] ?? ($matched['gdrive_file_id'] ?? '');
+                $matched['gdrive_url'] = $gdRes['file_url'] ?? ($matched['gdrive_url'] ?? '');
+                $matched['gdrive_error'] = '';
+            }
+        }
+
+        $updatedRecord = null;
+        if ($catKey === 'biovisa' && $matchedIdx >= 0) {
+            $matched['size_bytes'] = $savedImg['size_bytes'];
+            $matched['size_kb'] = $savedImg['size_kb'];
+            $matched['processed_at'] = date('Y-m-d H:i:s');
+            $records[$matchedIdx] = $matched;
+            saveRecords($records);
+            $updatedRecord = $matched;
+        }
+
+        $modeLabel = $autoOnly ? 'Auto-crop' : 'Crop manual';
+        addSyncLog('success', "{$modeLabel} {$catMeta['short']} {$matched['nama']} -> {$finalFilename} ({$savedImg['size_kb']} KB)");
+        triggerBackgroundGitHubPush("Auto-sync hasil crop dokumen {$catMeta['short']} ({$finalFilename})");
+
+        jsonResponse([
+            'ok' => true,
+            'category' => $catKey,
+            'filename' => $finalFilename,
+            'size_kb' => $savedImg['size_kb'],
+            'size_bytes' => $savedImg['size_bytes'],
+            'gdrive_synced' => $gdriveSynced,
+            'record' => $updatedRecord,
+            'message' => "Berhasil crop & kompres ({$savedImg['size_kb']} KB <= {$limits['max_kb']} KB) untuk {$catMeta['label']}."
         ]);
         break;
 
@@ -1576,7 +1951,7 @@ switch ($action) {
         $rawInput = file_get_contents('php://input');
         $payload = json_decode($rawInput, true) ?: [];
         $payload['time'] = date('Y-m-d H:i:s');
-        saveJsonFile(DATA_DIR . DIRECTORY_SEPARATOR . 'siskohat_dom_debug.json', $payload);
+        saveJsonFile(getDataDir() . DIRECTORY_SEPARATOR . 'siskohat_dom_debug.json', $payload);
         jsonResponse(['ok' => true]);
         break;
 
@@ -1678,10 +2053,10 @@ switch ($action) {
                     [$catPart, $fnPart] = explode(':', $imgKey, 2);
                     $catPart = preg_replace('/[^a-z_]/', '', strtolower($catPart));
                     $fnPart  = basename($fnPart);
-                    $dirPath = ($catPart === 'biovisa') ? BIOVISA_DIR : getDocCategoryDir($catPart);
+                    $dirPath = ($catPart === 'biovisa') ? getBiovisaDir() : getDocCategoryDir($catPart);
                 } else {
                     $fnPart  = basename($imgKey);
-                    $dirPath = BIOVISA_DIR;
+                    $dirPath = getBiovisaDir();
                 }
                 if ($fnPart !== '' && is_dir($dirPath)) {
                     $destFile = $dirPath . DIRECTORY_SEPARATOR . $fnPart;
@@ -1712,7 +2087,7 @@ switch ($action) {
                 if (!isset($localByPaspor[$cp])) {
                     // Jika file JPG belum ada di disk, render otomatis menggunakan template asli SaudiVisaBio <= 50KB
                     $fn = basename((string)($cr['filename'] ?? "{$cr['nama']}_{$cp}.jpg"));
-                    $fp = BIOVISA_DIR . DIRECTORY_SEPARATOR . $fn;
+                    $fp = getBiovisaDir() . DIRECTORY_SEPARATOR . $fn;
                     if (!is_file($fp)) {
                         $gd = BiovisaProcessor::renderEmailConfirmationToGd([
                             'nama' => $cr['nama'] ?? 'JAMAAH',
@@ -1720,7 +2095,8 @@ switch ($action) {
                             'enrollment_id' => $cr['enrollment_id'] ?? '-',
                             'enrollment_time' => $cr['enrollment_time'] ?? date('Y-m-d H:i:s')
                         ]);
-                        BiovisaProcessor::saveGdAs50KbJpg($gd, $fp, 42.0, 49.5, true);
+                        $bvLimits = getSiskohatCategoryCompressLimits('biovisa');
+                        BiovisaProcessor::saveGdAs50KbJpg($gd, $fp, floatval($bvLimits['min_kb']), floatval($bvLimits['max_kb']), !empty($bvLimits['pad_if_under_min']));
                         imagedestroy($gd);
                     }
                     $cr['filename'] = $fn;
@@ -1770,7 +2146,7 @@ switch ($action) {
             writeCloudSyncBundle();
         }
 
-        $bundle = loadJsonFile(DATA_DIR . DIRECTORY_SEPARATOR . 'cloud_sync_bundle.json', []);
+        $bundle = loadJsonFile(getDataDir() . DIRECTORY_SEPARATOR . 'cloud_sync_bundle.json', []);
         jsonResponse([
             'ok' => true,
             'changed' => $changedAnything,
@@ -1778,6 +2154,78 @@ switch ($action) {
         ]);
         break;
 
+    case 'auth_me':
+        $u = Auth::user();
+        $lem = Auth::getLembagaBySlug(Auth::tenantSlug());
+        jsonResponse([
+            'ok' => true,
+            'user' => $u,
+            'lembaga' => $lem,
+            'csrf_token' => Auth::csrfToken(),
+        ]);
+        break;
+
+    case 'list_lembaga':
+        Auth::requireSuperAdmin();
+        jsonResponse(['ok' => true, 'lembaga' => Auth::getLembagaList()]);
+        break;
+
+    case 'save_lembaga':
+        Auth::requireSuperAdmin();
+        $rawInput = file_get_contents('php://input');
+        $payload = json_decode($rawInput, true) ?: $_POST;
+        jsonResponse(Auth::saveLembaga($payload));
+        break;
+
+    case 'list_users':
+        Auth::requireSuperAdmin();
+        $users = loadJsonFile(STORAGE_DIR . DIRECTORY_SEPARATOR . 'data' . DIRECTORY_SEPARATOR . 'auth' . DIRECTORY_SEPARATOR . 'users.json', []);
+        foreach ($users as &$u) {
+            unset($u['password_hash']);
+        }
+        unset($u);
+        jsonResponse(['ok' => true, 'users' => $users, 'lembaga' => Auth::getLembagaList()]);
+        break;
+
+    case 'save_user':
+        Auth::requireSuperAdmin();
+        $rawInput = file_get_contents('php://input');
+        $payload = json_decode($rawInput, true) ?: $_POST;
+        jsonResponse(Auth::saveUser($payload));
+        break;
+
+    case 'switch_lembaga':
+        $rawInput = file_get_contents('php://input');
+        $payload = json_decode($rawInput, true) ?: $_POST;
+        $slug = trim((string)($payload['slug'] ?? ''));
+        if ($slug === '' || !Auth::setActiveLembagaSlug($slug)) {
+            jsonResponse(['ok' => false, 'error' => 'Gagal mengganti lembaga aktif.'], 400);
+        }
+        jsonResponse(['ok' => true, 'slug' => Auth::tenantSlug(), 'lembaga' => Auth::getLembagaBySlug(Auth::tenantSlug())]);
+        break;
+
+    case 'change_my_password':
+        $rawInput = file_get_contents('php://input');
+        $payload = json_decode($rawInput, true) ?: $_POST;
+        jsonResponse(Auth::changeOwnPassword(
+            (string)($payload['current_password'] ?? ''),
+            (string)($payload['new_password'] ?? '')
+        ));
+        break;
+
+    case 'auth_security':
+        Auth::requireSuperAdmin();
+        $sec = Auth::getSecrets();
+        jsonResponse([
+            'ok' => true,
+            'api_token_preview' => substr($sec['api_token'] ?? '', 0, 8) . '…',
+            'webhook_token_preview' => substr($sec['webhook_token'] ?? '', 0, 8) . '…',
+            'block_public_cloud_sync' => !empty($sec['block_public_cloud_sync']),
+        ]);
+        break;
+
     default:
         jsonResponse(['ok' => false, 'error' => 'Action tidak dikenali: ' . $action], 400);
 }
+
+
