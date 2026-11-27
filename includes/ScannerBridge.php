@@ -15,10 +15,25 @@ class ScannerBridge
      */
     public static function listActiveScanners(): array
     {
-        $psScriptPath = TEMP_DIR . DIRECTORY_SEPARATOR . 'list_scanners.ps1';
+        $psScriptPath = getTempDir() . DIRECTORY_SEPARATOR . 'list_scanners.ps1';
         $psCode = <<<'PS1'
 $ErrorActionPreference = 'SilentlyContinue'
 $devices = @()
+
+function Add-ScannerDevice($id, $name, $mfg, $dtype, $status, $src) {
+    if ([string]::IsNullOrWhiteSpace($name)) { return }
+    foreach ($ex in $script:devices) {
+        if ($ex.name -eq $name) { return }
+    }
+    $script:devices += @{
+        id = [string]$id
+        name = [string]$name
+        manufacturer = [string]$mfg
+        driver_type = [string]$dtype
+        status = [string]$status
+        source = [string]$src
+    }
+}
 
 # 1. Baca dari WIA.DeviceManager (Driver Scanner WIA Aktif)
 try {
@@ -29,37 +44,54 @@ try {
         try { $name = [string]$d.Properties('Name').Value } catch {}
         try { $mfg  = [string]$d.Properties('Manufacturer').Value } catch {}
         if ($name -ne '') {
-            $devices += @{
-                id = [string]$d.DeviceID
-                name = $name
-                manufacturer = $mfg
-                driver_type = 'WIA Hardware Scanner'
-                status = 'Aktif (Siap Scan)'
-                source = 'wia'
+            Add-ScannerDevice ([string]$d.DeviceID) $name $mfg 'WIA Hardware Scanner' 'Aktif (Siap Scan)' 'wia'
+        }
+    }
+} catch {}
+
+# 2. Baca dari Windows Registry StillImage / Imaging Class ({6bdd1fc6-810f-11d0-bec7-08002be2092f})
+#    Mendeteksi driver scanner resmi seperti FUJITSU SP-1120N, EPSON L3250, EPSON L3210, EPSON L565, Canon, Brother, HP
+try {
+    $regPath = 'HKLM:\SYSTEM\CurrentControlSet\Control\Class\{6bdd1fc6-810f-11d0-bec7-08002be2092f}'
+    if (Test-Path $regPath) {
+        Get-ChildItem $regPath -ErrorAction SilentlyContinue | ForEach-Object {
+            $p = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue
+            if ($p -and ($p.FriendlyName -or $p.DriverDesc)) {
+                $fName = if ($p.FriendlyName) { [string]$p.FriendlyName } else { [string]$p.DriverDesc }
+                $dDesc = [string]$p.DriverDesc
+                $mfg   = if ($p.ProviderName) { [string]$p.ProviderName } elseif ($p.Manufacturer) { [string]$p.Manufacturer } else { 'Windows Imaging' }
+                $display = if ($fName -and $dDesc -and ($fName -ne $dDesc) -and ($dDesc -notlike '*WSD*')) { "$fName ($dDesc)" } else { $fName }
+                $devId = if ($p.MatchingDeviceId) { [string]$p.MatchingDeviceId } else { "REG_IMG_" + $_.PSChildName }
+                Add-ScannerDevice $devId $display $mfg 'WIA / TWAIN Hardware Scanner Driver' 'Terdaftar & Siap' 'registry_imaging'
             }
         }
     }
 } catch {}
 
-# 2. Baca juga dari WMI / PnP Windows Class 'Image' & 'Scanner' (Driver TWAIN / WIA / MFP Scanner yang aktif)
+# 3. Baca dari C:\Windows\twain_32 (Driver TWAIN Data Source *.ds seperti Epson Scan 2, Fujitsu PaperStream IP)
 try {
-    $pnpList = Get-CimInstance -ClassName Win32_PnPEntity -Filter "Status='OK' AND (PNPClass='Image' OR Service='StillCam' OR Name LIKE '%Scan%' OR Name LIKE '%WIA%' OR Name LIKE '%TWAIN%')"
+    if (Test-Path 'C:\Windows\twain_32') {
+        Get-ChildItem 'C:\Windows\twain_32' -Recurse -Filter '*.ds' -ErrorAction SilentlyContinue | ForEach-Object {
+            if ($_.Name -eq 'wiatwain.ds' -or $_.Name -like '*DiskImport*' -or $_.Name -like '*Reprocess*') { return }
+            $vi = $_.VersionInfo
+            $pName = if ($vi.ProductName) { [string]$vi.ProductName.Trim() } else { '' }
+            $fDesc = if ($vi.FileDescription) { [string]$vi.FileDescription.Trim() } else { '' }
+            $cName = if ($vi.CompanyName) { [string]$vi.CompanyName.Trim() } else { 'TWAIN Driver' }
+            $label = if ($fDesc -and $pName -and ($fDesc -ne $pName)) { "$pName - $fDesc" } elseif ($pName) { "$pName TWAIN Scanner" } elseif ($fDesc) { $fDesc } else { $_.BaseName }
+            if ($label -ne '' -and $label -notlike '*Operating System*') {
+                Add-ScannerDevice ("TWAIN_" + $_.BaseName) $label $cName 'TWAIN Data Source Driver' 'Aktif' 'twain_ds'
+            }
+        }
+    }
+} catch {}
+
+# 4. Baca juga dari WMI / PnP Windows Class 'Image' & 'Scanner'
+try {
+    $pnpList = Get-CimInstance -ClassName Win32_PnPEntity -Filter "Status='OK' AND (PNPClass='Image' OR Service='StillCam' OR Name LIKE '%Scan%' OR Name LIKE '%WIA%' OR Name LIKE '%TWAIN%' OR Name LIKE '%EPSON%' OR Name LIKE '%FUJITSU%')"
     foreach ($p in $pnpList) {
         $pName = [string]$p.Name
-        if ($pName -eq '') { continue }
-        $already = $false
-        foreach ($ex in $devices) {
-            if ($ex.name -eq $pName) { $already = $true; break }
-        }
-        if (-not $already) {
-            $devices += @{
-                id = [string]$p.DeviceID
-                name = $pName
-                manufacturer = [string]$p.Manufacturer
-                driver_type = 'Windows Imaging / TWAIN Driver'
-                status = 'Aktif (Terhubung)'
-                source = 'pnp'
-            }
+        if ($pName -ne '') {
+            Add-ScannerDevice ([string]$p.DeviceID) $pName ([string]$p.Manufacturer) 'Windows Imaging / TWAIN Driver' 'Aktif (Terhubung)' 'pnp'
         }
     }
 } catch {}

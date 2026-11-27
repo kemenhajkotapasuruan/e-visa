@@ -313,6 +313,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return;
       }
 
+      if (msg.type === 'LOCAL_SCANNER_BRIDGE') {
+        const sAct = msg.scannerAction || 'list_scanners';
+        if (sAct === 'scan_jamaah_doc') {
+          const scanData = await tryFetchLocalApi(
+            `${cfg.apiUrl}?action=scan_jamaah_doc`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(msg.payload || {})
+            },
+            60000
+          );
+          sendResponse({ ok: !!(scanData && scanData.ok), data: scanData });
+          return;
+        }
+        const listData = await tryFetchLocalApi(`${cfg.apiUrl}?action=list_scanners&_t=${Date.now()}`, {}, 3500);
+        sendResponse({ ok: !!(listData && listData.ok), data: listData });
+        return;
+      }
+
       sendResponse({ ok: false, error: 'Unknown message type' });
     } catch (err) {
       sendResponse({

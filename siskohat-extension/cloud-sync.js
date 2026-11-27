@@ -37,6 +37,37 @@
     } catch (e) {}
   }
 
+  // Tandai bahwa jembatan ekstensi aktif di halaman GitHub Pages
+  try {
+    const s = document.createElement('script');
+    s.textContent = 'window.__silahutExtBridgeActive = true;';
+    (document.head || document.documentElement).appendChild(s);
+    s.remove();
+  } catch (e) {}
+
+  // Jembatan komunikasi Hardware Scanner WIA/TWAIN (GitHub Pages HTTPS <-> Ekstensi <-> Laragon Localhost)
+  window.addEventListener('message', ev => {
+    if (!ev || !ev.data || ev.data.type !== 'SILAHUT_EXT_SCANNER_REQ') return;
+    const { reqId, scannerAction, payload } = ev.data;
+    chrome.runtime.sendMessage(
+      {
+        type: 'LOCAL_SCANNER_BRIDGE',
+        scannerAction: scannerAction || 'list_scanners',
+        payload: payload || {}
+      },
+      res => {
+        window.postMessage(
+          {
+            type: 'SILAHUT_EXT_SCANNER_RES',
+            reqId: reqId,
+            data: (res && res.data) ? res.data : null
+          },
+          '*'
+        );
+      }
+    );
+  });
+
   // Terima kiriman gambar dokumen baru langsung dari halaman GitHub Pages (kebal batas 5MB localStorage)
   window.addEventListener('message', ev => {
     if (!ev || !ev.data || ev.data.type !== 'SILAHUT_CLOUD_IMAGE_UPDATE') return;

@@ -19,6 +19,10 @@ $b64LogoText = 'data:image/png;base64,' . base64_encode(file_get_contents('c:/la
 $b64Success  = 'data:image/png;base64,' . base64_encode(file_get_contents('c:/laragon/www/e-visa/assets/success.png'));
 
 require_once 'c:/laragon/www/e-visa/config.php';
+require_once 'c:/laragon/www/e-visa/includes/ScannerBridge.php';
+
+$buildScannersRes = ScannerBridge::listActiveScanners();
+$initialScannersJson = json_encode($buildScannersRes['devices'] ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
 $bundleData = writeCloudSyncBundle();
 $rawRecordsArr = $bundleData['records'];
@@ -79,6 +83,7 @@ $clientEngineJs = <<<JS
     const INITIAL_JAMAAH   = $initialJamaah;
     const INITIAL_LOGS     = $initialLogs;
     const INITIAL_TENANTS  = $initialTenantsJson;
+    const INITIAL_SCANNERS = $initialScannersJson;
 
     const ASSET_ICON = "$b64LogoIcon";
     const ASSET_TEXT = "$b64LogoText";
@@ -1356,26 +1361,64 @@ $clientEngineJs = <<<JS
 
         if (action === 'list_scanners') {
             let devices = [];
-            // 1. Hubungi jembatan WIA/TWAIN Scanner Windows lokal di komputer tersebut (http://localhost/e-visa/api.php)
+            const pushUniqueDevice = (dev) => {
+                if (!dev || !dev.name) return;
+                if (!devices.some(x => x.name === dev.name)) {
+                    devices.push(dev);
+                }
+            };
+
+            // 1. Coba jembatan Ekstensi Chrome SILAHUT (bebas blokir Mixed Content HTTPS -> HTTP localhost)
+            try {
+                const extData = await new Promise(resolve => {
+                    const reqId = 'sc_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+                    const timer = setTimeout(() => {
+                        window.removeEventListener('message', onMsg);
+                        resolve(null);
+                    }, 1800);
+                    function onMsg(ev) {
+                        if (ev && ev.data && ev.data.type === 'SILAHUT_EXT_SCANNER_RES' && ev.data.reqId === reqId) {
+                            clearTimeout(timer);
+                            window.removeEventListener('message', onMsg);
+                            resolve(ev.data.data || null);
+                        }
+                    }
+                    window.addEventListener('message', onMsg);
+                    window.postMessage({ type: 'SILAHUT_EXT_SCANNER_REQ', reqId, scannerAction: 'list_scanners' }, '*');
+                });
+                if (extData && Array.isArray(extData.devices)) {
+                    extData.devices.forEach(pushUniqueDevice);
+                }
+            } catch (e) {}
+
+            // 2. Hubungi langsung jembatan WIA/TWAIN Scanner Windows lokal (http://localhost/e-visa/api.php)
             try {
                 const ctrl = new AbortController();
-                const tId = setTimeout(() => ctrl.abort(), 3500);
-                const locRes = await origFetch('http://localhost/e-visa/api.php?action=list_scanners&_t=' + Date.now(), { signal: ctrl.signal });
+                const tId = setTimeout(() => ctrl.abort(), 2500);
+                const locRes = await origFetch('http://localhost/e-visa/api.php?action=list_scanners&_t=' + Date.now(), {
+                    credentials: 'include',
+                    signal: ctrl.signal
+                });
                 clearTimeout(tId);
                 if (locRes.ok) {
                     const locJson = await locRes.json();
                     if (locJson && Array.isArray(locJson.devices)) {
-                        devices = devices.concat(locJson.devices);
+                        locJson.devices.forEach(pushUniqueDevice);
                     }
                 }
             } catch (e) {}
 
-            // 2. Cek juga perangkat USB Document Scanner / Kamera Dokumen di browser komputer tersebut
+            // 3. Sertakan daftar driver WIA / TWAIN / Registry Imaging perangkat keras yang terdeteksi pada komputer
+            if (Array.isArray(INITIAL_SCANNERS)) {
+                INITIAL_SCANNERS.forEach(pushUniqueDevice);
+            }
+
+            // 4. Cek juga perangkat USB Document Scanner / Kamera Dokumen di browser komputer tersebut
             try {
                 if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
                     const mDevs = await navigator.mediaDevices.enumerateDevices();
                     mDevs.filter(d => d.kind === 'videoinput').forEach((vd, idx) => {
-                        devices.push({
+                        pushUniqueDevice({
                             id: '__UVC_SCANNER__:' + (vd.deviceId || idx),
                             name: vd.label || ('Scanner Kamera / USB Imaging #' + (idx + 1)),
                             manufacturer: 'USB Video / Document Scanner',
@@ -1461,14 +1504,44 @@ $clientEngineJs = <<<JS
                 }
             }
 
-            // B. Panggil Driver Scanner WIA/TWAIN Windows pada komputer tersebut melalui jembatan localhost
+            // B. Panggil Driver Scanner WIA/TWAIN Windows pada komputer tersebut melalui jembatan Ekstensi Chrome atau localhost
             try {
-                const locRes = await origFetch('http://localhost/e-visa/api.php?action=scan_jamaah_doc', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(bodyData)
+                let locData = await new Promise(resolve => {
+                    const reqId = 'scan_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+                    const timer = setTimeout(() => {
+                        window.removeEventListener('message', onMsg);
+                        resolve(null);
+                    }, 45000);
+                    function onMsg(ev) {
+                        if (ev && ev.data && ev.data.type === 'SILAHUT_EXT_SCANNER_RES' && ev.data.reqId === reqId) {
+                            clearTimeout(timer);
+                            window.removeEventListener('message', onMsg);
+                            resolve(ev.data.data || null);
+                        }
+                    }
+                    window.addEventListener('message', onMsg);
+                    setTimeout(() => {
+                        // Jika dalam 1.5 detik ekstensi belum merespons ack, fallback ke fetch langsung
+                    }, 1500);
+                    window.postMessage({ type: 'SILAHUT_EXT_SCANNER_REQ', reqId, scannerAction: 'scan_jamaah_doc', payload: bodyData }, '*');
+                    setTimeout(() => {
+                        if (!window.__silahutExtBridgeActive) {
+                            clearTimeout(timer);
+                            window.removeEventListener('message', onMsg);
+                            resolve(null);
+                        }
+                    }, 1200);
                 });
-                const locData = await locRes.json();
+
+                if (!locData) {
+                    const locRes = await origFetch('http://localhost/e-visa/api.php?action=scan_jamaah_doc', {
+                        method: 'POST',
+                        credentials: 'include',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(bodyData)
+                    });
+                    locData = await locRes.json();
+                }
                 if (!locData || !locData.ok) {
                     return makeJsonRes({
                         ok: false,
